@@ -13,8 +13,12 @@ export async function GET(req: NextRequest) {
   const participantId = req.nextUrl.searchParams.get("participant_id");
   let query = getDb().from("actions").select("*").order("created_at", { ascending: false }).limit(100);
 
-  if (engagementId) query = query.eq("engagement_id", engagementId);
-  if (participantId) query = query.eq("participant_id", participantId);
+  if (actor.role === "client" && actor.participantId) {
+    query = query.eq("participant_id", actor.participantId);
+  } else {
+    if (engagementId) query = query.eq("engagement_id", engagementId);
+    if (participantId) query = query.eq("participant_id", participantId);
+  }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

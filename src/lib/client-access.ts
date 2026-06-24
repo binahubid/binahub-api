@@ -16,8 +16,28 @@ export async function getClientAccess() {
   const db = createServerSupabase();
   const { data, error } = await db
     .from("app_client_access_codes")
-    .select("id, company_name, team_name, code_hash, expires_at, is_active")
+    .select("id, company_name, team_name, code_hash, expires_at, is_active, organization_id, participant_id")
     .eq("id", token)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) return null;
+
+  return data;
+}
+
+export async function getClientAccessBySupabaseUser(userId: string, userMetadata: Record<string, unknown>) {
+  const accessCodeId = (userMetadata.access_code_id as string) ||
+    (userMetadata as Record<string, unknown>).access_code_id as string;
+
+  if (!accessCodeId) return null;
+
+  const db = createServerSupabase();
+  const { data, error } = await db
+    .from("app_client_access_codes")
+    .select("id, company_name, team_name, code_hash, expires_at, is_active, organization_id, participant_id")
+    .eq("id", accessCodeId)
     .eq("is_active", true)
     .maybeSingle();
 

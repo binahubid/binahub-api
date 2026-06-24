@@ -12,7 +12,12 @@ export async function GET(req: NextRequest) {
   const organizationId = req.nextUrl.searchParams.get("organization_id");
   const db = getDb();
   let query = db.from("engagements").select("*").order("created_at", { ascending: false }).limit(100);
-  if (organizationId) query = query.eq("organization_id", organizationId);
+
+  if (actor.role === "client" && actor.organizationId) {
+    query = query.eq("organization_id", actor.organizationId);
+  } else if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
 
   const { data, error } = await query;
   if (error) {

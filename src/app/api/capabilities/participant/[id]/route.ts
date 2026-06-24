@@ -9,6 +9,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   }
 
   const { id } = await context.params;
+
+  if (actor.role === "client" && actor.participantId && actor.participantId !== id) {
+    return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
+  }
+
   const { data, error } = await getDb()
     .from("participant_capabilities")
     .select("*, capability:capabilities(*), evidence:capability_evidence(*, evidence:evidence(*))")

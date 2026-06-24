@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const db = createServerSupabase();
   const { data, error } = await db
     .from("app_client_access_codes")
-    .select("id, company_name, team_name, expires_at, is_active")
+    .select("id, company_name, team_name, expires_at, is_active, organization_id, participant_id")
     .eq("code_hash", hashAccessCode(code))
     .eq("is_active", true)
     .maybeSingle();
@@ -36,16 +36,28 @@ export async function POST(req: NextRequest) {
 
   if (existingUser) {
     userId = existingUser.id;
+    await db.auth.admin.updateUserById(userId, {
+      app_metadata: { role: "client", access_code_id: data.id, organization_id: data.organization_id, participant_id: data.participant_id },
+      user_metadata: {
+        company_name: data.company_name,
+        team_name: data.team_name,
+        access_code_id: data.id,
+        organization_id: data.organization_id,
+        participant_id: data.participant_id,
+      },
+    });
   } else {
     const { data: newUser, error: createError } = await db.auth.admin.createUser({
       email: clientEmail,
       password: clientPassword,
       email_confirm: true,
-      app_metadata: { role: "client", access_code_id: data.id },
+      app_metadata: { role: "client", access_code_id: data.id, organization_id: data.organization_id, participant_id: data.participant_id },
       user_metadata: {
         company_name: data.company_name,
         team_name: data.team_name,
         access_code_id: data.id,
+        organization_id: data.organization_id,
+        participant_id: data.participant_id,
       },
     });
 
@@ -69,6 +81,8 @@ export async function POST(req: NextRequest) {
     client: {
       companyName: data.company_name,
       teamName: data.team_name,
+      organizationId: data.organization_id,
+      participantId: data.participant_id,
     },
     session: {
       access_token: sessionData.session.access_token,

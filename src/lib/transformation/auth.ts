@@ -7,6 +7,9 @@ export type TransformationActor = {
   role: "admin" | "facilitator" | "client" | "worker";
   userId: string | null;
   email: string;
+  organizationId?: string | null;
+  participantId?: string | null;
+  accessCodeId?: string | null;
 };
 
 export async function requireTransformationActor(req: NextRequest): Promise<TransformationActor | { error: string; status: number }> {
@@ -25,6 +28,9 @@ export async function requireTransformationActor(req: NextRequest): Promise<Tran
       role: "client",
       userId: null,
       email: `client-access:${clientAccess.id}`,
+      organizationId: clientAccess.organization_id || null,
+      participantId: clientAccess.participant_id || null,
+      accessCodeId: clientAccess.id,
     };
   }
 
