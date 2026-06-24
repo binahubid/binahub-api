@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clientAccessCookie, hashAccessCode } from "@/lib/client-access";
+import { hashAccessCode } from "@/lib/client-access";
 import { createServerSupabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
@@ -26,22 +26,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Kode akses sudah kedaluwarsa." }, { status: 401 });
   }
 
-  const response = NextResponse.json({
+  const clientEmail = `client-${data.id}@binahub.local`;
+  const clientPassword = `binahub-client-${data.id}`;
+
+  const { data: existingUsers } = await db.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find((u) => u.email === clientEmail);
+
+  let userId: string;
+
+  if (existingUser) {
+    userId = existingUser.id;
+  } else {
+    const { data: newUser, error: createError } = await db.auth.admin.createUser({
+      email: clientEmail,
+      password: clientPassword,
+      email_confirm: true,
+      app_metadata: { role: "client", access_code_id: data.id },
+      user_metadata: {
+        company_name: data.company_name,
+        team_name: data.team_name,
+        access_code_id: data.id,
+      },
+    });
+
+    if (createError || !newUser?.user) {
+      return NextResponse.json({ success: false, error: "Gagal membuat sesi client." }, { status: 500 });
+    }
+    userId = newUser.user.id;
+  }
+
+  const { data: sessionData, error: signInError } = await db.auth.signInWithPassword({
+    email: clientEmail,
+    password: clientPassword,
+  });
+
+  if (signInError || !sessionData?.session) {
+    return NextResponse.json({ success: false, error: "Gagal membuat sesi." }, { status: 500 });
+  }
+
+  return NextResponse.json({
     success: true,
     client: {
       companyName: data.company_name,
       teamName: data.team_name,
     },
+    session: {
+      access_token: sessionData.session.access_token,
+      refresh_token: sessionData.session.refresh_token,
+      expires_at: sessionData.session.expires_at,
+    },
   });
-
-  response.cookies.set(clientAccessCookie, data.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 12,
-  });
-
-  return response;
 }
 
