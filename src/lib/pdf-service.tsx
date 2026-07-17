@@ -1,16 +1,19 @@
 ﻿import React from 'react';
+import path from 'path';
 import { Document, Page, Text, View, StyleSheet, Font, Svg, Polygon, Circle, Image } from '@react-pdf/renderer';
 import { AssessmentData, DIMENSIONS } from './validations';
 import type { Locale } from '@/i18n/config';
 
+const FONT_DIR = path.resolve(process.cwd(), 'public', 'fonts');
+
 Font.register({
   family: 'Inter',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyeMZhrib2Bg-4.ttf', fontWeight: 300 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fMZhrib2Bg-4.ttf', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYMZhrib2Bg-4.ttf', fontWeight: 500 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuDyYMZhrib2Bg-4.ttf', fontWeight: 700 },
+    { src: path.join(FONT_DIR, 'Inter-Light.ttf'), fontWeight: 300 },
+    { src: path.join(FONT_DIR, 'Inter-Regular.ttf'), fontWeight: 400 },
+    { src: path.join(FONT_DIR, 'Inter-Medium.ttf'), fontWeight: 500 },
+    { src: path.join(FONT_DIR, 'Inter-SemiBold.ttf'), fontWeight: 600 },
+    { src: path.join(FONT_DIR, 'Inter-Bold.ttf'), fontWeight: 700 },
   ],
 });
 
@@ -316,7 +319,7 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
   }).map((p) => `${p.x},${p.y}`).join(' ');
 
   const date = new Date().toLocaleDateString(copy.localeDate, { day: 'numeric', month: 'long', year: 'numeric' });
-  const logoSrc = logoPath || 'https://buhanib.vercel.app/full-logo.png';
+  const logoSrc = logoPath || 'https://binahub.id/logo.webp';
   const maturityLevel = getMaturityLevel(scores.overall, copy.maturityLevels);
   const nextMaturityLevel = getNextMaturityLevel(scores.overall, copy.maturityLevels);
   const gapToNext = nextMaturityLevel ? Math.max(0, nextMaturityLevel.min - scores.overall) : 0;
@@ -570,7 +573,7 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
 const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentData; proposal: ProposalResult; logoPath?: string }) => {
   const copy = getPdfCopy('id');
   const date = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const logoSrc = logoPath || 'https://buhanib.vercel.app/full-logo.png';
+  const logoSrc = logoPath || 'https://binahub.id/logo.webp';
   const packages = proposal.packages?.length ? proposal.packages.slice(0, 3) : [
     {
       name: 'Paket A - Essential',
@@ -680,7 +683,7 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
 };
 
 async function getLogoBase64() {
-  let logoBase64 = 'https://buhanib.vercel.app/full-logo.png';
+  let logoBase64 = 'https://binahub.id/logo.webp';
   try {
     const fs = await import('fs');
     const path = await import('path');

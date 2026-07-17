@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Send email
+    let emailFailed = false;
     try {
       const emailIds = await sendAssessmentEmail(body, resultObj, pdfBuffer, assessment.id, body.locale);
       const sentAt = new Date().toISOString();
@@ -158,8 +159,21 @@ export async function POST(req: NextRequest) {
           })
           .eq('id', assessment.id);
       }
+      console.log('[API] Email sent successfully:', emailIds);
     } catch (emailError: unknown) {
+      emailFailed = true;
       console.error('[API Error] Email sending failed:', getErrorMessage(emailError));
+      // Log to email_failures for retry
+      try {
+        await supabase.from('email_failures').insert({
+          target_type: 'assessment',
+          target_id: assessment.id,
+          error: getErrorMessage(emailError),
+          retry_count: 0,
+        });
+      } catch {
+        // Silently fail on error logging
+      }
     }
 
     return NextResponse.json({
@@ -170,6 +184,7 @@ export async function POST(req: NextRequest) {
       category: aiResult.category,
       analysis: aiResult.analysis,
       recommendations: aiResult.recommendations,
+      emailFailed,
     });
   } catch (error: unknown) {
     console.error('[Assessment API Error]', error);

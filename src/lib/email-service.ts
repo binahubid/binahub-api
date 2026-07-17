@@ -253,10 +253,7 @@ export async function sendAssessmentEmail(
     };
   } catch (error) {
     console.error('[Email Error] Failed to send assessment emails:', error);
-    return {
-      clientEmailId: null,
-      adminEmailId: null,
-    };
+    throw error;
   }
 }
 
