@@ -18,6 +18,16 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
 
+  // Debug: check if service role key is loaded
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    console.error("[T-BOS Dashboard] SUPABASE_SERVICE_ROLE_KEY is not set!");
+    return NextResponse.json(
+      { success: false, error: "Server configuration error: missing service role key." },
+      { status: 500 }
+    );
+  }
+
   // Fetch all teams
   const { data: teams, error: teamsError } = await db
     .from("tbos_teams")
@@ -26,7 +36,8 @@ export async function GET(req: NextRequest) {
     .order("name", { ascending: true });
 
   if (teamsError) {
-    return NextResponse.json({ success: false, error: teamsError.message }, { status: 500 });
+    console.error("[T-BOS Dashboard] teams query error:", JSON.stringify(teamsError));
+    return NextResponse.json({ success: false, error: teamsError.message, code: teamsError.code, hint: teamsError.hint }, { status: 500 });
   }
 
   // Fetch all observations with scores
