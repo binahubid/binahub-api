@@ -3,6 +3,33 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-08-07
+
+### Added
+- Menambahkan `GET /api/auth/role`: mengembalikan role dari `profiles` table + URL redirect yang sesuai (peserta → `/peserta/dashboard`, facilitator → `/fasilitator/tbos`, admin → `/admin/dashboard`).
+- Menambahkan `POST /api/admin/users/role`: admin mengubah role user di `profiles` table + force-logout via `supabase.auth.admin.signOut(userId, "global")` yang menginvalidate semua session user tsb.
+
+## [0.3.0] - 2026-08-07
+
+### Added — T-BOS API Routes
+- Menambahkan `GET /api/tbos/missions`: mengembalikan missions ditugaskan ke fasilitator beserta dimensions dan levels.
+- Menambahkan `POST /api/tbos/observations`: submit observasi baru dengan validasi facilitator↔mission mapping dan mission↔dimension mapping. Admin diblokir dari submit (hanya fasilitator).
+- Menambahkan `GET /api/tbos/observations`: list observasi dengan filter teamId/missionId. Fasilitator hanya lihat observasi sendiri, admin lihat semua. Response include `lockedAt`, `revisionDeadline`, `canEdit` flag.
+- Menambahkan `GET /api/tbos/observations/[id]`: detail observasi + audit log timeline (actor, action, previous_status, new_status, changes, timestamp).
+- Menambahkan `PATCH /api/tbos/observations/[id]`: tiga aksi — `lock` (admin only, set status=locked), `unlock` (admin only, kembalikan ke submitted), `edit` (fasilitator/admin, dalam revision window, update scores + notes).
+- Menambahkan `GET /api/tbos/dashboard`: data dashboard untuk admin — semua teams, observations (submitted/locked), dimensions, missions, mission-dimension mapping.
+- Menambahkan `GET /api/tbos/teams` + `POST`: manajemen tim (admin only).
+- Menambahkan `GET /api/tbos/export?format=csv`: export CSV raw observation data (team, mission, batch, facilitator, dimension, level, notes) dengan UTF-8 BOM untuk Excel compatibility.
+- Menambahkan audit log: setiap aksi (create, edit, lock, unlock) tercatat di `tbos_observation_audit_log` dengan actor, role, action, previous/new status, dan changes (JSONB).
+
+### Changed
+- Mengubah `requireFacilitator` usage di POST observations: admin sekarang diblokir dari submit observasi (sesuai ROLES-PERMISSIONS.md §3 permission matrix).
+
+### Fixed
+- Memperbaiki typo "Exemplatory" → "Exemplary" pada CSV export level label.
+- Memperbaiki audit log: entri "submit" yang misleading (mencatat previous_status="draft" padahal observasi langsung insert sebagai "submitted") dihapus.
+- Memperbaiki revision window trigger: sekarang fire pada INSERT (bukan hanya UPDATE draft→submitted).
+
 ## [0.2.0] - 2026-06-24
 
 ### Added
