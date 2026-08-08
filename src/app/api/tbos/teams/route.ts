@@ -38,7 +38,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, teams: data || [] });
+  // Transform: rename Supabase relation `tbos_team_members` → `members` to match frontend TbosDbTeam interface
+  const teams = (data || []).map((t: any) => ({
+    id: t.id,
+    name: t.name,
+    batch: t.batch,
+    organization_id: t.organization_id,
+    created_at: t.created_at,
+    members: t.tbos_team_members || [],
+  }));
+
+  return NextResponse.json({ success: true, teams });
 }
 
 export async function POST(req: NextRequest) {
