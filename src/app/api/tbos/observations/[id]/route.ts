@@ -80,11 +80,72 @@ export async function GET(
     .eq("observation_id", id)
     .order("created_at", { ascending: false });
 
+  // Fetch mission dimensions with levels for edit mode
+  const { data: missionDims } = await db
+    .from("tbos_mission_dimensions")
+    .select(`
+      dimension_id,
+      tbos_behavioral_dimensions (id, code, name, question, order_index)
+    `)
+    .eq("mission_id", (observation as any).mission_id);
+
+  const dimensions = await Promise.all(
+    (missionDims || []).map(async (md: any) => {
+      const dim = md.tbos_behavioral_dimensions;
+      if (!dim) return null;
+      const { data: levels } = await db
+        .from("tbos_dimension_levels")
+        .select("level_value, level_label, description")
+        .eq("dimension_id", dim.id)
+        .order("level_value", { ascending: true });
+      return { ...dim, levels: levels || [] };
+    })
+  );
+
+  const obs = observation as any;
+  const isAdmin = auth.role === "admin";
+  const canEdit =
+    obs.status === "submitted" &&
+    (isAdmin || !obs.revision_deadline || new Date(obs.revision_deadline).getTime() > Date.now());
+
   return NextResponse.json({
     success: true,
     observation: {
-      ...observation,
-      auditLog: auditLog || [],
+      id: obs.id,
+      teamId: obs.team_id,
+      teamName: obs.tbos_teams?.name || "-",
+      missionId: obs.mission_id,
+      missionCode: obs.tbos_missions?.code || "",
+      missionName: obs.tbos_missions?.name || "-",
+      profileId: obs.profile_id,
+      facilitatorName: obs.profiles?.full_name || "-",
+      batch: obs.batch,
+      observedAt: obs.observed_at,
+      submittedAt: obs.submitted_at,
+      status: obs.status,
+      notes: obs.notes,
+      lockedAt: obs.locked_at,
+      lockedBy: obs.locked_by,
+      revisionDeadline: obs.revision_deadline,
+      canEdit,
+      scores: (obs.tbos_observation_scores || []).map((s: any) => ({
+        dimensionId: s.dimension_id,
+        dimensionCode: s.tbos_behavioral_dimensions?.code || "",
+        dimensionName: s.tbos_behavioral_dimensions?.name || "",
+        levelValue: s.level_value,
+      })),
+      dimensions: dimensions.filter(Boolean),
+      auditLog: (auditLog || []).map((al: any) => ({
+        id: al.id,
+        actorId: al.actor_id,
+        actorRole: al.actor_role,
+        actorName: al.profiles?.full_name || "System",
+        action: al.action,
+        previousStatus: al.previous_status,
+        newStatus: al.new_status,
+        changes: al.changes,
+        createdAt: al.created_at,
+      })),
     },
   });
 }

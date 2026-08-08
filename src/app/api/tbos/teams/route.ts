@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { requireFacilitator } from "@/lib/facilitator-auth";
 
 const teamSchema = z.object({
   name: z.string().min(1).max(50),
@@ -10,7 +11,7 @@ const teamSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin(req);
+  const auth = await requireFacilitator(req);
   if ("error" in auth) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }

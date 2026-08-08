@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
   }
 
-  // Force logout: invalidate all sessions for this user
+  // Sync role to app_metadata BEFORE force logout, so new JWT has correct role
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseAdmin = createClient(
@@ -47,6 +47,11 @@ export async function POST(req: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      app_metadata: { role },
+    });
+
+    // Force logout: invalidate all sessions for this user
     await supabaseAdmin.auth.admin.signOut(userId, "global");
   } catch (err) {
     console.error("[API] Force logout failed:", err);
