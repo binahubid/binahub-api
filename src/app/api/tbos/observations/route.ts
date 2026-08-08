@@ -22,14 +22,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  // Only facilitators can submit observations (not admins)
-  if (auth.role === "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin tidak dapat menginput observasi. Hanya fasilitator." },
-      { status: 403 }
-    );
-  }
-
   const body = await req.json();
   const parsed = observationSchema.safeParse(body);
   if (!parsed.success) {
@@ -41,37 +33,6 @@ export async function POST(req: NextRequest) {
 
   const { teamId, missionId, batch, notes, scores } = parsed.data;
   const db = createServerSupabase();
-
-  // Verify facilitator is assigned to this mission
-  const { data: fmCheck, error: fmError } = await db
-    .from("tbos_facilitator_missions")
-    .select("profile_id")
-    .eq("profile_id", auth.userId)
-    .eq("mission_id", missionId)
-    .single();
-
-  if (fmError || !fmCheck) {
-    return NextResponse.json(
-      { success: false, error: "Anda tidak ditugaskan untuk mission ini." },
-      { status: 403 }
-    );
-  }
-
-  // Verify mission-dimension mapping (only allowed dimensions can be scored)
-  const { data: allowedDims } = await db
-    .from("tbos_mission_dimensions")
-    .select("dimension_id")
-    .eq("mission_id", missionId);
-
-  const allowedDimIds = new Set((allowedDims || []).map((d: any) => d.dimension_id));
-  for (const score of scores) {
-    if (!allowedDimIds.has(score.dimensionId)) {
-      return NextResponse.json(
-        { success: false, error: `Dimensi ${score.dimensionId} tidak relevan untuk mission ini.` },
-        { status: 400 }
-      );
-    }
-  }
 
   // Insert observation
   const { data: observation, error: obsError } = await db
