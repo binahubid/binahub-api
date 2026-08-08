@@ -49,6 +49,15 @@ export async function GET(
         dimension_id,
         level_value,
         tbos_behavioral_dimensions (id, code, name)
+      ),
+      tbos_observation_members (
+        id,
+        team_member_id,
+        member_name,
+        is_present,
+        is_captain,
+        created_at,
+        updated_at
       )
     `)
     .eq("id", id)
@@ -128,6 +137,15 @@ export async function GET(
       lockedBy: obs.locked_by,
       revisionDeadline: obs.revision_deadline,
       canEdit,
+      members: (obs.tbos_observation_members || []).map((member: any) => ({
+        id: member.id,
+        teamMemberId: member.team_member_id,
+        memberName: member.member_name,
+        isPresent: member.is_present,
+        isCaptain: member.is_captain,
+        createdAt: member.created_at,
+        updatedAt: member.updated_at,
+      })),
       scores: (obs.tbos_observation_scores || []).map((s: any) => ({
         dimensionId: s.dimension_id,
         dimensionCode: s.tbos_behavioral_dimensions?.code || "",

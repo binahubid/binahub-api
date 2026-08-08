@@ -2,18 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 
+interface TeamRecord {
+  id: string;
+  name: string;
+  batch: string;
+  organization_id: string | null;
+}
+
+interface ObservationRecord {
+  id: string;
+  team_id: string;
+  mission_id: string;
+  profile_id: string;
+  batch: string;
+  observed_at: string;
+  submitted_at: string;
+  status: string;
+  notes: string | null;
+  tbos_missions: { code: string; name: string } | null;
+  profiles: { full_name: string | null } | null;
+  tbos_observation_scores: Array<{
+    dimension_id: string;
+    level_value: number;
+    tbos_behavioral_dimensions: { code: string; name: string } | null;
+  }>;
+}
+
+interface MissionDimensionRecord {
+  tbos_missions: { code: string } | null;
+  tbos_behavioral_dimensions: { code: string } | null;
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireFacilitator(req);
   if ("error" in auth) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
-  }
-
-  // Only admins can see full dashboard
-  if (auth.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Akses dashboard hanya untuk admin." },
-      { status: 403 }
-    );
   }
 
   const db = createServerSupabase();
@@ -28,20 +51,79 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Fetch all teams
-  const { data: teams, error: teamsError } = await db
-    .from("tbos_teams")
-    .select("id, name, batch")
-    .order("batch", { ascending: true })
-    .order("name", { ascending: true });
+  let teams: TeamRecord[] = [];
+  let assignedTeamCount = 0;
+  let organizationCount = 0;
 
-  if (teamsError) {
-    console.error("[T-BOS Dashboard] teams query error:", JSON.stringify(teamsError));
-    return NextResponse.json({ success: false, error: teamsError.message, code: teamsError.code, hint: teamsError.hint }, { status: 500 });
+  if (auth.role === "admin") {
+    const { data, error } = await db
+      .from("tbos_teams")
+      .select("id, name, batch, organization_id")
+      .order("batch", { ascending: true })
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("[T-BOS Dashboard] teams query error:", JSON.stringify(error));
+      return NextResponse.json({ success: false, error: error.message, code: error.code, hint: error.hint }, { status: 500 });
+    }
+
+    teams = (data || []) as TeamRecord[];
+  } else {
+    const { data: assignments, error: assignmentError } = await db
+      .from("tbos_facilitator_teams")
+      .select("team_id")
+      .eq("profile_id", auth.userId);
+
+    if (assignmentError) {
+      console.error("[T-BOS Dashboard] assignment query error:", assignmentError);
+      return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
+    }
+
+    const assignedTeamIds = [...new Set((assignments || []).map((assignment) => assignment.team_id))];
+    assignedTeamCount = assignedTeamIds.length;
+
+    if (assignedTeamIds.length > 0) {
+      const { data: assignedTeams, error: assignedTeamsError } = await db
+        .from("tbos_teams")
+        .select("id, name, batch, organization_id")
+        .in("id", assignedTeamIds);
+
+      if (assignedTeamsError) {
+        console.error("[T-BOS Dashboard] assigned teams query error:", assignedTeamsError);
+        return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
+      }
+
+      const assignedTeamRows = (assignedTeams || []) as TeamRecord[];
+      const organizationIds = [...new Set(
+        assignedTeamRows
+          .map((team) => team.organization_id)
+          .filter((organizationId): organizationId is string => Boolean(organizationId))
+      )];
+      organizationCount = organizationIds.length;
+
+      let organizationTeams: TeamRecord[] = [];
+      if (organizationIds.length > 0) {
+        const { data, error } = await db
+          .from("tbos_teams")
+          .select("id, name, batch, organization_id")
+          .in("organization_id", organizationIds);
+
+        if (error) {
+          console.error("[T-BOS Dashboard] organization teams query error:", error);
+          return NextResponse.json({ success: false, error: "Gagal memuat cakupan organisasi." }, { status: 500 });
+        }
+        organizationTeams = (data || []) as TeamRecord[];
+      }
+
+      teams = [...new Map(
+        [...assignedTeamRows, ...organizationTeams].map((team) => [team.id, team])
+      ).values()].sort((left, right) =>
+        left.batch.localeCompare(right.batch) || left.name.localeCompare(right.name)
+      );
+    }
   }
 
-  // Fetch all observations with scores
-  const { data: observations, error: obsError } = await db
+  let observationsQuery = db
     .from("tbos_observations")
     .select(`
       id,
@@ -53,11 +135,14 @@ export async function GET(req: NextRequest) {
       submitted_at,
       status,
       notes,
-      tbos_missions (
-        code,
-        name
-      ),
-      tbos_observation_scores (
+       tbos_missions (
+         code,
+         name
+       ),
+       profiles (
+         full_name
+       ),
+       tbos_observation_scores (
         dimension_id,
         level_value,
         tbos_behavioral_dimensions (
@@ -66,35 +151,71 @@ export async function GET(req: NextRequest) {
         )
       )
     `)
-    .in("status", ["submitted", "locked"])
+    .in("status", ["submitted", "locked"]);
+
+  if (auth.role !== "admin") {
+    const scopedTeamIds = teams.map((team) => team.id);
+    if (scopedTeamIds.length === 0) {
+      observationsQuery = observationsQuery.eq("profile_id", auth.userId).limit(0);
+    } else {
+      observationsQuery = observationsQuery.in("team_id", scopedTeamIds);
+    }
+  }
+
+  const { data: observationRows, error: obsError } = await observationsQuery
     .order("submitted_at", { ascending: false });
 
   if (obsError) {
     return NextResponse.json({ success: false, error: obsError.message }, { status: 500 });
   }
 
-  // Transform observations to match frontend types
-  const transformedObservations = (observations || []).map((obs: any) => ({
-    id: obs.id,
-    teamId: obs.team_id,
-    teamName: teams?.find((t: any) => t.id === obs.team_id)?.name || "-",
-    missionId: obs.mission_id,
-    missionCode: obs.tbos_missions?.code || "",
-    missionName: obs.tbos_missions?.name || "-",
-    profileId: obs.profile_id,
-    facilitatorName: "",
-    batch: obs.batch,
-    observedAt: obs.observed_at,
-    submittedAt: obs.submitted_at,
-    status: obs.status,
-    notes: obs.notes,
-    scores: (obs.tbos_observation_scores || []).map((s: any) => ({
-      dimensionCode: s.tbos_behavioral_dimensions?.code || "",
-      dimensionName: s.tbos_behavioral_dimensions?.name || "",
-      levelValue: s.level_value,
-      levelLabel: ["", "Reactive", "Emerging", "Functional", "Effective", "Exemplary"][s.level_value] || "",
-    })),
-  }));
+  const observations = (observationRows || []) as unknown as ObservationRecord[];
+  const teamsById = new Map(teams.map((team) => [team.id, team]));
+  const transformedObservations = observations.map((observation) => {
+    const common = {
+      id: observation.id,
+      teamId: observation.team_id,
+      teamName: teamsById.get(observation.team_id)?.name || "-",
+      missionId: observation.mission_id,
+      missionCode: observation.tbos_missions?.code || "",
+      missionName: observation.tbos_missions?.name || "-",
+      batch: observation.batch,
+      observedAt: observation.observed_at,
+      submittedAt: observation.submitted_at,
+      status: observation.status,
+      scores: (observation.tbos_observation_scores || []).map((score) => ({
+        dimensionCode: score.tbos_behavioral_dimensions?.code || "",
+        dimensionName: score.tbos_behavioral_dimensions?.name || "",
+        levelValue: score.level_value,
+        levelLabel: ["", "Reactive", "Emerging", "Functional", "Effective", "Exemplary"][score.level_value] || "",
+      })),
+    };
+
+    return auth.role === "admin"
+      ? {
+          ...common,
+          profileId: observation.profile_id,
+          facilitatorName: observation.profiles?.full_name || "-",
+          notes: observation.notes,
+        }
+      : common;
+  });
+
+  const ownObservations = observations.filter((observation) => observation.profile_id === auth.userId);
+  const ownScores = ownObservations.flatMap((observation) =>
+    observation.tbos_observation_scores.map((score) => score.level_value)
+  );
+  const viewerStats = {
+    role: auth.role,
+    assignedTeamCount: auth.role === "admin" ? null : assignedTeamCount,
+    organizationCount: auth.role === "admin" ? null : organizationCount,
+    scopedTeamCount: teams.length,
+    ownObservationCount: ownObservations.length,
+    ownTeamsObserved: new Set(ownObservations.map((observation) => observation.team_id)).size,
+    ownAverageScore: ownScores.length > 0
+      ? Math.round((ownScores.reduce((sum, score) => sum + score, 0) / ownScores.length) * 10) / 10
+      : null,
+  };
 
   // Fetch all dimensions for reference
   const { data: dimensions } = await db
@@ -118,9 +239,9 @@ export async function GET(req: NextRequest) {
     `);
 
   const missionDimensionMap: Record<string, string[]> = {};
-  for (const md of missionDims || []) {
-    const mCode = (md as any).tbos_missions?.code;
-    const dCode = (md as any).tbos_behavioral_dimensions?.code;
+  for (const mapping of (missionDims || []) as unknown as MissionDimensionRecord[]) {
+    const mCode = mapping.tbos_missions?.code;
+    const dCode = mapping.tbos_behavioral_dimensions?.code;
     if (mCode && dCode) {
       if (!missionDimensionMap[mCode]) missionDimensionMap[mCode] = [];
       missionDimensionMap[mCode].push(dCode);
@@ -129,11 +250,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    teams: teams || [],
+    teams: teams.map(({ id, name, batch }) => ({ id, name, batch })),
     observations: transformedObservations,
     dimensions: dimensions || [],
     missions: missions || [],
     missionDimensionMap,
+    viewerStats,
     generatedAt: new Date().toISOString(),
   });
 }

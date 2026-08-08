@@ -16,15 +16,12 @@ export async function requireFacilitator(req: NextRequest) {
 
   const email = normalizeEmail(auth.user.email);
   const role = getUserRole(auth.user);
+  const isAdmin = role === "admin" || isAdminFallbackEmail(email);
+  const isFacilitator = role === "facilitator" || isFacilitatorFallbackEmail(email);
 
-  if (
-    role !== "facilitator" &&
-    role !== "admin" &&
-    !isFacilitatorFallbackEmail(email) &&
-    !isAdminFallbackEmail(email)
-  ) {
+  if (!isAdmin && !isFacilitator) {
     return { error: "Akses fasilitator tidak valid", status: 403 as const };
   }
 
-  return { email, userId: auth.user.id, role: role || "facilitator" };
+  return { email, userId: auth.user.id, role: isAdmin ? "admin" as const : "facilitator" as const };
 }

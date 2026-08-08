@@ -15,6 +15,19 @@ const observationSchema = z.object({
       levelValue: z.number().int().min(1).max(5),
     })
   ).min(1),
+  members: z.array(z.object({
+    teamMemberId: z.string().uuid().nullable().optional(),
+    memberName: z.string().trim().min(1).max(200),
+    isPresent: z.boolean(),
+    isCaptain: z.boolean(),
+  })).min(1),
+}).superRefine(({ members }, ctx) => {
+  if (!members.some((member) => member.isPresent)) {
+    ctx.addIssue({ code: "custom", path: ["members"], message: "Minimal satu anggota harus hadir." });
+  }
+  if (members.filter((member) => member.isPresent && member.isCaptain).length !== 1 || members.filter((member) => member.isCaptain).length !== 1) {
+    ctx.addIssue({ code: "custom", path: ["members"], message: "Harus ada tepat satu kapten yang hadir." });
+  }
 });
 
 export async function POST(req: NextRequest) {
@@ -32,7 +45,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { teamId, missionId, clientSubmissionId, notes, scores } = parsed.data;
+  const { teamId, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
   const db = createServerSupabase();
 
   const [{ data: team }, { data: assignment }, { data: missionDimensions }] = await Promise.all([
@@ -66,6 +79,7 @@ export async function POST(req: NextRequest) {
     p_client_submission_id: clientSubmissionId,
     p_notes: notes || null,
     p_scores: scores,
+    p_members: members,
     p_is_admin: auth.role === "admin",
   });
 
@@ -120,6 +134,15 @@ export async function GET(req: NextRequest) {
           code,
           name
         )
+      ),
+      tbos_observation_members (
+        id,
+        team_member_id,
+        member_name,
+        is_present,
+        is_captain,
+        created_at,
+        updated_at
       )
     `)
     .order("submitted_at", { ascending: false });
@@ -160,6 +183,15 @@ export async function GET(req: NextRequest) {
     lockedBy: obs.locked_by,
     revisionDeadline: obs.revision_deadline,
     canEdit: obs.status === "submitted" && (!obs.revision_deadline || new Date(obs.revision_deadline).getTime() > Date.now()),
+    members: (obs.tbos_observation_members || []).map((member: any) => ({
+      id: member.id,
+      teamMemberId: member.team_member_id,
+      memberName: member.member_name,
+      isPresent: member.is_present,
+      isCaptain: member.is_captain,
+      createdAt: member.created_at,
+      updatedAt: member.updated_at,
+    })),
     scores: (obs.tbos_observation_scores || []).map((s: any) => ({
       dimensionId: s.dimension_id,
       dimensionCode: s.tbos_behavioral_dimensions?.code || "",
