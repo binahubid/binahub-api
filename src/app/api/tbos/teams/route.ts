@@ -23,60 +23,96 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
 
-  // For facilitators: only return teams they are assigned to
-  // For admins: return all teams
-  let query = db
-    .from("tbos_teams")
-    .select(`
-      id,
-      name,
-      batch,
-      organization_id,
-      created_at,
-      tbos_team_members (
-        id,
-        profile_id,
-        member_name,
-        is_captain
-      )
-    `)
-    .order("batch", { ascending: true })
-    .order("name", { ascending: true });
+  let assignedTeamIds: string[] | null = null;
 
   // If facilitator (not admin), filter by assigned teams
   if (auth.role === "facilitator") {
-    const { data: assignedTeams } = await db
+    const { data: assignedTeams, error: assignmentError } = await db
       .from("tbos_facilitator_teams")
       .select("team_id")
       .eq("profile_id", auth.userId);
 
-    const assignedTeamIds = (assignedTeams || []).map((team) => team.team_id);
+    if (assignmentError) {
+      console.error("[T-BOS Teams] Assignment query failed:", assignmentError);
+      return NextResponse.json(
+        { success: false, error: "Gagal memuat penugasan tim.", detail: assignmentError.message },
+        { status: 500 }
+      );
+    }
 
-    if (assignedTeamIds.length > 0) {
-      query = query.in("id", assignedTeamIds);
-    } else {
-      // No teams assigned - return empty
+    assignedTeamIds = (assignedTeams || []).map((team) => team.team_id);
+
+    if (assignedTeamIds.length === 0) {
       return NextResponse.json({ success: true, teams: [] });
     }
   }
 
-  const { data, error } = await query;
+  // Keep team and member queries separate. This prevents a stale PostgREST
+  // relationship cache from making the whole team list unavailable.
+  let teamsQuery = db
+    .from("tbos_teams")
+    .select("id, name, batch, organization_id, created_at")
+    .order("batch", { ascending: true })
+    .order("name", { ascending: true });
 
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  if (assignedTeamIds) {
+    teamsQuery = teamsQuery.in("id", assignedTeamIds);
   }
 
-  // Transform: rename Supabase relation `tbos_team_members` → `members` to match frontend TbosDbTeam interface
-  const teams = (data || []).map((team) => ({
+  const { data: teamRows, error: teamsError } = await teamsQuery;
+
+  if (teamsError) {
+    console.error("[T-BOS Teams] Team query failed:", teamsError);
+    return NextResponse.json(
+      { success: false, error: "Gagal memuat data tim.", detail: teamsError.message },
+      { status: 500 }
+    );
+  }
+
+  const teamIds = (teamRows || []).map((team) => team.id);
+  const membersByTeam = new Map<string, Array<{
+    id: string;
+    profile_id: string | null;
+    member_name: string;
+    is_captain: boolean;
+  }>>();
+  let warning: string | undefined;
+
+  if (teamIds.length > 0) {
+    const { data: memberRows, error: membersError } = await db
+      .from("tbos_team_members")
+      .select("id, team_id, profile_id, member_name, is_captain")
+      .in("team_id", teamIds)
+      .order("is_captain", { ascending: false })
+      .order("member_name", { ascending: true });
+
+    if (membersError) {
+      console.error("[T-BOS Teams] Member query failed:", membersError);
+      warning = `Daftar tim dimuat, tetapi anggota belum tersedia: ${membersError.message}`;
+    } else {
+      for (const member of memberRows || []) {
+        const current = membersByTeam.get(member.team_id) || [];
+        current.push({
+          id: member.id,
+          profile_id: member.profile_id,
+          member_name: member.member_name,
+          is_captain: member.is_captain,
+        });
+        membersByTeam.set(member.team_id, current);
+      }
+    }
+  }
+
+  const teams = (teamRows || []).map((team) => ({
     id: team.id,
     name: team.name,
     batch: team.batch,
     organization_id: team.organization_id,
     created_at: team.created_at,
-    members: team.tbos_team_members || [],
+    members: membersByTeam.get(team.id) || [],
   }));
 
-  return NextResponse.json({ success: true, teams });
+  return NextResponse.json({ success: true, teams, warning });
 }
 
 export async function POST(req: NextRequest) {
