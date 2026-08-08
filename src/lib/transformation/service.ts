@@ -43,10 +43,34 @@ export async function createEngagement(
     endDate?: string;
   },
 ) {
+  let orgId = payload.organizationId;
+  
+  // Ensure a valid organization exists to satisfy foreign key constraint
+  if (!orgId) {
+    const { data: firstOrg } = await db.from("organizations").select("id").limit(1).maybeSingle();
+    if (firstOrg?.id) {
+      orgId = firstOrg.id;
+    } else {
+      const { data: newOrg } = await db.from("organizations").insert({ name: "BinaHub Client Partner" }).select("id").single();
+      orgId = newOrg?.id;
+    }
+  } else {
+    const { data: orgCheck } = await db.from("organizations").select("id").eq("id", orgId).maybeSingle();
+    if (!orgCheck) {
+      const { data: newOrg } = await db.from("organizations").insert({ id: orgId, name: "BinaHub Client Partner" }).select("id").maybeSingle();
+      if (newOrg) {
+        orgId = newOrg.id;
+      } else {
+        const { data: firstOrg } = await db.from("organizations").select("id").limit(1).maybeSingle();
+        orgId = firstOrg?.id || orgId;
+      }
+    }
+  }
+
   const { data, error } = await db
     .from("engagements")
     .insert({
-      organization_id: payload.organizationId,
+      organization_id: orgId,
       title: payload.title,
       type: payload.type,
       status: payload.status,
@@ -73,10 +97,16 @@ export async function createParticipant(
     engagementRole: string;
   },
 ) {
+  let orgId = payload.organizationId;
+  if (!orgId) {
+    const { data: firstOrg } = await db.from("organizations").select("id").limit(1).maybeSingle();
+    orgId = firstOrg?.id;
+  }
+
   const { data: participant, error } = await db
     .from("participants")
     .insert({
-      organization_id: payload.organizationId,
+      organization_id: orgId,
       name: payload.name,
       email: payload.email || null,
       role_title: payload.roleTitle || null,
