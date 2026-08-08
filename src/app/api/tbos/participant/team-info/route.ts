@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { getUserFromBearer } from "@/lib/auth-role";
+import { calculateTbosTeamScore } from "@/lib/tbos-scoring";
+
+interface TeamRecord {
+  id: string;
+  name: string;
+  batch: string;
+  organization_id: string | null;
+}
+
+interface MissionDimensionRecord {
+  tbos_missions: { code: string } | null;
+  tbos_behavioral_dimensions: { code: string } | null;
+}
+
+interface ObservationRecord {
+  id: string;
+  team_id: string;
+  mission_id: string;
+  batch: string;
+  status: string;
+  tbos_missions: { code: string; name: string } | null;
+  tbos_observation_scores: Array<{
+    level_value: number;
+    tbos_behavioral_dimensions: { code: string; name: string } | null;
+  }>;
+}
 
 /**
  * GET /api/tbos/participant/team-info
@@ -8,7 +34,7 @@ import { getUserFromBearer } from "@/lib/auth-role";
  * - Team name & batch
  * - Missions completed count
  * - Overall score, strongest/weakest dimensions
- * - Rank among all teams
+ * - Rank among scored teams in the participant team's organization
  *
  * No admin role required — any authenticated user can access their own team data.
  */
@@ -29,7 +55,8 @@ export async function GET(req: NextRequest) {
       tbos_teams (
         id,
         name,
-        batch
+        batch,
+        organization_id
       )
     `)
     .eq("profile_id", userId)
@@ -44,18 +71,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, teamInfo: null });
   }
 
-  const team = membership.tbos_teams as any;
+  const team = membership.tbos_teams as unknown as TeamRecord;
   const teamId = team.id;
   const teamName = team.name;
   const batch = team.batch;
+  const organizationId = team.organization_id;
 
-  // 2. Fetch all teams for ranking
-  const { data: allTeams } = await db
+  // 2. Fetch the participant's organization cohort for ranking
+  let teamsQuery = db
     .from("tbos_teams")
-    .select("id, name, batch");
+    .select("id");
+  teamsQuery = organizationId
+    ? teamsQuery.eq("organization_id", organizationId)
+    : teamsQuery.is("organization_id", null);
+
+  const { data: cohortTeams, error: teamsError } = await teamsQuery;
+  if (teamsError) {
+    return NextResponse.json({ success: false, error: teamsError.message }, { status: 500 });
+  }
 
   // 3. Fetch all observations (submitted/locked) for scoring
-  const { data: allObservations } = await db
+  const cohortTeamIds = (cohortTeams || []).map((cohortTeam) => cohortTeam.id);
+  const { data: allObservations, error: observationsError } = await db
     .from("tbos_observations")
     .select(`
       id,
@@ -70,9 +107,34 @@ export async function GET(req: NextRequest) {
         tbos_behavioral_dimensions (code, name)
       )
     `)
-    .in("status", ["submitted", "locked"]);
+    .in("status", ["submitted", "locked"])
+    .in("team_id", cohortTeamIds);
 
-  const observations = (allObservations || []).map((obs: any) => ({
+  if (observationsError) {
+    return NextResponse.json({ success: false, error: observationsError.message }, { status: 500 });
+  }
+
+  const { data: missionDimensions, error: missionDimensionsError } = await db
+    .from("tbos_mission_dimensions")
+    .select(`
+      tbos_missions (code),
+      tbos_behavioral_dimensions (code)
+    `);
+
+  if (missionDimensionsError) {
+    return NextResponse.json({ success: false, error: missionDimensionsError.message }, { status: 500 });
+  }
+
+  const missionDimensionMap: Record<string, string[]> = {};
+  for (const mapping of (missionDimensions || []) as unknown as MissionDimensionRecord[]) {
+    const missionCode = mapping.tbos_missions?.code;
+    const dimensionCode = mapping.tbos_behavioral_dimensions?.code;
+    if (!missionCode || !dimensionCode) continue;
+    if (!missionDimensionMap[missionCode]) missionDimensionMap[missionCode] = [];
+    missionDimensionMap[missionCode].push(dimensionCode);
+  }
+
+  const observations = ((allObservations || []) as unknown as ObservationRecord[]).map((obs) => ({
     id: obs.id,
     teamId: obs.team_id,
     missionId: obs.mission_id,
@@ -80,80 +142,39 @@ export async function GET(req: NextRequest) {
     missionName: obs.tbos_missions?.name || "",
     batch: obs.batch,
     status: obs.status,
-    scores: (obs.tbos_observation_scores || []).map((s: any) => ({
+    scores: (obs.tbos_observation_scores || []).map((s) => ({
       dimensionCode: s.tbos_behavioral_dimensions?.code || "",
       dimensionName: s.tbos_behavioral_dimensions?.name || "",
       levelValue: s.level_value,
     })),
   }));
 
-  // 4. Calculate team's own observations
-  const teamObservations = observations.filter((o: any) => o.teamId === teamId);
+  // 4. Calculate the participant team's canonical scores
+  const teamObservations = observations.filter((observation) => observation.teamId === teamId);
 
   // Count unique missions
-  const missionsCompleted = new Set(teamObservations.map((o: any) => o.missionId)).size;
+  const missionsCompleted = new Set(teamObservations.map((observation) => observation.missionId)).size;
 
-  // Calculate dimension averages for this team
-  const dimScores = new Map<string, { total: number; count: number; name: string }>();
-  for (const obs of teamObservations) {
-    for (const score of obs.scores) {
-      const existing = dimScores.get(score.dimensionCode) || { total: 0, count: 0, name: score.dimensionName };
-      existing.total += score.levelValue;
-      existing.count += 1;
-      dimScores.set(score.dimensionCode, existing);
-    }
-  }
+  const teamScore = calculateTbosTeamScore(teamId, observations, missionDimensionMap);
+  const sortedDimensions = [...teamScore.dimensionScores].sort((a, b) => b.score - a.score);
+  const overallScore = teamScore.overallScore;
+  const strongestDimension = sortedDimensions[0]?.dimensionName || null;
+  const weakestDimension = sortedDimensions[sortedDimensions.length - 1]?.dimensionName || null;
 
-  // Overall score = average of all dimension averages
-  let overallScore: number | null = null;
-  let strongestDimension: string | null = null;
-  let weakestDimension: string | null = null;
-
-  if (dimScores.size > 0) {
-    const dimAverages: { code: string; name: string; avg: number }[] = [];
-    for (const [code, data] of dimScores) {
-      dimAverages.push({ code, name: data.name, avg: data.total / data.count });
-    }
-
-    const totalAvg = dimAverages.reduce((a, b) => a + b.avg, 0) / dimAverages.length;
-    overallScore = Math.round(totalAvg * 10) / 10;
-
-    const sorted = [...dimAverages].sort((a, b) => b.avg - a.avg);
-    strongestDimension = sorted[0]?.name || null;
-    weakestDimension = sorted[sorted.length - 1]?.name || null;
-  }
-
-  // 5. Calculate rank — compute overallTeamScore for ALL teams, then sort
+  // 5. Rank only against scored teams in the same organization.
   let rank: number | null = null;
-  if (allTeams && allTeams.length > 0 && overallScore !== null) {
-    const teamScores: { teamId: string; score: number }[] = [];
+  const scoredCohort = (cohortTeams || [])
+    .map((cohortTeam) => ({
+      teamId: cohortTeam.id,
+      score: calculateTbosTeamScore(cohortTeam.id, observations, missionDimensionMap).overallScore,
+    }))
+    .filter((entry): entry is { teamId: string; score: number } => entry.score !== null);
+  const rankCohortSize = scoredCohort.length;
 
-    for (const t of allTeams) {
-      const tObs = observations.filter((o: any) => o.teamId === t.id);
-      const tDimScores = new Map<string, { total: number; count: number }>();
-
-      for (const obs of tObs) {
-        for (const score of obs.scores) {
-          const existing = tDimScores.get(score.dimensionCode) || { total: 0, count: 0 };
-          existing.total += score.levelValue;
-          existing.count += 1;
-          tDimScores.set(score.dimensionCode, existing);
-        }
-      }
-
-      if (tDimScores.size > 0) {
-        const avgs: number[] = [];
-        for (const [, data] of tDimScores) {
-          avgs.push(data.total / data.count);
-        }
-        const teamAvg = avgs.reduce((a, b) => a + b, 0) / avgs.length;
-        teamScores.push({ teamId: t.id, score: Math.round(teamAvg * 10) / 10 });
-      }
-    }
-
-    teamScores.sort((a, b) => b.score - a.score);
-    const rankIndex = teamScores.findIndex((t) => t.teamId === teamId);
-    rank = rankIndex !== -1 ? rankIndex + 1 : null;
+  if (overallScore !== null) {
+    scoredCohort.sort((a, b) => b.score - a.score);
+    const rankIndex = scoredCohort.findIndex((entry) => entry.teamId === teamId);
+    rank = rankIndex === -1 ? null : rankIndex + 1;
   }
 
   return NextResponse.json({
@@ -166,6 +187,7 @@ export async function GET(req: NextRequest) {
       strongestDimension,
       weakestDimension,
       rank,
+      rankCohortSize,
     },
   });
 }

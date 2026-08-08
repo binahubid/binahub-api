@@ -171,167 +171,19 @@ export async function PATCH(
   }
 
   const db = createServerSupabase();
+  const { error } = await db.rpc("tbos_mutate_observation", {
+    p_observation_id: id,
+    p_actor_id: auth.userId,
+    p_actor_role: auth.role === "admin" ? "admin" : "facilitator",
+    p_action: parsed.data.action,
+    p_notes: parsed.data.notes ?? null,
+    p_scores: parsed.data.scores ?? null,
+  });
 
-  // Fetch current observation
-  const { data: observation, error: fetchError } = await db
-    .from("tbos_observations")
-    .select("id, profile_id, status, revision_deadline, mission_id")
-    .eq("id", id)
-    .single();
-
-  if (fetchError || !observation) {
-    return NextResponse.json({ success: false, error: "Observasi tidak ditemukan." }, { status: 404 });
+  if (error) {
+    const status = error.code === "42501" ? 403 : error.code === "23503" ? 404 : error.code === "23505" || error.code === "55000" ? 409 : error.code === "22023" ? 400 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 
-  const obs = observation as any;
-  const isAdmin = auth.role === "admin";
-  const isOwner = obs.profile_id === auth.userId;
-
-  // --- LOCK ---
-  if (parsed.data.action === "lock") {
-    if (!isAdmin) {
-      return NextResponse.json(
-        { success: false, error: "Hanya admin yang bisa mengunci observasi." },
-        { status: 403 }
-      );
-    }
-
-    if (obs.status === "locked") {
-      return NextResponse.json({ success: false, error: "Observasi sudah terkunci." }, { status: 409 });
-    }
-
-    const { error: updateError } = await db
-      .from("tbos_observations")
-      .update({
-        status: "locked",
-        locked_at: new Date().toISOString(),
-        locked_by: auth.userId,
-      })
-      .eq("id", id);
-
-    if (updateError) {
-      return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
-    }
-
-    await db.from("tbos_observation_audit_log").insert({
-      observation_id: id,
-      actor_id: auth.userId,
-      actor_role: "admin",
-      action: "lock",
-      previous_status: obs.status,
-      new_status: "locked",
-    });
-
-    return NextResponse.json({ success: true });
-  }
-
-  // --- UNLOCK ---
-  if (parsed.data.action === "unlock") {
-    if (!isAdmin) {
-      return NextResponse.json(
-        { success: false, error: "Hanya admin yang bisa membuka kunci observasi." },
-        { status: 403 }
-      );
-    }
-
-    if (obs.status !== "locked") {
-      return NextResponse.json({ success: false, error: "Observasi tidak terkunci." }, { status: 409 });
-    }
-
-    const { error: updateError } = await db
-      .from("tbos_observations")
-      .update({
-        status: "submitted",
-        locked_at: null,
-        locked_by: null,
-      })
-      .eq("id", id);
-
-    if (updateError) {
-      return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
-    }
-
-    await db.from("tbos_observation_audit_log").insert({
-      observation_id: id,
-      actor_id: auth.userId,
-      actor_role: "admin",
-      action: "unlock",
-      previous_status: "locked",
-      new_status: "submitted",
-    });
-
-    return NextResponse.json({ success: true });
-  }
-
-  // --- EDIT ---
-  if (parsed.data.action === "edit") {
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json(
-        { success: false, error: "Anda tidak bisa mengedit observasi ini." },
-        { status: 403 }
-      );
-    }
-
-    if (obs.status === "locked") {
-      return NextResponse.json(
-        { success: false, error: "Observasi terkunci. Minta admin untuk membuka kunci." },
-        { status: 409 }
-      );
-    }
-
-    // Check revision window for non-admin
-    if (!isAdmin && obs.revision_deadline) {
-      const deadline = new Date(obs.revision_deadline).getTime();
-      if (Date.now() > deadline) {
-        return NextResponse.json(
-          { success: false, error: "Window revisi telah berakhir. Hubungi admin." },
-          { status: 403 }
-        );
-      }
-    }
-
-    const updateData: Record<string, unknown> = {};
-    if (parsed.data.notes !== undefined) {
-      updateData.notes = parsed.data.notes || null;
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      const { error: updateError } = await db
-        .from("tbos_observations")
-        .update(updateData)
-        .eq("id", id);
-
-      if (updateError) {
-        return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
-      }
-    }
-
-    // Update scores if provided
-    if (parsed.data.scores && parsed.data.scores.length > 0) {
-      for (const score of parsed.data.scores) {
-        await db
-          .from("tbos_observation_scores")
-          .update({ level_value: score.levelValue })
-          .eq("observation_id", id)
-          .eq("dimension_id", score.dimensionId);
-      }
-    }
-
-    await db.from("tbos_observation_audit_log").insert({
-      observation_id: id,
-      actor_id: auth.userId,
-      actor_role: isAdmin ? "admin" : "facilitator",
-      action: "edit",
-      previous_status: obs.status,
-      new_status: obs.status,
-      changes: {
-        notes: parsed.data.notes !== undefined ? parsed.data.notes : undefined,
-        scores: parsed.data.scores ? parsed.data.scores.length : 0,
-      },
-    });
-
-    return NextResponse.json({ success: true });
-  }
-
-  return NextResponse.json({ success: false, error: "Aksi tidak dikenal." }, { status: 400 });
+  return NextResponse.json({ success: true });
 }

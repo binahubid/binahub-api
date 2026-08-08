@@ -6,6 +6,7 @@ import { requireFacilitator } from "@/lib/facilitator-auth";
 const observationSchema = z.object({
   teamId: z.string().uuid(),
   missionId: z.string().uuid(),
+  clientSubmissionId: z.string().min(1).max(128),
   batch: z.enum(["Batch 1", "Batch 2"]),
   notes: z.string().max(50).optional().default(""),
   scores: z.array(
@@ -31,56 +32,49 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { teamId, missionId, batch, notes, scores } = parsed.data;
+  const { teamId, missionId, clientSubmissionId, notes, scores } = parsed.data;
   const db = createServerSupabase();
 
-  // Insert observation
-  const { data: observation, error: obsError } = await db
-    .from("tbos_observations")
-    .insert({
-      team_id: teamId,
-      mission_id: missionId,
-      profile_id: auth.userId,
-      batch,
-      status: "submitted",
-      notes: notes || null,
-    })
-    .select()
-    .single();
-
-  if (obsError) {
-    return NextResponse.json({ success: false, error: obsError.message }, { status: 500 });
-  }
-
-  // Insert observation scores
-  const scoreRows = scores.map((s) => ({
-    observation_id: observation.id,
-    dimension_id: s.dimensionId,
-    level_value: s.levelValue,
-  }));
-
-  const { error: scoresError } = await db
-    .from("tbos_observation_scores")
-    .insert(scoreRows);
-
-  if (scoresError) {
-    // Rollback observation
-    await db.from("tbos_observations").delete().eq("id", observation.id);
-    return NextResponse.json({ success: false, error: scoresError.message }, { status: 500 });
-  }
-
-  // Audit log: create + submit
-  await db.from("tbos_observation_audit_log").insert([
-    {
-      observation_id: observation.id,
-      actor_id: auth.userId,
-      actor_role: "facilitator",
-      action: "create",
-      new_status: "submitted",
-    },
+  const [{ data: team }, { data: assignment }, { data: missionDimensions }] = await Promise.all([
+    db.from("tbos_teams").select("id, batch").eq("id", teamId).maybeSingle(),
+    db.from("tbos_facilitator_teams").select("team_id").eq("profile_id", auth.userId).eq("team_id", teamId).maybeSingle(),
+    db.from("tbos_mission_dimensions").select("dimension_id").eq("mission_id", missionId),
   ]);
 
-  return NextResponse.json({ success: true, observationId: observation.id });
+  if (!team) {
+    return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
+  }
+  if (auth.role !== "admin" && !assignment) {
+    return NextResponse.json({ success: false, error: "Anda tidak ditugaskan ke tim ini." }, { status: 403 });
+  }
+
+  const requiredDimensionIds = new Set((missionDimensions || []).map((row: any) => row.dimension_id));
+  const submittedDimensionIds = scores.map((score) => score.dimensionId);
+  if (
+    requiredDimensionIds.size === 0 ||
+    submittedDimensionIds.length !== requiredDimensionIds.size ||
+    new Set(submittedDimensionIds).size !== submittedDimensionIds.length ||
+    submittedDimensionIds.some((id) => !requiredDimensionIds.has(id))
+  ) {
+    return NextResponse.json({ success: false, error: "Nilai dimensi tidak sesuai dengan misi yang dipilih." }, { status: 400 });
+  }
+
+  const { data: observationId, error } = await db.rpc("tbos_submit_observation", {
+    p_facilitator_id: auth.userId,
+    p_team_id: teamId,
+    p_mission_id: missionId,
+    p_client_submission_id: clientSubmissionId,
+    p_notes: notes || null,
+    p_scores: scores,
+    p_is_admin: auth.role === "admin",
+  });
+
+  if (error) {
+    const status = error.code === "42501" ? 403 : error.code === "23503" ? 404 : error.code === "22023" ? 400 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
+  }
+
+  return NextResponse.json({ success: true, observationId });
 }
 
 export async function GET(req: NextRequest) {

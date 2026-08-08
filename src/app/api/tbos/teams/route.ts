@@ -34,8 +34,10 @@ export async function GET(req: NextRequest) {
       organization_id,
       created_at,
       tbos_team_members (
+        id,
         profile_id,
-        member_name
+        member_name,
+        is_captain
       )
     `)
     .order("batch", { ascending: true })
@@ -48,7 +50,7 @@ export async function GET(req: NextRequest) {
       .select("team_id")
       .eq("profile_id", auth.userId);
 
-    const assignedTeamIds = (assignedTeams || []).map((t: any) => t.team_id);
+    const assignedTeamIds = (assignedTeams || []).map((team) => team.team_id);
 
     if (assignedTeamIds.length > 0) {
       query = query.in("id", assignedTeamIds);
@@ -65,13 +67,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Transform: rename Supabase relation `tbos_team_members` → `members` to match frontend TbosDbTeam interface
-  const teams = (data || []).map((t: any) => ({
-    id: t.id,
-    name: t.name,
-    batch: t.batch,
-    organization_id: t.organization_id,
-    created_at: t.created_at,
-    members: t.tbos_team_members || [],
+  const teams = (data || []).map((team) => ({
+    id: team.id,
+    name: team.name,
+    batch: team.batch,
+    organization_id: team.organization_id,
+    created_at: team.created_at,
+    members: team.tbos_team_members || [],
   }));
 
   return NextResponse.json({ success: true, teams });
@@ -98,6 +100,18 @@ export async function POST(req: NextRequest) {
 
     const { facilitatorId, teamId } = parsed.data;
     const db = createServerSupabase();
+
+    const [{ data: facilitator }, { data: team }] = await Promise.all([
+      db.from("profiles").select("id, role").eq("id", facilitatorId).maybeSingle(),
+      db.from("tbos_teams").select("id").eq("id", teamId).maybeSingle(),
+    ]);
+
+    if (!facilitator || facilitator.role !== "facilitator") {
+      return NextResponse.json({ success: false, error: "Akun yang dipilih bukan fasilitator." }, { status: 400 });
+    }
+    if (!team) {
+      return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
+    }
 
     const { data, error } = await db
       .from("tbos_facilitator_teams")

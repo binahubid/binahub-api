@@ -23,18 +23,15 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (profile) {
-    role = (profile as any).role || null;
-    fullName = (profile as any).full_name || "";
+    role = profile.role || null;
+    fullName = profile.full_name || "";
   }
 
-  // 2. Fallback: check app_metadata / user_metadata
-  if (!role || role === "peserta" || role === "client") {
+  // 2. Only use trusted app metadata when a profile row does not exist yet.
+  if (!profile) {
     const metadataRole = getUserRole(auth.user);
     if (metadataRole) {
-      // Use metadata role if it's more specific than profiles default
-      if (!role || role === "peserta") {
-        role = metadataRole;
-      }
+      role = metadataRole;
     }
   }
 
@@ -52,8 +49,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Sync role back to profiles if it was different
-  if (profile && (profile as any).role !== role) {
-    await db.from("profiles").update({ role }).eq("id", userId);
+  if (!profile) {
+    await db.from("profiles").upsert({ id: userId, role, full_name: fullName || email });
   }
 
   // Also sync to app_metadata so Supabase Auth has it
