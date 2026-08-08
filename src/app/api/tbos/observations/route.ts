@@ -124,10 +124,7 @@ export async function GET(req: NextRequest) {
         code,
         name
       ),
-      profiles (
-        full_name
-      ),
-      tbos_observation_scores (
+       tbos_observation_scores (
         dimension_id,
         level_value,
         tbos_behavioral_dimensions (
@@ -162,9 +159,21 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error("[T-BOS Observations] query error:", JSON.stringify(error));
+    return NextResponse.json({ success: false, error: error.message, code: error.code, hint: error.hint, detail: error.details }, { status: 500 });
   }
 
+  const profileIds = [...new Set((data || []).map((observation: any) => observation.profile_id))];
+  const { data: profileRows, error: profileError } = profileIds.length > 0
+    ? await db.from("profiles").select("id, full_name").in("id", profileIds)
+    : { data: [], error: null };
+
+  if (profileError) {
+    console.error("[T-BOS Observations] profile query error:", JSON.stringify(profileError));
+    return NextResponse.json({ success: false, error: profileError.message, code: profileError.code, hint: profileError.hint, detail: profileError.details }, { status: 500 });
+  }
+
+  const profilesById = new Map((profileRows || []).map((profile) => [profile.id, profile.full_name]));
   const observations = (data || []).map((obs: any) => ({
     id: obs.id,
     teamId: obs.team_id,
@@ -173,7 +182,7 @@ export async function GET(req: NextRequest) {
     missionCode: obs.tbos_missions?.code || "",
     missionName: obs.tbos_missions?.name || "-",
     profileId: obs.profile_id,
-    facilitatorName: obs.profiles?.full_name || "-",
+    facilitatorName: profilesById.get(obs.profile_id) || "-",
     batch: obs.batch,
     observedAt: obs.observed_at,
     submittedAt: obs.submitted_at,

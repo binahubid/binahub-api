@@ -20,7 +20,6 @@ interface ObservationRecord {
   status: string;
   notes: string | null;
   tbos_missions: { code: string; name: string } | null;
-  profiles: { full_name: string | null } | null;
   tbos_observation_scores: Array<{
     dimension_id: string;
     level_value: number;
@@ -139,10 +138,7 @@ export async function GET(req: NextRequest) {
          code,
          name
        ),
-       profiles (
-         full_name
-       ),
-       tbos_observation_scores (
+        tbos_observation_scores (
         dimension_id,
         level_value,
         tbos_behavioral_dimensions (
@@ -166,11 +162,23 @@ export async function GET(req: NextRequest) {
     .order("submitted_at", { ascending: false });
 
   if (obsError) {
-    return NextResponse.json({ success: false, error: obsError.message }, { status: 500 });
+    console.error("[T-BOS Dashboard] observations query error:", JSON.stringify(obsError));
+    return NextResponse.json({ success: false, error: obsError.message, code: obsError.code, hint: obsError.hint, detail: obsError.details }, { status: 500 });
   }
 
   const observations = (observationRows || []) as unknown as ObservationRecord[];
   const teamsById = new Map(teams.map((team) => [team.id, team]));
+  const profileIds = [...new Set(observations.map((observation) => observation.profile_id))];
+  const { data: profileRows, error: profileError } = profileIds.length > 0
+    ? await db.from("profiles").select("id, full_name").in("id", profileIds)
+    : { data: [], error: null };
+
+  if (profileError) {
+    console.error("[T-BOS Dashboard] profile query error:", JSON.stringify(profileError));
+    return NextResponse.json({ success: false, error: profileError.message, code: profileError.code, hint: profileError.hint, detail: profileError.details }, { status: 500 });
+  }
+
+  const profilesById = new Map((profileRows || []).map((profile) => [profile.id, profile.full_name]));
   const transformedObservations = observations.map((observation) => {
     const common = {
       id: observation.id,
@@ -195,7 +203,7 @@ export async function GET(req: NextRequest) {
       ? {
           ...common,
           profileId: observation.profile_id,
-          facilitatorName: observation.profiles?.full_name || "-",
+           facilitatorName: profilesById.get(observation.profile_id) || "-",
           notes: observation.notes,
         }
       : common;

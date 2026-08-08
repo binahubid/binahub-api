@@ -43,8 +43,7 @@ export async function GET(
       revision_deadline,
       tbos_teams (name),
       tbos_missions (code, name),
-      profiles (full_name),
-      tbos_observation_scores (
+       tbos_observation_scores (
         id,
         dimension_id,
         level_value,
@@ -81,13 +80,27 @@ export async function GET(
       actor_role,
       action,
       previous_status,
-      new_status,
-      changes,
-      created_at,
-      profiles (full_name)
-    `)
-    .eq("observation_id", id)
-    .order("created_at", { ascending: false });
+       new_status,
+       changes,
+       created_at
+     `)
+   .eq("observation_id", id)
+   .order("created_at", { ascending: false });
+
+  const profileIds = [
+    (observation as any).profile_id,
+    ...((auditLog || []) as any[]).map((entry) => entry.actor_id),
+  ].filter((profileId): profileId is string => Boolean(profileId));
+  const { data: profileRows, error: profileError } = profileIds.length > 0
+    ? await db.from("profiles").select("id, full_name").in("id", [...new Set(profileIds)])
+    : { data: [], error: null };
+
+  if (profileError) {
+    console.error("[T-BOS Observation Detail] profile query error:", JSON.stringify(profileError));
+    return NextResponse.json({ success: false, error: profileError.message, code: profileError.code, hint: profileError.hint, detail: profileError.details }, { status: 500 });
+  }
+
+  const profilesById = new Map((profileRows || []).map((profile) => [profile.id, profile.full_name]));
 
   // Fetch mission dimensions with levels for edit mode
   const { data: missionDims } = await db
@@ -127,7 +140,7 @@ export async function GET(
       missionCode: obs.tbos_missions?.code || "",
       missionName: obs.tbos_missions?.name || "-",
       profileId: obs.profile_id,
-      facilitatorName: obs.profiles?.full_name || "-",
+       facilitatorName: profilesById.get(obs.profile_id) || "-",
       batch: obs.batch,
       observedAt: obs.observed_at,
       submittedAt: obs.submitted_at,
@@ -157,7 +170,7 @@ export async function GET(
         id: al.id,
         actorId: al.actor_id,
         actorRole: al.actor_role,
-        actorName: al.profiles?.full_name || "System",
+         actorName: profilesById.get(al.actor_id) || "System",
         action: al.action,
         previousStatus: al.previous_status,
         newStatus: al.new_status,
