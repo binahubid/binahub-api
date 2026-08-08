@@ -13,15 +13,17 @@ export async function GET(req: NextRequest) {
   // Fetch profiles
   const { data: profiles, error: profileErr } = await db
     .from("profiles")
-    .select("id, user_id, full_name, email, role, created_at, role_updated_at")
+    .select("id, full_name, role, created_at, role_updated_at")
     .order("created_at", { ascending: false });
 
   if (profileErr) {
+    console.error("[GET /api/users] profiles error:", profileErr);
     return NextResponse.json({ success: false, error: profileErr.message }, { status: 500 });
   }
 
   // Fetch auth users using Supabase admin
   let authUsersMap: Record<string, any> = {};
+  let allAuthUsers: any[] = [];
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseAdmin = createClient(
@@ -29,28 +31,58 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: authUsers, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
     if (authUsers?.users) {
+      allAuthUsers = authUsers.users;
       for (const u of authUsers.users) {
         authUsersMap[u.id] = u;
       }
+    }
+    if (listErr) {
+      console.warn("[GET /api/users] listUsers error:", listErr);
     }
   } catch (err) {
     console.error("[GET /api/users] Error listing auth users:", err);
   }
 
-  const users = (profiles || []).map((p) => {
-    const authUser = p.user_id ? authUsersMap[p.user_id] : (p.id ? authUsersMap[p.id] : null);
-    return {
-      id: p.id || p.user_id,
-      user_id: p.user_id || p.id,
-      email: p.email || authUser?.email || "Tidak ada email",
-      full_name: p.full_name || authUser?.user_metadata?.full_name || "",
-      role: p.role || authUser?.app_metadata?.role || "peserta",
-      created_at: p.created_at || authUser?.created_at || new Date().toISOString(),
-      last_sign_in_at: authUser?.last_sign_in_at || null,
-    };
-  });
+  // Build unified user list
+  const profileMap: Record<string, any> = {};
+  for (const p of profiles || []) {
+    profileMap[p.id] = p;
+  }
+
+  // Combine auth users with profiles
+  const seenIds = new Set<string>();
+  const users: any[] = [];
+
+  // First, add all auth users
+  for (const authUser of allAuthUsers) {
+    seenIds.add(authUser.id);
+    const p = profileMap[authUser.id];
+    users.push({
+      id: authUser.id,
+      email: authUser.email || "Tidak ada email",
+      full_name: p?.full_name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "",
+      role: p?.role || authUser.app_metadata?.role || authUser.user_metadata?.role || "peserta",
+      created_at: p?.created_at || authUser.created_at || new Date().toISOString(),
+      last_sign_in_at: authUser.last_sign_in_at || null,
+    });
+  }
+
+  // Then add any profiles not in auth users list (if any)
+  for (const p of profiles || []) {
+    if (!seenIds.has(p.id)) {
+      const authUser = authUsersMap[p.id];
+      users.push({
+        id: p.id,
+        email: authUser?.email || "Tidak ada email",
+        full_name: p.full_name || "",
+        role: p.role || "peserta",
+        created_at: p.created_at || new Date().toISOString(),
+        last_sign_in_at: authUser?.last_sign_in_at || null,
+      });
+    }
+  }
 
   return NextResponse.json({ success: true, users });
 }
@@ -62,7 +94,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { email, role } = body;
+  const { email, role, full_name } = body;
   if (!email) {
     return NextResponse.json({ success: false, error: "Email wajib diisi." }, { status: 400 });
   }
@@ -80,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     // Invite user via Supabase Auth
     const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { role: targetRole },
+      data: { role: targetRole, full_name: full_name || email.split("@")[0] },
     });
 
     if (inviteErr) {
@@ -92,8 +124,7 @@ export async function POST(req: NextRequest) {
       const db = createServerSupabase();
       await db.from("profiles").upsert({
         id: inviteData.user.id,
-        user_id: inviteData.user.id,
-        email,
+        full_name: full_name || email.split("@")[0],
         role: targetRole,
         role_updated_at: new Date().toISOString(),
       });
@@ -126,9 +157,10 @@ export async function PATCH(req: NextRequest) {
       role,
       role_updated_at: new Date().toISOString(),
     })
-    .or(`id.eq.${id},user_id.eq.${id}`);
+    .eq("id", id);
 
   if (updateError) {
+    console.error("[PATCH /api/users] Update profile error:", updateError);
     return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
   }
 
@@ -143,6 +175,7 @@ export async function PATCH(req: NextRequest) {
 
     await supabaseAdmin.auth.admin.updateUserById(id, {
       app_metadata: { role },
+      user_metadata: { role },
     });
 
     await supabaseAdmin.auth.admin.signOut(id, "global");
@@ -176,7 +209,7 @@ export async function DELETE(req: NextRequest) {
     await supabaseAdmin.auth.admin.deleteUser(id);
 
     const db = createServerSupabase();
-    await db.from("profiles").delete().or(`id.eq.${id},user_id.eq.${id}`);
+    await db.from("profiles").delete().eq("id", id);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
