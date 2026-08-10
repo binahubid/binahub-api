@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
+  const programId = req.nextUrl.searchParams.get("programId");
   const url = new URL(req.url);
   const teamId = url.searchParams.get("teamId");
   const missionId = url.searchParams.get("missionId");
@@ -154,6 +155,12 @@ export async function GET(req: NextRequest) {
   }
   if (missionId) {
     query = query.eq("mission_id", missionId);
+  }
+  if (programId) {
+    const { data: programTeams, error: programTeamsError } = await db.from("tbos_teams").select("id").eq("engagement_id", programId);
+    if (programTeamsError) return NextResponse.json({ success: false, error: programTeamsError.message }, { status: 500 });
+    const teamIds = (programTeams || []).map((team) => team.id);
+    query = teamIds.length > 0 ? query.in("team_id", teamIds) : query.limit(0);
   }
 
   const { data, error } = await query;

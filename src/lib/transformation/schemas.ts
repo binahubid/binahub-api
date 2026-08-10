@@ -20,6 +20,7 @@ export const actionStatusSchema = z.enum(["todo", "in_progress", "blocked", "don
 
 export const createEngagementSchema = z.object({
   organizationId: uuidSchema,
+  code: z.string().trim().min(1).max(50),
   title: z.string().trim().min(1),
   type: engagementTypeSchema,
   status: engagementStatusSchema.optional().default("draft"),

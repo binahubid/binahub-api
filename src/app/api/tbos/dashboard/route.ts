@@ -7,6 +7,7 @@ interface TeamRecord {
   name: string;
   batch: string;
   organization_id: string | null;
+  engagement_id: string | null;
 }
 
 interface ObservationRecord {
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
+  const programId = req.nextUrl.searchParams.get("programId");
 
   // Debug: check if service role key is loaded
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -57,7 +59,7 @@ export async function GET(req: NextRequest) {
   if (auth.role === "admin") {
     const { data, error } = await db
       .from("tbos_teams")
-      .select("id, name, batch, organization_id")
+      .select("id, name, batch, organization_id, engagement_id")
       .order("batch", { ascending: true })
       .order("name", { ascending: true });
 
@@ -84,7 +86,7 @@ export async function GET(req: NextRequest) {
     if (assignedTeamIds.length > 0) {
       const { data: assignedTeams, error: assignedTeamsError } = await db
         .from("tbos_teams")
-        .select("id, name, batch, organization_id")
+        .select("id, name, batch, organization_id, engagement_id")
         .in("id", assignedTeamIds);
 
       if (assignedTeamsError) {
@@ -104,7 +106,7 @@ export async function GET(req: NextRequest) {
       if (organizationIds.length > 0) {
         const { data, error } = await db
           .from("tbos_teams")
-          .select("id, name, batch, organization_id")
+          .select("id, name, batch, organization_id, engagement_id")
           .in("organization_id", organizationIds);
 
         if (error) {
@@ -120,6 +122,10 @@ export async function GET(req: NextRequest) {
         left.batch.localeCompare(right.batch) || left.name.localeCompare(right.name)
       );
     }
+  }
+
+  if (programId) {
+    teams = teams.filter((team) => team.engagement_id === programId);
   }
 
   let observationsQuery = db
@@ -155,6 +161,13 @@ export async function GET(req: NextRequest) {
       observationsQuery = observationsQuery.eq("profile_id", auth.userId).limit(0);
     } else {
       observationsQuery = observationsQuery.in("team_id", scopedTeamIds);
+    }
+  } else if (programId) {
+    const programTeamIds = teams.map((team) => team.id);
+    if (programTeamIds.length === 0) {
+      observationsQuery = observationsQuery.limit(0);
+    } else {
+      observationsQuery = observationsQuery.in("team_id", programTeamIds);
     }
   }
 
@@ -258,7 +271,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    teams: teams.map(({ id, name, batch }) => ({ id, name, batch })),
+    teams: teams.map(({ id, name, batch, engagement_id }) => ({ id, name, batch, engagementId: engagement_id })),
     observations: transformedObservations,
     dimensions: dimensions || [],
     missions: missions || [],

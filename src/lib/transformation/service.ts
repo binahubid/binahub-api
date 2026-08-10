@@ -36,6 +36,7 @@ export async function createEngagement(
   actor: TransformationActor,
   payload: {
     organizationId: string;
+    code: string;
     title: string;
     type: string;
     status: string;
@@ -71,6 +72,7 @@ export async function createEngagement(
     .from("engagements")
     .insert({
       organization_id: orgId,
+      code: payload.code,
       title: payload.title,
       type: payload.type,
       status: payload.status,

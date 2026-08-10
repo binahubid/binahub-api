@@ -8,6 +8,7 @@ const teamSchema = z.object({
   name: z.string().min(1).max(50),
   batch: z.enum(["Batch 1", "Batch 2"]),
   organizationId: z.string().uuid().optional(),
+  programId: z.string().uuid(),
 });
 
 const assignSchema = z.object({
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
+  const programId = req.nextUrl.searchParams.get("programId");
 
   let assignedTeamIds: string[] | null = null;
 
@@ -51,12 +53,15 @@ export async function GET(req: NextRequest) {
   // relationship cache from making the whole team list unavailable.
   let teamsQuery = db
     .from("tbos_teams")
-    .select("id, name, batch, organization_id, created_at")
+    .select("id, name, batch, organization_id, engagement_id, created_at")
     .order("batch", { ascending: true })
     .order("name", { ascending: true });
 
   if (assignedTeamIds) {
     teamsQuery = teamsQuery.in("id", assignedTeamIds);
+  }
+  if (programId) {
+    teamsQuery = teamsQuery.eq("engagement_id", programId);
   }
 
   const { data: teamRows, error: teamsError } = await teamsQuery;
@@ -108,6 +113,7 @@ export async function GET(req: NextRequest) {
     name: team.name,
     batch: team.batch,
     organization_id: team.organization_id,
+    engagement_id: team.engagement_id,
     created_at: team.created_at,
     members: membersByTeam.get(team.id) || [],
   }));
@@ -175,7 +181,7 @@ export async function POST(req: NextRequest) {
   }
 
   const db = createServerSupabase();
-  const { name, batch, organizationId } = parsed.data;
+  const { name, batch, organizationId, programId } = parsed.data;
 
   const { data, error } = await db
     .from("tbos_teams")
@@ -183,6 +189,7 @@ export async function POST(req: NextRequest) {
       name,
       batch,
       organization_id: organizationId || null,
+      engagement_id: programId,
     })
     .select()
     .single();
