@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       mission_id,
       program_id,
       created_at,
-      profiles ( id, full_name, email ),
+      profiles ( id, full_name ),
       tbos_missions ( id, code, name )
     `)
     .eq("program_id", programId);
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     missionId: row.mission_id,
     programId: row.program_id,
     facilitatorName: row.profiles?.full_name || "-",
-    facilitatorEmail: row.profiles?.email || "-",
+    facilitatorEmail: "-",
     missionCode: row.tbos_missions?.code || "",
     missionName: row.tbos_missions?.name || "-",
     createdAt: row.created_at,
