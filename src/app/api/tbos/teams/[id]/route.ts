@@ -3,7 +3,11 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 
-const updateSchema = z.object({ name: z.string().trim().min(1).max(50).optional(), batch: z.enum(["Batch 1", "Batch 2"]).optional(), programId: z.string().uuid().optional() });
+const updateSchema = z.object({
+  name: z.string().trim().min(1).max(50).optional(),
+  batchId: z.string().uuid().optional(),
+  programId: z.string().uuid().optional(),
+});
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(req);
@@ -11,11 +15,48 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   const { id } = await context.params;
   const parsed = updateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success || Object.keys(parsed.data).length === 0) return NextResponse.json({ success: false, error: "Payload tidak valid." }, { status: 400 });
-  const { data, error } = await createServerSupabase().from("tbos_teams").update({
-    ...(parsed.data.name === undefined ? {} : { name: parsed.data.name }),
-    ...(parsed.data.batch === undefined ? {} : { batch: parsed.data.batch }),
-    ...(parsed.data.programId === undefined ? {} : { engagement_id: parsed.data.programId }),
-  }).eq("id", id).select().single();
+
+  const db = createServerSupabase();
+  const updatePayload: Record<string, any> = {};
+
+  if (parsed.data.name !== undefined) {
+    updatePayload.name = parsed.data.name;
+  }
+
+  if (parsed.data.batchId !== undefined) {
+    const { data: team } = await db
+      .from("tbos_teams")
+      .select("engagement_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    const programId = parsed.data.programId || team?.engagement_id;
+    if (programId) {
+      const { data: batch } = await db
+        .from("batches")
+        .select("id, name")
+        .eq("id", parsed.data.batchId)
+        .eq("program_id", programId)
+        .maybeSingle();
+
+      if (batch) {
+        updatePayload.batch_id = batch.id;
+        updatePayload.batch = batch.name;
+      }
+    }
+  }
+
+  if (parsed.data.programId !== undefined) {
+    updatePayload.engagement_id = parsed.data.programId;
+  }
+
+  const { data, error } = await db
+    .from("tbos_teams")
+    .update(updatePayload)
+    .eq("id", id)
+    .select()
+    .single();
+
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true, team: data });
 }

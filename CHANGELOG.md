@@ -3,6 +3,44 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-08-13
+
+### Added — Modul LEP, Batch Fleksibel, Penugasan Fasilitator & RLS Hardening (Prompt 0–8)
+
+#### Modul Program & Module Selector (Prompt 0)
+- Menambahkan `GET/PUT /api/program-modules`: read/upsert modul per program (`program_modules`, module_key `tbos`/`lep`). PUT diblokir untuk role client.
+- Migration `0009_program_modules.sql`: tabel `program_modules` + backfill modul `tbos` untuk program T-BOS yang sudah ada.
+
+#### Batch Fleksibel (Prompt 1)
+- Menambahkan `GET/POST /api/tbos/batches` (`POST` admin-only, validasi zod, error 409 bila nama batch duplikat per program) dan `DELETE /api/tbos/batches/[id]` (diblokir bila masih ada team yang terikat).
+- Migration `0010_flexible_batches.sql`: tabel `batches` + kolom `tbos_teams.batch_id` + backfill batch dari string lama (`Batch 1`/`Batch 2`). Kolom `tbos_teams.batch` dipertahankan sebagai snapshot untuk kompatibilitas RPC DB.
+
+#### Penugasan Fasilitator Sederhana (Prompt 2)
+- Menambahkan `GET/POST/DELETE /api/tbos/facilitator-missions` (admin-only): assign fasilitator ke mission per program, dukungan bulk assign via `missionIds`, validasi role facilitator.
+- Migration `0011_facilitator_missions.sql`: tabel `facilitator_missions`, migrasi data dari `tbos_facilitator_teams` (cross join semua mission per program), lalu drop tabel lama `tbos_facilitator_teams`.
+
+#### Roster & Unik Nama Tim (Prompt 3)
+- Migration `0012_unique_team_name.sql`: de-duplikasi tim ganda, index unik parsial `tbos_teams (engagement_id, batch_id, lower(name))` untuk menangani race condition input nama tim.
+
+#### Modul LEP (Prompt 8)
+- Menambahkan `GET/POST /api/lep/speakers` dan `DELETE /api/lep/speakers/[id]`: CRUD pemateri per program (POST admin-only, `sort_order` otomatis).
+- Menambahkan `GET/POST /api/lep/responses`: cek status submit (GET), submit evaluasi (POST, `requirePeserta`/admin/facilitator), proteksi double-submit via unique constraint (409).
+- Menambahkan `GET /api/lep/results` (admin-only): rata-rata 4 pertanyaan umum, rata-rata skor + komentar per pemateri, daftar jawaban open text, response rate (responden vs jumlah anggota tim peserta).
+- Menambahkan `src/lib/peserta-auth.ts`: helper `requirePeserta` untuk role peserta/admin/facilitator.
+- Migration `0013_lep.sql`: tabel `lep_speakers`, `lep_responses` (constraint `(program_id, profile_id)` unique), `lep_speaker_ratings`.
+
+#### Keamanan / Infrastruktur
+- Migration `0014_harden_rls_public.sql`: enable RLS untuk seluruh tabel `public`, revoke akses `anon`/`authenticated`, grant penuh ke `service_role` (bypass RLS), policy `profiles_select_self` (authenticated hanya baca profil sendiri), default privileges dirapikan. Menutup alert "rls_disabled_in_public".
+
+## [0.4.0] - 2026-08-10
+
+### Added — Program Scope & Organisasi
+- Menambahkan `GET /api/organizations`: daftar organisasi (bagian dari program management).
+- Menambahkan `GET /api/engagements/[id]`: detail program/engagement per id.
+- Migration `0007_tbos_program_scope.sql`: kolom `engagements.code` (uniqua index lower), kolom `tbos_teams.engagement_id` → engagements.
+- Migration `0008_tbos_legacy_program_mapping.sql`: backfill program T-BOS legacy (`TBOS-LEGACY-...`) untuk tim yang belum punya engagement.
+- Memperbarui `GET /api/tbos/dashboard`, `GET /api/tbos/export` (kini route.tsx), `GET/PATCH /api/tbos/observations`, `GET/PATCH /api/tbos/teams/[id]` mendukung scope program.
+
 ## [0.3.1] - 2026-08-07
 
 ### Added

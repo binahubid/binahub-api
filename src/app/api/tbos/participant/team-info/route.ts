@@ -7,7 +7,9 @@ interface TeamRecord {
   id: string;
   name: string;
   batch: string;
+  batch_id: string | null;
   organization_id: string | null;
+  batches?: { id: string; name: string }[] | { id: string; name: string } | null;
 }
 
 interface MissionDimensionRecord {
@@ -56,7 +58,9 @@ export async function GET(req: NextRequest) {
         id,
         name,
         batch,
-        organization_id
+        batch_id,
+        organization_id,
+        batches ( id, name )
       )
     `)
     .eq("profile_id", userId)
@@ -74,7 +78,8 @@ export async function GET(req: NextRequest) {
   const team = membership.tbos_teams as unknown as TeamRecord;
   const teamId = team.id;
   const teamName = team.name;
-  const batch = team.batch;
+  const batchRecord = Array.isArray(team.batches) ? team.batches[0] : team.batches;
+  const batch = batchRecord?.name || team.batch;
   const organizationId = team.organization_id;
 
   // 2. Fetch the participant's organization cohort for ranking
@@ -182,6 +187,7 @@ export async function GET(req: NextRequest) {
     teamInfo: {
       teamName,
       batch,
+      batchName: batch,
       missionsCompleted,
       overallScore,
       strongestDimension,

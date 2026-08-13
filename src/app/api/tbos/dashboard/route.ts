@@ -6,8 +6,10 @@ interface TeamRecord {
   id: string;
   name: string;
   batch: string;
+  batch_id: string | null;
   organization_id: string | null;
   engagement_id: string | null;
+  batches?: { id: string; name: string }[] | { id: string; name: string } | null;
 }
 
 interface ObservationRecord {
@@ -55,12 +57,12 @@ export async function GET(req: NextRequest) {
   let teams: TeamRecord[] = [];
   let assignedTeamCount = 0;
   let organizationCount = 0;
+  let assignedMissionIds: string[] = [];
 
   if (auth.role === "admin") {
     const { data, error } = await db
       .from("tbos_teams")
-      .select("id, name, batch, organization_id, engagement_id")
-      .order("batch", { ascending: true })
+      .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
       .order("name", { ascending: true });
 
     if (error) {
@@ -71,8 +73,8 @@ export async function GET(req: NextRequest) {
     teams = (data || []) as TeamRecord[];
   } else {
     const { data: assignments, error: assignmentError } = await db
-      .from("tbos_facilitator_teams")
-      .select("team_id")
+      .from("facilitator_missions")
+      .select("program_id, mission_id")
       .eq("profile_id", auth.userId);
 
     if (assignmentError) {
@@ -80,14 +82,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
     }
 
-    const assignedTeamIds = [...new Set((assignments || []).map((assignment) => assignment.team_id))];
-    assignedTeamCount = assignedTeamIds.length;
+    const scopedAssignments = (assignments || []).filter((assignment) =>
+      !programId || assignment.program_id === programId
+    );
+    const assignedProgramIds = [...new Set(scopedAssignments.map((a) => a.program_id))];
+    assignedMissionIds = [...new Set(scopedAssignments.map((a) => a.mission_id))];
+    assignedTeamCount = assignedProgramIds.length;
 
-    if (assignedTeamIds.length > 0) {
+    if (assignedProgramIds.length > 0) {
       const { data: assignedTeams, error: assignedTeamsError } = await db
         .from("tbos_teams")
-        .select("id, name, batch, organization_id, engagement_id")
-        .in("id", assignedTeamIds);
+        .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
+        .in("engagement_id", assignedProgramIds);
 
       if (assignedTeamsError) {
         console.error("[T-BOS Dashboard] assigned teams query error:", assignedTeamsError);
@@ -106,7 +112,7 @@ export async function GET(req: NextRequest) {
       if (organizationIds.length > 0) {
         const { data, error } = await db
           .from("tbos_teams")
-          .select("id, name, batch, organization_id, engagement_id")
+          .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
           .in("organization_id", organizationIds);
 
         if (error) {
@@ -157,10 +163,12 @@ export async function GET(req: NextRequest) {
 
   if (auth.role !== "admin") {
     const scopedTeamIds = teams.map((team) => team.id);
-    if (scopedTeamIds.length === 0) {
+    if (scopedTeamIds.length === 0 || assignedMissionIds.length === 0) {
       observationsQuery = observationsQuery.eq("profile_id", auth.userId).limit(0);
     } else {
-      observationsQuery = observationsQuery.in("team_id", scopedTeamIds);
+      observationsQuery = observationsQuery
+        .in("team_id", scopedTeamIds)
+        .in("mission_id", assignedMissionIds);
     }
   } else if (programId) {
     const programTeamIds = teams.map((team) => team.id);
@@ -229,6 +237,7 @@ export async function GET(req: NextRequest) {
   const viewerStats = {
     role: auth.role,
     assignedTeamCount: auth.role === "admin" ? null : assignedTeamCount,
+    assignedMissionCount: auth.role === "admin" ? null : assignedMissionIds.length,
     organizationCount: auth.role === "admin" ? null : organizationCount,
     scopedTeamCount: teams.length,
     ownObservationCount: ownObservations.length,
@@ -271,7 +280,17 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    teams: teams.map(({ id, name, batch, engagement_id }) => ({ id, name, batch, engagementId: engagement_id })),
+    teams: teams.map(({ id, name, batch, batch_id, batches, engagement_id }) => {
+      const batchRecord = Array.isArray(batches) ? batches[0] : batches;
+      return {
+        id,
+        name,
+        batch,
+        batchId: batch_id,
+        batchName: batchRecord?.name || batch,
+        engagementId: engagement_id,
+      };
+    }),
     observations: transformedObservations,
     dimensions: dimensions || [],
     missions: missions || [],

@@ -4,10 +4,15 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 
 const observationSchema = z.object({
-  teamId: z.string().uuid(),
+  teamId: z.string().uuid().optional(),
+  newTeam: z.object({
+    name: z.string().min(1).max(50),
+    batchId: z.string().uuid(),
+    programId: z.string().uuid(),
+  }).optional(),
   missionId: z.string().uuid(),
   clientSubmissionId: z.string().min(1).max(128),
-  batch: z.enum(["Batch 1", "Batch 2"]),
+  batch: z.string().min(1).max(50).optional(),
   notes: z.string().max(50).optional().default(""),
   scores: z.array(
     z.object({
@@ -21,7 +26,10 @@ const observationSchema = z.object({
     isPresent: z.boolean(),
     isCaptain: z.boolean(),
   })).min(1),
-}).superRefine(({ members }, ctx) => {
+}).superRefine(({ teamId, newTeam, members }, ctx) => {
+  if (!teamId && !newTeam) {
+    ctx.addIssue({ code: "custom", path: ["teamId"], message: "teamId atau newTeam wajib diisi." });
+  }
   if (!members.some((member) => member.isPresent)) {
     ctx.addIssue({ code: "custom", path: ["members"], message: "Minimal satu anggota harus hadir." });
   }
@@ -45,20 +53,83 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { teamId, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
+  const { teamId: inputTeamId, newTeam, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
   const db = createServerSupabase();
 
-  const [{ data: team }, { data: assignment }, { data: missionDimensions }] = await Promise.all([
-    db.from("tbos_teams").select("id, batch").eq("id", teamId).maybeSingle(),
-    db.from("tbos_facilitator_teams").select("team_id").eq("profile_id", auth.userId).eq("team_id", teamId).maybeSingle(),
+  let teamId = inputTeamId;
+
+  if (!teamId && newTeam) {
+    const [{ data: facilitator }, { data: batch }] = await Promise.all([
+      db.from("profiles").select("id, role").eq("id", auth.userId).maybeSingle(),
+      db.from("batches").select("id, name").eq("id", newTeam.batchId).eq("program_id", newTeam.programId).maybeSingle(),
+    ]);
+
+    if (!facilitator || (facilitator.role !== "facilitator" && facilitator.role !== "admin")) {
+      return NextResponse.json({ success: false, error: "Akun tidak valid." }, { status: 400 });
+    }
+    if (!batch) {
+      return NextResponse.json({ success: false, error: "Batch tidak ditemukan." }, { status: 400 });
+    }
+
+    const { data: newTeamRow, error: createError } = await db
+      .from("tbos_teams")
+      .insert({
+        name: newTeam.name.trim(),
+        batch: batch.name,
+        batch_id: batch.id,
+        engagement_id: newTeam.programId,
+      })
+      .select("id")
+      .single();
+
+    if (createError) {
+      return NextResponse.json({ success: false, error: `Gagal membuat tim: ${createError.message}` }, { status: 500 });
+    }
+
+    teamId = newTeamRow.id;
+
+    const rosterMembers = members
+      .filter((m) => m.memberName.trim())
+      .map((m) => ({
+        team_id: teamId!,
+        member_name: m.memberName.trim(),
+        is_captain: m.isCaptain,
+      }));
+
+    if (rosterMembers.length > 0) {
+      await db.from("tbos_team_members").insert(rosterMembers);
+    }
+  }
+
+  if (!teamId) {
+    return NextResponse.json({ success: false, error: "teamId wajib diisi." }, { status: 400 });
+  }
+
+  const [{ data: team }, { data: missionAssignment }, { data: missionDimensions }] = await Promise.all([
+    db.from("tbos_teams").select("id, batch, engagement_id").eq("id", teamId).maybeSingle(),
+    db.from("facilitator_missions").select("mission_id").eq("profile_id", auth.userId).eq("mission_id", missionId).maybeSingle(),
     db.from("tbos_mission_dimensions").select("dimension_id").eq("mission_id", missionId),
   ]);
 
   if (!team) {
     return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
   }
-  if (auth.role !== "admin" && !assignment) {
-    return NextResponse.json({ success: false, error: "Anda tidak ditugaskan ke tim ini." }, { status: 403 });
+  if (auth.role !== "admin" && !missionAssignment) {
+    return NextResponse.json({ success: false, error: "Anda tidak ditugaskan untuk misi ini." }, { status: 403 });
+  }
+
+  if (auth.role !== "admin" && team.engagement_id) {
+    const { data: programAssignment } = await db
+      .from("facilitator_missions")
+      .select("mission_id")
+      .eq("profile_id", auth.userId)
+      .eq("program_id", team.engagement_id)
+      .eq("mission_id", missionId)
+      .maybeSingle();
+
+    if (!programAssignment) {
+      return NextResponse.json({ success: false, error: "Anda tidak ditugaskan untuk misi ini dalam program ini." }, { status: 403 });
+    }
   }
 
   const requiredDimensionIds = new Set((missionDimensions || []).map((row: any) => row.dimension_id));

@@ -6,14 +6,9 @@ import { requireFacilitator } from "@/lib/facilitator-auth";
 
 const teamSchema = z.object({
   name: z.string().min(1).max(50),
-  batch: z.enum(["Batch 1", "Batch 2"]),
+  batchId: z.string().uuid(),
   organizationId: z.string().uuid().optional(),
   programId: z.string().uuid(),
-});
-
-const assignSchema = z.object({
-  facilitatorId: z.string().uuid(),
-  teamId: z.string().uuid(),
 });
 
 export async function GET(req: NextRequest) {
@@ -25,41 +20,37 @@ export async function GET(req: NextRequest) {
   const db = createServerSupabase();
   const programId = req.nextUrl.searchParams.get("programId");
 
-  let assignedTeamIds: string[] | null = null;
+  let teamsQuery = db
+    .from("tbos_teams")
+    .select(`
+      id, name, batch, organization_id, engagement_id, created_at, batch_id,
+      batches ( id, name )
+    `)
+    .order("name", { ascending: true });
 
-  // If facilitator (not admin), filter by assigned teams
   if (auth.role === "facilitator") {
-    const { data: assignedTeams, error: assignmentError } = await db
-      .from("tbos_facilitator_teams")
-      .select("team_id")
+    const { data: assignments, error: assignmentError } = await db
+      .from("facilitator_missions")
+      .select("program_id")
       .eq("profile_id", auth.userId);
 
     if (assignmentError) {
       console.error("[T-BOS Teams] Assignment query failed:", assignmentError);
       return NextResponse.json(
-        { success: false, error: "Gagal memuat penugasan tim.", detail: assignmentError.message },
+        { success: false, error: "Gagal memuat penugasan fasilitator.", detail: assignmentError.message },
         { status: 500 }
       );
     }
 
-    assignedTeamIds = (assignedTeams || []).map((team) => team.team_id);
+    const assignedProgramIds = [...new Set((assignments || []).map((a) => a.program_id))];
 
-    if (assignedTeamIds.length === 0) {
+    if (assignedProgramIds.length === 0) {
       return NextResponse.json({ success: true, teams: [] });
     }
+
+    teamsQuery = teamsQuery.in("engagement_id", assignedProgramIds);
   }
 
-  // Keep team and member queries separate. This prevents a stale PostgREST
-  // relationship cache from making the whole team list unavailable.
-  let teamsQuery = db
-    .from("tbos_teams")
-    .select("id, name, batch, organization_id, engagement_id, created_at")
-    .order("batch", { ascending: true })
-    .order("name", { ascending: true });
-
-  if (assignedTeamIds) {
-    teamsQuery = teamsQuery.in("id", assignedTeamIds);
-  }
   if (programId) {
     teamsQuery = teamsQuery.eq("engagement_id", programId);
   }
@@ -108,10 +99,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const teams = (teamRows || []).map((team) => ({
+  const teams = (teamRows || []).map((team: any) => ({
     id: team.id,
     name: team.name,
     batch: team.batch,
+    batchId: team.batch_id,
+    batchName: team.batches?.name || team.batch,
     organization_id: team.organization_id,
     engagement_id: team.engagement_id,
     created_at: team.created_at,
@@ -128,50 +121,6 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-
-  // Check if this is a team creation or facilitator assignment
-  if (body.facilitatorId && body.teamId) {
-    // Facilitator assignment
-    const parsed = assignSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: "Validasi gagal", details: parsed.error.format() },
-        { status: 400 }
-      );
-    }
-
-    const { facilitatorId, teamId } = parsed.data;
-    const db = createServerSupabase();
-
-    const [{ data: facilitator }, { data: team }] = await Promise.all([
-      db.from("profiles").select("id, role").eq("id", facilitatorId).maybeSingle(),
-      db.from("tbos_teams").select("id").eq("id", teamId).maybeSingle(),
-    ]);
-
-    if (!facilitator || facilitator.role !== "facilitator") {
-      return NextResponse.json({ success: false, error: "Akun yang dipilih bukan fasilitator." }, { status: 400 });
-    }
-    if (!team) {
-      return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
-    }
-
-    const { data, error } = await db
-      .from("tbos_facilitator_teams")
-      .upsert({
-        profile_id: facilitatorId,
-        team_id: teamId,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, assignment: data });
-  }
-
-  // Team creation
   const parsed = teamSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -181,13 +130,28 @@ export async function POST(req: NextRequest) {
   }
 
   const db = createServerSupabase();
-  const { name, batch, organizationId, programId } = parsed.data;
+  const { name, batchId, organizationId, programId } = parsed.data;
+
+  const { data: batch, error: batchError } = await db
+    .from("batches")
+    .select("id, name")
+    .eq("id", batchId)
+    .eq("program_id", programId)
+    .maybeSingle();
+
+  if (batchError || !batch) {
+    return NextResponse.json(
+      { success: false, error: "Batch tidak ditemukan untuk program ini." },
+      { status: 400 }
+    );
+  }
 
   const { data, error } = await db
     .from("tbos_teams")
     .insert({
       name,
-      batch,
+      batch: batch.name,
+      batch_id: batchId,
       organization_id: organizationId || null,
       engagement_id: programId,
     })

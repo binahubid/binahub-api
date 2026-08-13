@@ -17,13 +17,19 @@ const updateCaptainSchema = z.object({
 
 async function canManageTeam(db: ReturnType<typeof createServerSupabase>, userId: string, role: string, teamId: string) {
   if (role === "admin") return true;
-  const { data } = await db
-    .from("tbos_facilitator_teams")
-    .select("team_id")
-    .eq("profile_id", userId)
-    .eq("team_id", teamId)
+  const { data: team } = await db
+    .from("tbos_teams")
+    .select("engagement_id")
+    .eq("id", teamId)
     .maybeSingle();
-  return Boolean(data);
+  if (!team?.engagement_id) return false;
+  const { data } = await db
+    .from("facilitator_missions")
+    .select("mission_id")
+    .eq("profile_id", userId)
+    .eq("program_id", team.engagement_id)
+    .limit(1);
+  return Boolean(data && data.length > 0);
 }
 
 export async function GET(req: NextRequest) {
