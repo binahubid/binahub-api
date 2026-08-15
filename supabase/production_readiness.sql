@@ -31,6 +31,7 @@ select
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
   to_regprocedure('public.select_facilitator_program_mission(uuid,uuid,uuid)') is not null as mission_selection_rpc_ready,
+  to_regclass('public.tbos_observations_program_team_mission_unique') is not null as unique_team_mission_observation_ready,
   to_regprocedure('public.tbos_submit_observation_v2(uuid,uuid,uuid,uuid,text,uuid,text,text,jsonb,jsonb,boolean)') is not null as observation_rpc_ready,
   to_regprocedure('public.submit_lep_response(uuid,uuid,integer,integer,integer,integer,text,text,text,jsonb)') is not null as lep_rpc_ready,
   to_regprocedure('public.consume_api_rate_limit(text,integer,integer)') is not null as rate_limit_rpc_ready;
@@ -118,6 +119,24 @@ from (
   group by program_id, selected_mission_id
   having count(*) > 1
 ) duplicate_position;
+
+select count(*) as duplicate_team_mission_observation_issues
+from (
+  select program_id, team_id, mission_id
+  from public.tbos_observations
+  group by program_id, team_id, mission_id
+  having count(*) > 1
+) duplicate_observation;
+
+select count(*) as incomplete_tbos_rubric_issues
+from public.tbos_behavioral_dimensions dimension
+cross join generate_series(1, 5) expected(level_value)
+left join public.tbos_dimension_levels level
+  on level.dimension_id = dimension.id
+  and level.level_value = expected.level_value
+where level.dimension_id is null
+  or level.description is null
+  or btrim(level.description) = '';
 
 select
   cls.relname as table_name,

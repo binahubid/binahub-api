@@ -23,6 +23,13 @@ interface TeamRow {
   batches: { name: string } | null;
 }
 
+interface TeamObservationRow {
+  id: string;
+  team_id: string;
+  status: string;
+  submitted_at: string;
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireFacilitator(req);
   if ("error" in auth) {
@@ -38,6 +45,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
   }
 
+  let selectedMissionId: string | null = null;
   let teamsQuery = db
     .from("tbos_teams")
     .select(`
@@ -49,7 +57,7 @@ export async function GET(req: NextRequest) {
   if (auth.role === "facilitator") {
     const { data: assignment, error: assignmentError } = await db
       .from("facilitator_program_assignments")
-      .select("program_id")
+      .select("program_id, selected_mission_id")
       .eq("profile_id", auth.userId)
       .eq("program_id", programId)
       .maybeSingle();
@@ -65,6 +73,7 @@ export async function GET(req: NextRequest) {
     if (!assignment) {
       return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
     }
+    selectedMissionId = assignment.selected_mission_id;
   }
   teamsQuery = teamsQuery.eq("engagement_id", programId);
 
@@ -85,6 +94,7 @@ export async function GET(req: NextRequest) {
     member_name: string;
     is_captain: boolean;
   }>>();
+  const observationByTeam = new Map<string, TeamObservationRow>();
   let warning: string | undefined;
 
   if (teamIds.length > 0) {
@@ -110,6 +120,31 @@ export async function GET(req: NextRequest) {
         membersByTeam.set(member.team_id, current);
       }
     }
+
+    if (auth.role === "facilitator" && selectedMissionId) {
+      const { data: observationRows, error: observationsError } = await db
+        .from("tbos_observations")
+        .select("id, team_id, status, submitted_at")
+        .eq("program_id", programId)
+        .eq("mission_id", selectedMissionId)
+        .in("team_id", teamIds)
+        .in("status", ["submitted", "locked"])
+        .order("submitted_at", { ascending: false });
+
+      if (observationsError) {
+        console.error("[T-BOS Teams] Observation status query failed:", observationsError);
+        return NextResponse.json(
+          { success: false, error: "Gagal memeriksa status observasi tim." },
+          { status: 500 },
+        );
+      }
+
+      for (const observation of (observationRows || []) as TeamObservationRow[]) {
+        if (!observationByTeam.has(observation.team_id)) {
+          observationByTeam.set(observation.team_id, observation);
+        }
+      }
+    }
   }
 
   const teams = ((teamRows || []) as unknown as TeamRow[]).map((team) => ({
@@ -122,6 +157,13 @@ export async function GET(req: NextRequest) {
     engagement_id: team.engagement_id,
     created_at: team.created_at,
     members: membersByTeam.get(team.id) || [],
+    observation: observationByTeam.has(team.id)
+      ? {
+          id: observationByTeam.get(team.id)!.id,
+          status: observationByTeam.get(team.id)!.status,
+          submittedAt: observationByTeam.get(team.id)!.submitted_at,
+        }
+      : null,
   }));
 
   return NextResponse.json({ success: true, teams, warning });

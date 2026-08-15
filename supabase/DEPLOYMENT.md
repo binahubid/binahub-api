@@ -12,7 +12,7 @@ Kedua repositori memiliki migration historis bernomor `0005`–`0017`. Supabase 
 2. Jalankan `npx supabase migration list` dari direktori yang sebelumnya menjadi sumber migration production. Jangan melakukan `migration repair` otomatis.
 3. Jalankan `production_readiness.sql` secara read-only melalui SQL Editor.
 4. Jika object dari migration API `0005`–`0014` sudah ada, jangan replay file tersebut.
-5. Terapkan `0015_ceo_revision_hardening.sql`, `0016_public_endpoint_security.sql`, lalu `0017_facilitator_program_positions.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0017` mengubah assignment menjadi tingkat program, mengunci satu pos per fasilitator, mengamankan roster first-touch, dan mengikat sesi client ke program.
+5. Terapkan `0015_ceo_revision_hardening.sql`, `0016_public_endpoint_security.sql`, `0017_facilitator_program_positions.sql`, lalu `0018_tbos_single_observation_and_rubrics.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0017` mengubah assignment menjadi tingkat program, mengunci satu pos per fasilitator, mengamankan roster first-touch, dan mengikat sesi client ke program. File `0018` mencegah tim dinilai lebih dari sekali pada misi yang sama dan menyelaraskan rubrik observasi dengan brief CEO.
 6. Jalankan kembali `production_readiness.sql`. Semua kolom `*_ready` harus `true` dan seluruh counter `*_issues` harus `0`.
 7. Deploy API lebih dahulu, lalu frontend. Lakukan smoke test role admin, fasilitator, dan peserta.
 
@@ -21,7 +21,7 @@ Jangan menandai migration sebagai applied hanya untuk melewati error. Error dupl
 ## Fresh Database
 
 1. Terapkan migration `app-binahub/supabase/migrations/0001` sampai migration terakhir secara leksikografis.
-2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0017` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
+2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0018` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
 3. Jalankan seed T-BOS yang disediakan frontend bila data mission/dimensi belum terbentuk.
 4. Jalankan `production_readiness.sql` dan health check T-BOS frontend.
 
@@ -30,7 +30,7 @@ Untuk jangka panjang, buat satu baseline schema bertimestamp setelah release pro
 ## Smoke Test Wajib
 
 - Admin dapat membuat program berkode unik, memilih modul, membuat batch/tim, dan menugaskan orang tanpa memilih misi.
-- Fasilitator memilih tepat satu pos yang terkunci, melihat seluruh tim, dan retry offline tidak menduplikasi observasi.
+- Fasilitator memilih tepat satu pos yang terkunci, melihat seluruh tim, dan tidak dapat menilai ulang tim yang sudah selesai pada pos tersebut.
 - Tim tanpa roster dapat diisi oleh fasilitator pertama; setelah observasi pertama roster master terkunci dan tersedia di semua pos.
 - Dashboard fasilitator hanya menampilkan hasil seluruh tim pada misi pilihannya; dashboard admin tidak mencampur program.
 - Client dapat masuk memakai kode program dan nama tanpa login/signup yang terlihat, lalu hanya melihat modul program aktif.

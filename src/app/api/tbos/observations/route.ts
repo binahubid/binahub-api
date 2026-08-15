@@ -82,15 +82,19 @@ export async function POST(req: NextRequest) {
 
   const { teamId, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
   const db = createServerSupabase();
+  const { data: team, error: teamError } = await db
+    .from("tbos_teams")
+    .select("engagement_id")
+    .eq("id", teamId)
+    .maybeSingle();
+  if (teamError) {
+    return NextResponse.json({ success: false, error: "Gagal memeriksa tim." }, { status: 500 });
+  }
+  if (!team?.engagement_id) {
+    return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
+  }
+
   if (auth.role === "facilitator") {
-    const { data: team } = await db
-      .from("tbos_teams")
-      .select("engagement_id")
-      .eq("id", teamId)
-      .maybeSingle();
-    if (!team?.engagement_id) {
-      return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
-    }
     try {
       const selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, team.engagement_id);
       if (!selectedMissionId) {
@@ -103,6 +107,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa pos." }, { status: 500 });
     }
   }
+
+  const { data: existingObservation, error: existingObservationError } = await db
+    .from("tbos_observations")
+    .select("id, status, submitted_at")
+    .eq("program_id", team.engagement_id)
+    .eq("team_id", teamId)
+    .eq("mission_id", missionId)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingObservationError) {
+    return NextResponse.json({ success: false, error: "Gagal memeriksa riwayat observasi tim." }, { status: 500 });
+  }
+  if (existingObservation) {
+    return NextResponse.json({
+      success: false,
+      error: "Tim ini sudah selesai dinilai pada pos Anda. Buka Hasil Observasi untuk melihat datanya.",
+      existingObservationId: existingObservation.id,
+    }, { status: 409 });
+  }
+
   const { data: observationId, error } = await db.rpc("tbos_submit_observation_v2", {
     p_facilitator_id: auth.userId,
     p_team_id: teamId,
@@ -119,8 +144,12 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     const status = error.code === "42501" ? 403 : error.code === "23503" ? 404 : error.code === "23505" ? 409 : error.code === "22023" ? 400 : 500;
-    const message = error.code === "23505"
-      ? "Nama tim sudah dipakai, gunakan nama lain atau pilih dari daftar."
+    const duplicateTeamMission = error.code === "23505"
+      && error.message.includes("tbos_observations_program_team_mission_unique");
+    const message = duplicateTeamMission
+      ? "Tim ini sudah selesai dinilai pada pos Anda. Buka Hasil Observasi untuk melihat datanya."
+      : error.code === "23505"
+      ? "Data yang sama sudah tersimpan. Muat ulang halaman sebelum melanjutkan."
       : error.message;
     return NextResponse.json({ success: false, error: message }, { status });
   }
