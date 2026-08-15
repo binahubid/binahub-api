@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
 
 const addMemberSchema = z.object({
   teamId: z.string().uuid(),
@@ -16,13 +17,14 @@ const updateCaptainSchema = z.object({
 });
 
 async function canManageTeam(db: ReturnType<typeof createServerSupabase>, userId: string, role: string, teamId: string) {
-  if (role === "admin") return true;
   const { data: team } = await db
     .from("tbos_teams")
     .select("engagement_id")
     .eq("id", teamId)
     .maybeSingle();
   if (!team?.engagement_id) return false;
+  if (!(await isProgramModuleEnabled(db, team.engagement_id, "tbos"))) return false;
+  if (role === "admin") return true;
   const { data } = await db
     .from("facilitator_missions")
     .select("mission_id")

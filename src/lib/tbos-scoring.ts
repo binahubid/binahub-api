@@ -61,9 +61,6 @@ export function calculateTbosTeamScore(
     score: round1(aggregate.total / aggregate.count),
     observationCount: aggregate.count,
   }));
-  const scoresByDimension = new Map(
-    dimensionScores.map((dimension) => [dimension.dimensionCode, dimension.score])
-  );
   const observedMissions = new Set(teamObservations.map((observation) => observation.missionCode));
   const missionScores: TbosMissionScore[] = [];
 
@@ -71,8 +68,24 @@ export function calculateTbosTeamScore(
     const relevantDimensions = missionDimensionMap[missionCode];
     if (!relevantDimensions) continue;
 
+    const missionObservations = teamObservations.filter(
+      (observation) => observation.missionCode === missionCode
+    );
+    const missionDimensionScores = new Map<string, { total: number; count: number }>();
+    for (const observation of missionObservations) {
+      for (const score of observation.scores) {
+        const current = missionDimensionScores.get(score.dimensionCode) || { total: 0, count: 0 };
+        current.total += score.levelValue;
+        current.count += 1;
+        missionDimensionScores.set(score.dimensionCode, current);
+      }
+    }
+
     const scores = relevantDimensions
-      .map((dimensionCode) => scoresByDimension.get(dimensionCode))
+      .map((dimensionCode) => {
+        const aggregate = missionDimensionScores.get(dimensionCode);
+        return aggregate ? round1(aggregate.total / aggregate.count) : undefined;
+      })
       .filter((score): score is number => score !== undefined);
 
     missionScores.push({

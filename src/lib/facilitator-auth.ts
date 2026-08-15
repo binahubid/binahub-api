@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import {
   getUserFromBearer,
-  getUserRole,
+  getAuthoritativeUserRole,
   isAdminFallbackEmail,
   isFacilitatorFallbackEmail,
   normalizeEmail,
@@ -15,7 +15,12 @@ export async function requireFacilitator(req: NextRequest) {
   }
 
   const email = normalizeEmail(auth.user.email);
-  const role = getUserRole(auth.user);
+  let role;
+  try {
+    role = await getAuthoritativeUserRole(auth.user);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Gagal memverifikasi role", status: 500 as const };
+  }
   const isAdmin = role === "admin" || isAdminFallbackEmail(email);
   const isFacilitator = role === "facilitator" || isFacilitatorFallbackEmail(email);
 

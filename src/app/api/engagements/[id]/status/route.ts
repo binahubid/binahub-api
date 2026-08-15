@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTransformationActor } from "@/lib/transformation/auth";
+import { requireTransformationAdmin } from "@/lib/transformation/auth";
 import { updateEngagementStatusSchema } from "@/lib/transformation/schemas";
 import { getDb } from "@/lib/transformation/service";
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const actor = await requireTransformationActor(req);
+  const actor = await requireTransformationAdmin(req);
   if ("error" in actor) {
     return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
-  }
-
-  if (actor.role === "client") {
-    return NextResponse.json({ success: false, error: "Client tidak dapat mengubah status engagement." }, { status: 403 });
   }
 
   const parsed = updateEngagementStatusSchema.safeParse(await req.json().catch(() => null));

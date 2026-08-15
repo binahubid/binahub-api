@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { createHash } from "node:crypto";
 import { createServerSupabase } from "@/lib/supabase";
 
@@ -8,28 +7,8 @@ export function hashAccessCode(code: string) {
   return createHash("sha256").update(code.trim()).digest("hex");
 }
 
-export async function getClientAccess() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(clientAccessCookie)?.value;
-  if (!token) return null;
-
-  const db = createServerSupabase();
-  const { data, error } = await db
-    .from("app_client_access_codes")
-    .select("id, company_name, team_name, code_hash, expires_at, is_active, organization_id, participant_id")
-    .eq("id", token)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) return null;
-
-  return data;
-}
-
-export async function getClientAccessBySupabaseUser(userId: string, userMetadata: Record<string, unknown>) {
-  const accessCodeId = (userMetadata.access_code_id as string) ||
-    (userMetadata as Record<string, unknown>).access_code_id as string;
+export async function getClientAccessBySupabaseUser(userId: string, appMetadata: Record<string, unknown>) {
+  const accessCodeId = appMetadata.access_code_id as string;
 
   if (!accessCodeId) return null;
 
@@ -38,6 +17,7 @@ export async function getClientAccessBySupabaseUser(userId: string, userMetadata
     .from("app_client_access_codes")
     .select("id, company_name, team_name, code_hash, expires_at, is_active, organization_id, participant_id")
     .eq("id", accessCodeId)
+    .eq("auth_user_id", userId)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -46,4 +26,3 @@ export async function getClientAccessBySupabaseUser(userId: string, userMetadata
 
   return data;
 }
-

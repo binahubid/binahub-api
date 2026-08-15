@@ -3,6 +3,18 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - 2026-08-15
+
+### Fixed — Audit revisi CEO dan production hardening
+
+- Menjadikan role pada tabel `profiles` sebagai sumber otorisasi utama dan menerapkan scope program/participant pada seluruh route T-BOS, LEP, dan Transformation OS.
+- Membuat submit observasi, roster tim, submit LEP, batch, dan assignment fasilitator atomik serta race-safe melalui RPC dan constraint database.
+- Mengamankan endpoint publik dengan rate limit persisten, token kepemilikan sesi chat, expiry sesi, validasi payload, escaping HTML, dan proposal dua langkah GET-konfirmasi/POST-eksekusi.
+- Mengikat akun client ke `auth_user_id`, memperbaiki autentikasi bearer dashboard client, serta mengganti kode akses predictable dengan nilai acak.
+- Menambahkan export Transformation yang sebelumnya dipanggil UI tetapi belum tersedia, pagination eksplisit, proteksi formula CSV, dan validasi UUID/range/tanggal.
+- Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
+- Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
+
 ## [0.5.0] - 2026-08-13
 
 ### Added — Modul LEP, Batch Fleksibel, Penugasan Fasilitator & RLS Hardening (Prompt 0–8)

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
+import { collectAllPages } from "@/lib/pagination";
 
 const observationSchema = z.object({
   teamId: z.string().uuid().optional(),
@@ -38,6 +40,38 @@ const observationSchema = z.object({
   }
 });
 
+interface ObservationListRow {
+  id: string;
+  team_id: string;
+  mission_id: string;
+  profile_id: string;
+  batch: string;
+  observed_at: string;
+  submitted_at: string;
+  status: string;
+  notes: string | null;
+  locked_at: string | null;
+  locked_by: string | null;
+  revision_deadline: string | null;
+  tbos_teams: { name: string } | null;
+  tbos_missions: { code: string; name: string } | null;
+  profiles: { full_name: string } | null;
+  tbos_observation_scores: Array<{
+    dimension_id: string;
+    level_value: number;
+    tbos_behavioral_dimensions: { code: string; name: string } | null;
+  }>;
+  tbos_observation_members: Array<{
+    id: string;
+    team_member_id: string | null;
+    member_name: string;
+    is_present: boolean;
+    is_captain: boolean;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireFacilitator(req);
   if ("error" in auth) {
@@ -53,99 +87,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { teamId: inputTeamId, newTeam, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
+  const { teamId, newTeam, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
   const db = createServerSupabase();
-
-  let teamId = inputTeamId;
-
-  if (!teamId && newTeam) {
-    const [{ data: facilitator }, { data: batch }] = await Promise.all([
-      db.from("profiles").select("id, role").eq("id", auth.userId).maybeSingle(),
-      db.from("batches").select("id, name").eq("id", newTeam.batchId).eq("program_id", newTeam.programId).maybeSingle(),
-    ]);
-
-    if (!facilitator || (facilitator.role !== "facilitator" && facilitator.role !== "admin")) {
-      return NextResponse.json({ success: false, error: "Akun tidak valid." }, { status: 400 });
-    }
-    if (!batch) {
-      return NextResponse.json({ success: false, error: "Batch tidak ditemukan." }, { status: 400 });
-    }
-
-    const { data: newTeamRow, error: createError } = await db
-      .from("tbos_teams")
-      .insert({
-        name: newTeam.name.trim(),
-        batch: batch.name,
-        batch_id: batch.id,
-        engagement_id: newTeam.programId,
-      })
-      .select("id")
-      .single();
-
-    if (createError) {
-      return NextResponse.json({ success: false, error: `Gagal membuat tim: ${createError.message}` }, { status: 500 });
-    }
-
-    teamId = newTeamRow.id;
-
-    const rosterMembers = members
-      .filter((m) => m.memberName.trim())
-      .map((m) => ({
-        team_id: teamId!,
-        member_name: m.memberName.trim(),
-        is_captain: m.isCaptain,
-      }));
-
-    if (rosterMembers.length > 0) {
-      await db.from("tbos_team_members").insert(rosterMembers);
-    }
-  }
-
-  if (!teamId) {
-    return NextResponse.json({ success: false, error: "teamId wajib diisi." }, { status: 400 });
-  }
-
-  const [{ data: team }, { data: missionAssignment }, { data: missionDimensions }] = await Promise.all([
-    db.from("tbos_teams").select("id, batch, engagement_id").eq("id", teamId).maybeSingle(),
-    db.from("facilitator_missions").select("mission_id").eq("profile_id", auth.userId).eq("mission_id", missionId).maybeSingle(),
-    db.from("tbos_mission_dimensions").select("dimension_id").eq("mission_id", missionId),
-  ]);
-
-  if (!team) {
-    return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
-  }
-  if (auth.role !== "admin" && !missionAssignment) {
-    return NextResponse.json({ success: false, error: "Anda tidak ditugaskan untuk misi ini." }, { status: 403 });
-  }
-
-  if (auth.role !== "admin" && team.engagement_id) {
-    const { data: programAssignment } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
-      .eq("profile_id", auth.userId)
-      .eq("program_id", team.engagement_id)
-      .eq("mission_id", missionId)
-      .maybeSingle();
-
-    if (!programAssignment) {
-      return NextResponse.json({ success: false, error: "Anda tidak ditugaskan untuk misi ini dalam program ini." }, { status: 403 });
-    }
-  }
-
-  const requiredDimensionIds = new Set((missionDimensions || []).map((row: any) => row.dimension_id));
-  const submittedDimensionIds = scores.map((score) => score.dimensionId);
-  if (
-    requiredDimensionIds.size === 0 ||
-    submittedDimensionIds.length !== requiredDimensionIds.size ||
-    new Set(submittedDimensionIds).size !== submittedDimensionIds.length ||
-    submittedDimensionIds.some((id) => !requiredDimensionIds.has(id))
-  ) {
-    return NextResponse.json({ success: false, error: "Nilai dimensi tidak sesuai dengan misi yang dipilih." }, { status: 400 });
-  }
-
-  const { data: observationId, error } = await db.rpc("tbos_submit_observation", {
+  const { data: observationId, error } = await db.rpc("tbos_submit_observation_v2", {
     p_facilitator_id: auth.userId,
-    p_team_id: teamId,
+    p_team_id: teamId || null,
+    p_program_id: newTeam?.programId || null,
+    p_batch_id: newTeam?.batchId || null,
+    p_team_name: newTeam?.name.trim() || null,
     p_mission_id: missionId,
     p_client_submission_id: clientSubmissionId,
     p_notes: notes || null,
@@ -155,8 +104,11 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    const status = error.code === "42501" ? 403 : error.code === "23503" ? 404 : error.code === "22023" ? 400 : 500;
-    return NextResponse.json({ success: false, error: error.message }, { status });
+    const status = error.code === "42501" ? 403 : error.code === "23503" ? 404 : error.code === "23505" ? 409 : error.code === "22023" ? 400 : 500;
+    const message = error.code === "23505"
+      ? "Nama tim sudah dipakai, gunakan nama lain atau pilih dari daftar."
+      : error.message;
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 
   return NextResponse.json({ success: true, observationId });
@@ -170,13 +122,39 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
   const programId = req.nextUrl.searchParams.get("programId");
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
+  }
+  try {
+    if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+      return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+  }
+  if (auth.role === "facilitator") {
+    const { data: assignment, error: assignmentError } = await db
+      .from("facilitator_missions")
+      .select("mission_id")
+      .eq("profile_id", auth.userId)
+      .eq("program_id", programId)
+      .limit(1)
+      .maybeSingle();
+    if (assignmentError) return NextResponse.json({ success: false, error: assignmentError.message }, { status: 500 });
+    if (!assignment) return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
+  }
   const url = new URL(req.url);
   const teamId = url.searchParams.get("teamId");
   const missionId = url.searchParams.get("missionId");
+  if ((teamId && !z.string().uuid().safeParse(teamId).success)
+    || (missionId && !z.string().uuid().safeParse(missionId).success)) {
+    return NextResponse.json({ success: false, error: "Filter observasi tidak valid." }, { status: 400 });
+  }
 
-  let query = db
-    .from("tbos_observations")
-    .select(`
+  let typedRows: ObservationListRow[];
+  try {
+    typedRows = await collectAllPages<ObservationListRow>((from, to) => {
+      let query = db.from("tbos_observations").select(`
       id,
       team_id,
       mission_id,
@@ -196,6 +174,7 @@ export async function GET(req: NextRequest) {
         code,
         name
       ),
+      profiles (full_name),
        tbos_observation_scores (
         dimension_id,
         level_value,
@@ -213,46 +192,18 @@ export async function GET(req: NextRequest) {
         created_at,
         updated_at
       )
-    `)
-    .order("submitted_at", { ascending: false });
-
-  // Facilitators see only their own observations; admins see all
-  if (auth.role !== "admin") {
-    query = query.eq("profile_id", auth.userId);
+      `)
+        .eq("program_id", programId)
+        .order("submitted_at", { ascending: false });
+      if (auth.role !== "admin") query = query.eq("profile_id", auth.userId);
+      if (teamId) query = query.eq("team_id", teamId);
+      if (missionId) query = query.eq("mission_id", missionId);
+      return query.range(from, to) as never;
+    });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat observasi." }, { status: 500 });
   }
-
-  if (teamId) {
-    query = query.eq("team_id", teamId);
-  }
-  if (missionId) {
-    query = query.eq("mission_id", missionId);
-  }
-  if (programId) {
-    const { data: programTeams, error: programTeamsError } = await db.from("tbos_teams").select("id").eq("engagement_id", programId);
-    if (programTeamsError) return NextResponse.json({ success: false, error: programTeamsError.message }, { status: 500 });
-    const teamIds = (programTeams || []).map((team) => team.id);
-    query = teamIds.length > 0 ? query.in("team_id", teamIds) : query.limit(0);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("[T-BOS Observations] query error:", JSON.stringify(error));
-    return NextResponse.json({ success: false, error: error.message, code: error.code, hint: error.hint, detail: error.details }, { status: 500 });
-  }
-
-  const profileIds = [...new Set((data || []).map((observation: any) => observation.profile_id))];
-  const { data: profileRows, error: profileError } = profileIds.length > 0
-    ? await db.from("profiles").select("id, full_name").in("id", profileIds)
-    : { data: [], error: null };
-
-  if (profileError) {
-    console.error("[T-BOS Observations] profile query error:", JSON.stringify(profileError));
-    return NextResponse.json({ success: false, error: profileError.message, code: profileError.code, hint: profileError.hint, detail: profileError.details }, { status: 500 });
-  }
-
-  const profilesById = new Map((profileRows || []).map((profile) => [profile.id, profile.full_name]));
-  const observations = (data || []).map((obs: any) => ({
+  const observations = typedRows.map((obs) => ({
     id: obs.id,
     teamId: obs.team_id,
     teamName: obs.tbos_teams?.name || "-",
@@ -260,7 +211,7 @@ export async function GET(req: NextRequest) {
     missionCode: obs.tbos_missions?.code || "",
     missionName: obs.tbos_missions?.name || "-",
     profileId: obs.profile_id,
-    facilitatorName: profilesById.get(obs.profile_id) || "-",
+    facilitatorName: obs.profiles?.full_name || "-",
     batch: obs.batch,
     observedAt: obs.observed_at,
     submittedAt: obs.submitted_at,
@@ -270,7 +221,7 @@ export async function GET(req: NextRequest) {
     lockedBy: obs.locked_by,
     revisionDeadline: obs.revision_deadline,
     canEdit: obs.status === "submitted" && (!obs.revision_deadline || new Date(obs.revision_deadline).getTime() > Date.now()),
-    members: (obs.tbos_observation_members || []).map((member: any) => ({
+    members: (obs.tbos_observation_members || []).map((member) => ({
       id: member.id,
       teamMemberId: member.team_member_id,
       memberName: member.member_name,
@@ -279,7 +230,7 @@ export async function GET(req: NextRequest) {
       createdAt: member.created_at,
       updatedAt: member.updated_at,
     })),
-    scores: (obs.tbos_observation_scores || []).map((s: any) => ({
+    scores: (obs.tbos_observation_scores || []).map((s) => ({
       dimensionId: s.dimension_id,
       dimensionCode: s.tbos_behavioral_dimensions?.code || "",
       dimensionName: s.tbos_behavioral_dimensions?.name || "",

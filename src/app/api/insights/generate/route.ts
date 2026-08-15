@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor } from "@/lib/transformation/auth";
 import { generateInsightSchema } from "@/lib/transformation/schemas";
 import { generateInsightDraft, getDb } from "@/lib/transformation/service";
+import { assertCanAccessEngagement, transformationErrorResponse } from "@/lib/transformation/access";
 
 export async function POST(req: NextRequest) {
   const actor = await requireTransformationActor(req);
@@ -19,9 +20,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const insight = await generateInsightDraft(getDb(), parsed.data.engagementId, parsed.data.type);
+    const db = getDb();
+    await assertCanAccessEngagement(db, actor, parsed.data.engagementId);
+    const insight = await generateInsightDraft(db, parsed.data.engagementId, parsed.data.type);
     return NextResponse.json({ success: true, insight }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal generate insight." }, { status: 500 });
+    const failure = transformationErrorResponse(error);
+    return NextResponse.json({ success: false, error: failure.message || "Gagal generate insight." }, { status: failure.status });
   }
 }

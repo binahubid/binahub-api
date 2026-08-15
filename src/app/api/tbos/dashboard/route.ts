@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
+import { z } from "zod";
+import { collectAllPages } from "@/lib/pagination";
 
 interface TeamRecord {
   id: string;
@@ -23,6 +26,7 @@ interface ObservationRecord {
   status: string;
   notes: string | null;
   tbos_missions: { code: string; name: string } | null;
+  profiles: { full_name: string } | null;
   tbos_observation_scores: Array<{
     dimension_id: string;
     level_value: number;
@@ -43,6 +47,9 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
   const programId = req.nextUrl.searchParams.get("programId");
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
+  }
 
   // Debug: check if service role key is loaded
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -54,89 +61,51 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  try {
+    if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+      return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+  }
+
   let teams: TeamRecord[] = [];
-  let assignedTeamCount = 0;
-  let organizationCount = 0;
   let assignedMissionIds: string[] = [];
 
-  if (auth.role === "admin") {
-    const { data, error } = await db
-      .from("tbos_teams")
-      .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("[T-BOS Dashboard] teams query error:", JSON.stringify(error));
-      return NextResponse.json({ success: false, error: error.message, code: error.code, hint: error.hint }, { status: 500 });
-    }
-
-    teams = (data || []) as TeamRecord[];
-  } else {
+  if (auth.role !== "admin") {
     const { data: assignments, error: assignmentError } = await db
       .from("facilitator_missions")
-      .select("program_id, mission_id")
-      .eq("profile_id", auth.userId);
+      .select("mission_id")
+      .eq("profile_id", auth.userId)
+      .eq("program_id", programId);
 
     if (assignmentError) {
       console.error("[T-BOS Dashboard] assignment query error:", assignmentError);
       return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
     }
 
-    const scopedAssignments = (assignments || []).filter((assignment) =>
-      !programId || assignment.program_id === programId
-    );
-    const assignedProgramIds = [...new Set(scopedAssignments.map((a) => a.program_id))];
-    assignedMissionIds = [...new Set(scopedAssignments.map((a) => a.mission_id))];
-    assignedTeamCount = assignedProgramIds.length;
-
-    if (assignedProgramIds.length > 0) {
-      const { data: assignedTeams, error: assignedTeamsError } = await db
-        .from("tbos_teams")
-        .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
-        .in("engagement_id", assignedProgramIds);
-
-      if (assignedTeamsError) {
-        console.error("[T-BOS Dashboard] assigned teams query error:", assignedTeamsError);
-        return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
-      }
-
-      const assignedTeamRows = (assignedTeams || []) as TeamRecord[];
-      const organizationIds = [...new Set(
-        assignedTeamRows
-          .map((team) => team.organization_id)
-          .filter((organizationId): organizationId is string => Boolean(organizationId))
-      )];
-      organizationCount = organizationIds.length;
-
-      let organizationTeams: TeamRecord[] = [];
-      if (organizationIds.length > 0) {
-        const { data, error } = await db
-          .from("tbos_teams")
-          .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
-          .in("organization_id", organizationIds);
-
-        if (error) {
-          console.error("[T-BOS Dashboard] organization teams query error:", error);
-          return NextResponse.json({ success: false, error: "Gagal memuat cakupan organisasi." }, { status: 500 });
-        }
-        organizationTeams = (data || []) as TeamRecord[];
-      }
-
-      teams = [...new Map(
-        [...assignedTeamRows, ...organizationTeams].map((team) => [team.id, team])
-      ).values()].sort((left, right) =>
-        left.batch.localeCompare(right.batch) || left.name.localeCompare(right.name)
-      );
+    assignedMissionIds = [...new Set((assignments || []).map((assignment) => assignment.mission_id))];
+    if (assignedMissionIds.length === 0) {
+      return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
     }
   }
 
-  if (programId) {
-    teams = teams.filter((team) => team.engagement_id === programId);
+  try {
+    teams = await collectAllPages<TeamRecord>((from, to) => db
+      .from("tbos_teams")
+      .select("id, name, batch, batch_id, organization_id, engagement_id, batches ( id, name )")
+      .eq("engagement_id", programId)
+      .order("name", { ascending: true })
+      .range(from, to) as never);
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat tim." }, { status: 500 });
   }
 
-  let observationsQuery = db
-    .from("tbos_observations")
-    .select(`
+  let observationRows: ObservationRecord[] = [];
+  if (auth.role === "admin" || assignedMissionIds.length > 0) {
+    try {
+      observationRows = await collectAllPages<ObservationRecord>((from, to) => {
+        let query = db.from("tbos_observations").select(`
       id,
       team_id,
       mission_id,
@@ -150,6 +119,7 @@ export async function GET(req: NextRequest) {
          code,
          name
        ),
+       profiles (full_name),
         tbos_observation_scores (
         dimension_id,
         level_value,
@@ -158,48 +128,20 @@ export async function GET(req: NextRequest) {
           name
         )
       )
-    `)
-    .in("status", ["submitted", "locked"]);
-
-  if (auth.role !== "admin") {
-    const scopedTeamIds = teams.map((team) => team.id);
-    if (scopedTeamIds.length === 0 || assignedMissionIds.length === 0) {
-      observationsQuery = observationsQuery.eq("profile_id", auth.userId).limit(0);
-    } else {
-      observationsQuery = observationsQuery
-        .in("team_id", scopedTeamIds)
-        .in("mission_id", assignedMissionIds);
-    }
-  } else if (programId) {
-    const programTeamIds = teams.map((team) => team.id);
-    if (programTeamIds.length === 0) {
-      observationsQuery = observationsQuery.limit(0);
-    } else {
-      observationsQuery = observationsQuery.in("team_id", programTeamIds);
+      `)
+          .in("status", ["submitted", "locked"])
+          .eq("program_id", programId)
+          .order("submitted_at", { ascending: false });
+        if (auth.role !== "admin") query = query.in("mission_id", assignedMissionIds);
+        return query.range(from, to) as never;
+      });
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat observasi." }, { status: 500 });
     }
   }
 
-  const { data: observationRows, error: obsError } = await observationsQuery
-    .order("submitted_at", { ascending: false });
-
-  if (obsError) {
-    console.error("[T-BOS Dashboard] observations query error:", JSON.stringify(obsError));
-    return NextResponse.json({ success: false, error: obsError.message, code: obsError.code, hint: obsError.hint, detail: obsError.details }, { status: 500 });
-  }
-
-  const observations = (observationRows || []) as unknown as ObservationRecord[];
+  const observations = observationRows;
   const teamsById = new Map(teams.map((team) => [team.id, team]));
-  const profileIds = [...new Set(observations.map((observation) => observation.profile_id))];
-  const { data: profileRows, error: profileError } = profileIds.length > 0
-    ? await db.from("profiles").select("id, full_name").in("id", profileIds)
-    : { data: [], error: null };
-
-  if (profileError) {
-    console.error("[T-BOS Dashboard] profile query error:", JSON.stringify(profileError));
-    return NextResponse.json({ success: false, error: profileError.message, code: profileError.code, hint: profileError.hint, detail: profileError.details }, { status: 500 });
-  }
-
-  const profilesById = new Map((profileRows || []).map((profile) => [profile.id, profile.full_name]));
   const transformedObservations = observations.map((observation) => {
     const common = {
       id: observation.id,
@@ -224,7 +166,7 @@ export async function GET(req: NextRequest) {
       ? {
           ...common,
           profileId: observation.profile_id,
-           facilitatorName: profilesById.get(observation.profile_id) || "-",
+           facilitatorName: observation.profiles?.full_name || "-",
           notes: observation.notes,
         }
       : common;
@@ -236,9 +178,9 @@ export async function GET(req: NextRequest) {
   );
   const viewerStats = {
     role: auth.role,
-    assignedTeamCount: auth.role === "admin" ? null : assignedTeamCount,
+    assignedTeamCount: auth.role === "admin" ? null : teams.length,
     assignedMissionCount: auth.role === "admin" ? null : assignedMissionIds.length,
-    organizationCount: auth.role === "admin" ? null : organizationCount,
+    organizationCount: auth.role === "admin" ? null : new Set(teams.map((team) => team.organization_id).filter(Boolean)).size,
     scopedTeamCount: teams.length,
     ownObservationCount: ownObservations.length,
     ownTeamsObserved: new Set(ownObservations.map((observation) => observation.team_id)).size,

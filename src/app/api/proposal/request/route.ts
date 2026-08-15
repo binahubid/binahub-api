@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase';
+import { enforceRateLimit } from '@/lib/rate-limit';
+import { verifyProposalToken } from '@/lib/secure-token';
 
 const NAVY = '#0B2C6B';
 const GOLD = '#D9A441';
 
-function successHtml(name: string, company: string) {
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function successHtml(name: string, company: string, confirmation?: { assessmentId: string; token: string }) {
+  const isPending = Boolean(confirmation);
+  const formAction = confirmation
+    ? `/api/proposal/request?assessmentId=${encodeURIComponent(confirmation.assessmentId)}&token=${encodeURIComponent(confirmation.token)}`
+    : "";
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -86,6 +101,17 @@ function successHtml(name: string, company: string) {
       border-radius: 2px;
       margin: 24px auto;
     }
+    .confirm-button {
+      border: 0;
+      border-radius: 10px;
+      background: ${NAVY};
+      color: #FFFFFF;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      margin-top: 20px;
+      padding: 13px 22px;
+    }
     .info-box {
       background: #F0F4FF;
       border-left: 3px solid ${NAVY};
@@ -128,9 +154,11 @@ function successHtml(name: string, company: string) {
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
       </div>
-      <h1>Permintaan Proposal Diterima</h1>
+      <h1>${isPending ? 'Konfirmasi Permintaan Proposal' : 'Permintaan Proposal Diterima'}</h1>
       <p>Terima kasih, <span class="highlight">${name}</span> dari <span class="highlight">${company}</span>.</p>
-      <p>Tim kami akan menyusun proposal penawaran dan mengirimkannya ke email Anda dalam waktu dekat.</p>
+      ${isPending
+        ? `<p>Klik tombol berikut untuk mengonfirmasi permintaan. Halaman ini tidak akan memproses permintaan hanya karena link dibuka oleh pemindai email.</p><form method="post" action="${formAction}"><button class="confirm-button" type="submit">Konfirmasi Permintaan</button></form>`
+        : '<p>Tim kami akan menyusun proposal penawaran dan mengirimkannya ke email Anda dalam waktu dekat.</p>'}
 
       <div class="divider"></div>
 
@@ -215,8 +243,12 @@ function errorHtml(title: string, message: string) {
 
 export async function GET(req: NextRequest) {
   const assessmentId = req.nextUrl.searchParams.get('assessmentId');
+  const token = req.nextUrl.searchParams.get('token');
 
-  if (!assessmentId) {
+  const rateLimited = await enforceRateLimit(req, 'proposal-request', 30, 60 * 60);
+  if (rateLimited) return rateLimited;
+
+  if (!assessmentId || !token || !verifyProposalToken(assessmentId, token)) {
     return new NextResponse(errorHtml(
       'Link Tidak Valid',
       'Parameter assessmentId tidak ditemukan. Silakan gunakan link dari email yang kami kirimkan.'
@@ -241,33 +273,73 @@ export async function GET(req: NextRequest) {
   const terminalStatuses = ['Diminta', 'Sedang Disusun', 'Terkirim', 'Revisi', 'Lanjut Diskusi', 'Deal', 'Lost', 'Closed'];
   if (terminalStatuses.includes(assessment.proposal_status || '')) {
     const formData = assessment.form_data as Record<string, string> | null;
-    const name = formData?.name || 'Bapak/Ibu';
-    const company = formData?.company || 'Perusahaan Anda';
+    const name = escapeHtml(formData?.name || 'Bapak/Ibu');
+    const company = escapeHtml(formData?.company || 'Perusahaan Anda');
     return new NextResponse(successHtml(name, company), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
   }
 
-  const { error: updateError } = await supabase
-    .from('assessments')
-    .update({
-      assessment_status: 'Minta Proposal',
-      proposal_status: 'Diminta',
-      proposal_requested_at: new Date().toISOString(),
-    })
-    .eq('id', assessmentId);
+  const formData = assessment.form_data as Record<string, string> | null;
+  const name = escapeHtml(formData?.name || 'Bapak/Ibu');
+  const company = escapeHtml(formData?.company || 'Perusahaan Anda');
 
-  if (updateError) {
-    console.error('[API] Failed to update proposal status:', updateError);
-    return new NextResponse(errorHtml(
-      'Gagal Memproses',
-      'Terjadi kesalahan saat memproses permintaan Anda. Silakan coba lagi atau hubungi tim BinaHub.'
-    ), { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  return new NextResponse(successHtml(name, company, { assessmentId, token }), {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const assessmentId = req.nextUrl.searchParams.get('assessmentId');
+  const token = req.nextUrl.searchParams.get('token');
+
+  const rateLimited = await enforceRateLimit(req, 'proposal-confirm', 10, 60 * 60);
+  if (rateLimited) return rateLimited;
+
+  if (!assessmentId || !token || !verifyProposalToken(assessmentId, token)) {
+    return new NextResponse(errorHtml('Link Tidak Valid', 'Link konfirmasi tidak valid atau sudah kedaluwarsa.'), {
+      status: 400,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
+  const supabase = createServerSupabase();
+  const { data: assessment, error } = await supabase
+    .from('assessments')
+    .select('id, proposal_status, form_data')
+    .eq('id', assessmentId)
+    .single();
+
+  if (error || !assessment) {
+    return new NextResponse(errorHtml('Assessment Tidak Ditemukan', 'Data assessment tidak ditemukan.'), {
+      status: 404,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
+  const terminalStatuses = ['Diminta', 'Sedang Disusun', 'Terkirim', 'Revisi', 'Lanjut Diskusi', 'Deal', 'Lost', 'Closed'];
+  if (!terminalStatuses.includes(assessment.proposal_status || '')) {
+    const { error: updateError } = await supabase
+      .from('assessments')
+      .update({
+        assessment_status: 'Minta Proposal',
+        proposal_status: 'Diminta',
+        proposal_requested_at: new Date().toISOString(),
+      })
+      .eq('id', assessmentId);
+
+    if (updateError) {
+      console.error('[API] Failed to update proposal status:', updateError);
+      return new NextResponse(errorHtml('Gagal Memproses', 'Terjadi kesalahan saat memproses permintaan Anda.'), {
+        status: 500,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
   }
 
   const formData = assessment.form_data as Record<string, string> | null;
-  const name = formData?.name || 'Bapak/Ibu';
-  const company = formData?.company || 'Perusahaan Anda';
+  const name = escapeHtml(formData?.name || 'Bapak/Ibu');
+  const company = escapeHtml(formData?.company || 'Perusahaan Anda');
 
   return new NextResponse(successHtml(name, company), {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },

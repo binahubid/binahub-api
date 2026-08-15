@@ -21,11 +21,14 @@ export const actionStatusSchema = z.enum(["todo", "in_progress", "blocked", "don
 export const createEngagementSchema = z.object({
   organizationId: uuidSchema,
   code: z.string().trim().min(1).max(50),
-  title: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(200),
   type: engagementTypeSchema,
   status: engagementStatusSchema.optional().default("draft"),
-  startDate: z.string().trim().optional(),
-  endDate: z.string().trim().optional(),
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
+}).refine((value) => !value.startDate || !value.endDate || value.startDate <= value.endDate, {
+  message: "Tanggal selesai tidak boleh sebelum tanggal mulai.",
+  path: ["endDate"],
 });
 
 export const updateEngagementStatusSchema = z.object({
@@ -35,10 +38,10 @@ export const updateEngagementStatusSchema = z.object({
 export const createParticipantSchema = z.object({
   organizationId: uuidSchema,
   engagementId: uuidSchema.optional(),
-  name: z.string().trim().min(1),
-  email: z.string().trim().email().optional(),
-  roleTitle: z.string().trim().optional(),
-  department: z.string().trim().optional(),
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320).optional(),
+  roleTitle: z.string().trim().max(200).optional(),
+  department: z.string().trim().max(200).optional(),
   engagementRole: z.enum(["participant", "leader", "observer"]).optional().default("participant"),
 });
 
@@ -47,27 +50,27 @@ export const createEvidenceSchema = z.object({
   participantId: uuidSchema.optional(),
   type: evidenceTypeSchema,
   source: evidenceSourceSchema,
-  content: z.record(z.string(), z.unknown()).default({}),
-  capabilityTags: z.array(z.string().trim().min(1)).default([]),
+  content: z.record(z.string(), z.unknown()).refine((value) => JSON.stringify(value).length <= 50_000, "Content terlalu besar.").default({}),
+  capabilityTags: z.array(z.string().trim().min(1).max(100)).max(20).default([]),
   confidenceScore: z.number().min(0).max(1).optional().default(0.5),
 });
 
 export const createActionSchema = z.object({
   engagementId: uuidSchema,
   participantId: uuidSchema.optional(),
-  title: z.string().trim().min(1),
-  description: z.string().trim().optional(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(4000).optional(),
   status: actionStatusSchema.optional().default("todo"),
-  dueDate: z.string().trim().optional(),
+  dueDate: z.string().date().optional(),
   progress: z.number().int().min(0).max(100).optional().default(0),
 });
 
 export const updateActionSchema = z.object({
   status: actionStatusSchema.optional(),
   progress: z.number().int().min(0).max(100).optional(),
-  title: z.string().trim().min(1).optional(),
-  description: z.string().trim().optional(),
-  dueDate: z.string().trim().optional(),
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().max(4000).optional(),
+  dueDate: z.string().date().optional(),
 }).refine((value) => Object.keys(value).length > 0, "Payload update tidak boleh kosong.");
 
 export const generateInsightSchema = z.object({
@@ -78,10 +81,10 @@ export const generateInsightSchema = z.object({
 export const submitReflectionSchema = z.object({
   engagementId: uuidSchema,
   participantId: uuidSchema,
-  prompt: z.string().trim().min(1),
-  situation: z.string().trim().min(10, "Ceritakan situasinya minimal 10 karakter."),
-  learning: z.string().trim().min(10, "Tuliskan pembelajaran minimal 10 karakter."),
-  nextAction: z.string().trim().min(5, "Tuliskan aksi berikutnya."),
-  capabilityTags: z.array(z.string().trim().min(1)).min(1, "Pilih minimal satu capability."),
+  prompt: z.string().trim().min(1).max(1000),
+  situation: z.string().trim().min(10, "Ceritakan situasinya minimal 10 karakter.").max(10_000),
+  learning: z.string().trim().min(10, "Tuliskan pembelajaran minimal 10 karakter.").max(10_000),
+  nextAction: z.string().trim().min(5, "Tuliskan aksi berikutnya.").max(4000),
+  capabilityTags: z.array(z.string().trim().min(1).max(100)).min(1, "Pilih minimal satu capability.").max(20),
   confidenceScore: z.number().min(0).max(1).optional().default(0.65),
 });

@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requirePeserta } from "@/lib/peserta-auth";
+import { isParticipantInProgram, isProgramModuleEnabled } from "@/lib/program-access";
+
+const responseSchema = z.object({
+  programId: z.string().uuid(),
+  qMenyenangkan: z.number().int().min(1).max(4),
+  qBermanfaat: z.number().int().min(1).max(4),
+  qRekomendasi: z.number().int().min(1).max(4),
+  qPraktik: z.number().int().min(1).max(4),
+  halTerpenting: z.string().trim().min(1).max(4000),
+  halMenarik: z.string().trim().min(1).max(4000),
+  saranProgram: z.string().trim().max(4000).optional().default(""),
+  speakerRatings: z.array(z.object({
+    speakerId: z.string().uuid(),
+    score: z.number().int().min(1).max(4),
+    comment: z.string().trim().max(2000).optional().default(""),
+  })),
+});
+
+async function requireLepParticipantAccess(userId: string, programId: string) {
+  const db = createServerSupabase();
+  const [enabled, member] = await Promise.all([
+    isProgramModuleEnabled(db, programId, "lep"),
+    isParticipantInProgram(db, userId, programId),
+  ]);
+  return { db, enabled, member };
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requirePeserta(req);
@@ -9,23 +36,27 @@ export async function GET(req: NextRequest) {
   }
 
   const programId = req.nextUrl.searchParams.get("programId");
-  if (!programId) {
-    return NextResponse.json({ success: false, error: "programId wajib diisi." }, { status: 400 });
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
   }
 
-  const db = createServerSupabase();
-  const { data, error } = await db
-    .from("lep_responses")
-    .select("id, submitted_at")
-    .eq("program_id", programId)
-    .eq("profile_id", auth.userId)
-    .maybeSingle();
+  try {
+    const { db, enabled, member } = await requireLepParticipantAccess(auth.userId, programId);
+    if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
+    if (!member) return NextResponse.json({ success: false, error: "Anda tidak terdaftar pada program ini." }, { status: 403 });
 
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const { data, error } = await db
+      .from("lep_responses")
+      .select("id, submitted_at")
+      .eq("program_id", programId)
+      .eq("profile_id", auth.userId)
+      .maybeSingle();
+
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, response: data });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa evaluasi." }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, response: data });
 }
 
 export async function POST(req: NextRequest) {
@@ -34,95 +65,58 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const {
-    programId,
-    qMenyenangkan,
-    qBermanfaat,
-    qRekomendasi,
-    qPraktik,
-    halTerpenting,
-    halMenarik,
-    saranProgram,
-    speakerRatings,
-  } = body as {
-    programId?: string;
-    qMenyenangkan?: number;
-    qBermanfaat?: number;
-    qRekomendasi?: number;
-    qPraktik?: number;
-    halTerpenting?: string;
-    halMenarik?: string;
-    saranProgram?: string;
-    speakerRatings?: Array<{ speakerId: string; score: number; comment?: string }>;
-  };
-
-  if (!programId || !qMenyenangkan || !qBermanfaat || !qRekomendasi || !qPraktik
-      || !halTerpenting || !halTerpenting.trim() || !halMenarik || !halMenarik.trim()) {
-    return NextResponse.json({ success: false, error: "Field wajib belum lengkap." }, { status: 400 });
+  const parsed = responseSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || "Field wajib belum lengkap." }, { status: 400 });
   }
 
-  for (const [field, value] of [["qMenyenangkan", qMenyenangkan], ["qBermanfaat", qBermanfaat], ["qRekomendasi", qRekomendasi], ["qPraktik", qPraktik]] as const) {
-    if (typeof value !== "number" || value < 1 || value > 4) {
-      return NextResponse.json({ success: false, error: `${field} harus antara 1 dan 4.` }, { status: 400 });
+  const input = parsed.data;
+
+  try {
+    const { db, enabled, member } = await requireLepParticipantAccess(auth.userId, input.programId);
+    if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
+    if (!member) return NextResponse.json({ success: false, error: "Anda tidak terdaftar pada program ini." }, { status: 403 });
+
+    const { data: speakers, error: speakerError } = await db
+      .from("lep_speakers")
+      .select("id")
+      .eq("program_id", input.programId)
+      .is("deleted_at", null);
+    if (speakerError) return NextResponse.json({ success: false, error: speakerError.message }, { status: 500 });
+
+    const expectedSpeakerIds = new Set((speakers || []).map((speaker) => speaker.id));
+    const submittedSpeakerIds = input.speakerRatings.map((rating) => rating.speakerId);
+    if (
+      submittedSpeakerIds.length !== expectedSpeakerIds.size
+      || new Set(submittedSpeakerIds).size !== submittedSpeakerIds.length
+      || submittedSpeakerIds.some((id) => !expectedSpeakerIds.has(id))
+    ) {
+      return NextResponse.json({ success: false, error: "Rating seluruh pemateri program wajib diisi tepat satu kali." }, { status: 400 });
     }
-  }
 
-  const db = createServerSupabase();
+    const { data: responseId, error } = await db.rpc("submit_lep_response", {
+      p_program_id: input.programId,
+      p_profile_id: auth.userId,
+      p_q_menyenangkan: input.qMenyenangkan,
+      p_q_bermanfaat: input.qBermanfaat,
+      p_q_rekomendasi: input.qRekomendasi,
+      p_q_praktik: input.qPraktik,
+      p_hal_terpenting: input.halTerpenting,
+      p_hal_menarik: input.halMenarik,
+      p_saran_program: input.saranProgram || null,
+      p_speaker_ratings: input.speakerRatings,
+    });
 
-  // Check if already submitted (unique constraint)
-  const { data: existing } = await db
-    .from("lep_responses")
-    .select("id")
-    .eq("program_id", programId)
-    .eq("profile_id", auth.userId)
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json({ success: false, error: "Anda sudah mengisi evaluasi untuk program ini." }, { status: 409 });
-  }
-
-  // Insert response
-  const { data: responseRow, error: responseError } = await db
-    .from("lep_responses")
-    .insert({
-      program_id: programId,
-      profile_id: auth.userId,
-      q_menyenangkan: qMenyenangkan,
-      q_bermanfaat: qBermanfaat,
-      q_rekomendasi: qRekomendasi,
-      q_praktik: qPraktik,
-      hal_terpenting: halTerpenting.trim(),
-      hal_menarik: halMenarik.trim(),
-      saran_program: saranProgram?.trim() || null,
-    })
-    .select("id")
-    .single();
-
-  if (responseError) {
-    if (responseError.code === "23505") {
-      return NextResponse.json({ success: false, error: "Anda sudah mengisi evaluasi untuk program ini." }, { status: 409 });
+    if (error) {
+      const duplicate = error.code === "23505";
+      return NextResponse.json(
+        { success: false, error: duplicate ? "Anda sudah mengisi evaluasi untuk program ini." : error.message },
+        { status: duplicate ? 409 : error.code === "42501" ? 403 : 400 },
+      );
     }
-    return NextResponse.json({ success: false, error: responseError.message }, { status: 500 });
+
+    return NextResponse.json({ success: true, responseId });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal menyimpan evaluasi." }, { status: 500 });
   }
-
-  // Insert speaker ratings
-  if (speakerRatings && speakerRatings.length > 0) {
-    const ratingRows = speakerRatings.map((r) => ({
-      response_id: responseRow.id,
-      speaker_id: r.speakerId,
-      score: r.score,
-      comment: r.comment?.trim() || null,
-    }));
-
-    const { error: ratingError } = await db
-      .from("lep_speaker_ratings")
-      .insert(ratingRows);
-
-    if (ratingError) {
-      console.error("[LEP] speaker ratings insert error:", ratingError);
-    }
-  }
-
-  return NextResponse.json({ success: true, responseId: responseRow.id });
 }

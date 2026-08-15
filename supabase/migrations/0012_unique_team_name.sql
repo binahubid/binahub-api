@@ -5,21 +5,23 @@
 
 begin;
 
--- De-duplicate any existing duplicate (engagement_id, batch_id, name) pairs before adding the index.
--- Keep the earliest created row in each group.
-with ranked as (
-  select
-    id,
-    row_number() over (
-      partition by engagement_id, batch_id, coalesce(name, '')
-      order by created_at, name
-    ) as rn
-  from public.tbos_teams
-  where engagement_id is not null and batch_id is not null
-)
-delete from public.tbos_teams t
-using ranked r
-where t.id = r.id and r.rn > 1;
+-- Never guess which duplicate is safe to delete: observations and historical
+-- rosters may reference either row. Fail explicitly and require a reviewed merge.
+do $$
+begin
+  if exists (
+    select 1
+    from public.tbos_teams
+    where engagement_id is not null and batch_id is not null
+    group by engagement_id, batch_id, lower(btrim(name))
+    having count(*) > 1
+  ) then
+    raise exception using
+      errcode = '23505',
+      message = 'Duplicate team names exist. Merge them deliberately before applying migration 0012.';
+  end if;
+end;
+$$;
 
 create unique index if not exists tbos_teams_unique_name_per_batch
   on public.tbos_teams (engagement_id, batch_id, lower(name))

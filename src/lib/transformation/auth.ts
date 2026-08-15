@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
-import { getClientAccess } from "@/lib/client-access";
+import { getClientAccessBySupabaseUser } from "@/lib/client-access";
 import { requireAdmin } from "@/lib/admin-auth";
-import { requireFacilitator } from "@/lib/facilitator-auth";
+import { getAuthoritativeUserRole, getUserFromBearer, isAdminFallbackEmail, isFacilitatorFallbackEmail, normalizeEmail } from "@/lib/auth-role";
 
 export type TransformationActor = {
   role: "admin" | "facilitator" | "client" | "worker";
@@ -10,31 +10,48 @@ export type TransformationActor = {
   organizationId?: string | null;
   participantId?: string | null;
   accessCodeId?: string | null;
+  companyName?: string | null;
+  teamName?: string | null;
 };
 
 export async function requireTransformationActor(req: NextRequest): Promise<TransformationActor | { error: string; status: number }> {
-  const facilitator = await requireFacilitator(req);
-  if (!("error" in facilitator)) {
-    return {
-      role: facilitator.role === "admin" ? "admin" : "facilitator",
-      userId: facilitator.userId,
-      email: facilitator.email,
-    };
+  const bearer = await getUserFromBearer(req);
+  if (!("error" in bearer)) {
+    try {
+      const role = await getAuthoritativeUserRole(bearer.user);
+      const email = normalizeEmail(bearer.user.email);
+      const staffRole = role === "admin" || isAdminFallbackEmail(email)
+        ? "admin"
+        : role === "facilitator" || isFacilitatorFallbackEmail(email)
+          ? "facilitator"
+          : null;
+      if (staffRole) {
+        return {
+          role: staffRole,
+          userId: bearer.user.id,
+          email,
+        };
+      }
+      if (role === "client") {
+        const access = await getClientAccessBySupabaseUser(bearer.user.id, bearer.user.app_metadata || {});
+        if (!access) return { error: "Akses client tidak valid", status: 403 };
+        return {
+          role: "client",
+          userId: bearer.user.id,
+          email: normalizeEmail(bearer.user.email),
+          organizationId: access.organization_id || null,
+          participantId: access.participant_id || null,
+          accessCodeId: access.id,
+          companyName: access.company_name || null,
+          teamName: access.team_name || null,
+        };
+      }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Gagal memverifikasi akses", status: 500 };
+    }
   }
 
-  const clientAccess = await getClientAccess();
-  if (clientAccess) {
-    return {
-      role: "client",
-      userId: null,
-      email: `client-access:${clientAccess.id}`,
-      organizationId: clientAccess.organization_id || null,
-      participantId: clientAccess.participant_id || null,
-      accessCodeId: clientAccess.id,
-    };
-  }
-
-  return { error: facilitator.error || "Akses tidak valid", status: facilitator.status || 401 };
+  return { error: "Akses tidak valid", status: "error" in bearer ? bearer.status : 403 };
 }
 
 export async function requireTransformationAdmin(req: NextRequest): Promise<TransformationActor | { error: string; status: number }> {

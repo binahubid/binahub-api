@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
 
 const assignSchema = z.object({
   facilitatorId: z.string().uuid(),
@@ -12,8 +13,18 @@ const assignSchema = z.object({
 const bulkAssignSchema = z.object({
   facilitatorId: z.string().uuid(),
   programId: z.string().uuid(),
-  missionIds: z.array(z.string().uuid()).min(1),
+  missionIds: z.array(z.string().uuid()).max(100)
+    .refine((ids) => new Set(ids).size === ids.length, "Mission tidak boleh duplikat."),
 });
+
+interface AssignmentRow {
+  profile_id: string;
+  mission_id: string;
+  program_id: string;
+  created_at: string;
+  profiles: { full_name: string } | null;
+  tbos_missions: { code: string; name: string } | null;
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req);
@@ -24,11 +35,15 @@ export async function GET(req: NextRequest) {
   const programId = req.nextUrl.searchParams.get("programId");
   const facilitatorId = req.nextUrl.searchParams.get("facilitatorId");
 
-  if (!programId) {
-    return NextResponse.json({ success: false, error: "programId wajib diisi." }, { status: 400 });
+  if (!programId || !z.string().uuid().safeParse(programId).success
+    || (facilitatorId && !z.string().uuid().safeParse(facilitatorId).success)) {
+    return NextResponse.json({ success: false, error: "Parameter assignment tidak valid." }, { status: 400 });
   }
 
   const db = createServerSupabase();
+  if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
   let query = db
     .from("facilitator_missions")
     .select(`
@@ -51,7 +66,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  const assignments = (data || []).map((row: any) => ({
+  const assignments = ((data || []) as unknown as AssignmentRow[]).map((row) => ({
     profileId: row.profile_id,
     missionId: row.mission_id,
     programId: row.program_id,
@@ -87,6 +102,10 @@ export async function POST(req: NextRequest) {
 
   const { facilitatorId, missionId, programId } = parsed.data;
   const db = createServerSupabase();
+
+  if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
 
   const [{ data: facilitator }, { data: mission }, { data: program }] = await Promise.all([
     db.from("profiles").select("id, role").eq("id", facilitatorId).maybeSingle(),
@@ -131,20 +150,30 @@ export async function DELETE(req: NextRequest) {
   const missionId = req.nextUrl.searchParams.get("missionId");
   const programId = req.nextUrl.searchParams.get("programId");
 
-  if (!facilitatorId || !missionId || !programId) {
+  const parsedParams = z.object({
+    facilitatorId: z.string().uuid(),
+    missionId: z.string().uuid(),
+    programId: z.string().uuid(),
+  }).safeParse({ facilitatorId, missionId, programId });
+  if (!parsedParams.success) {
     return NextResponse.json(
       { success: false, error: "facilitatorId, missionId, dan programId wajib diisi." },
       { status: 400 }
     );
   }
 
+  const ids = parsedParams.data;
+
   const db = createServerSupabase();
+  if (!(await isProgramModuleEnabled(db, ids.programId, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
   const { error } = await db
     .from("facilitator_missions")
     .delete()
-    .eq("profile_id", facilitatorId)
-    .eq("mission_id", missionId)
-    .eq("program_id", programId);
+    .eq("profile_id", ids.facilitatorId)
+    .eq("mission_id", ids.missionId)
+    .eq("program_id", ids.programId);
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -153,7 +182,7 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-async function handleBulkAssign(body: any) {
+async function handleBulkAssign(body: unknown) {
   const parsed = bulkAssignSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -175,20 +204,34 @@ async function handleBulkAssign(body: any) {
     return NextResponse.json({ success: false, error: "Akun yang dipilih bukan fasilitator." }, { status: 400 });
   }
 
-  const rows = missionIds.map((missionId) => ({
-    profile_id: facilitatorId,
-    mission_id: missionId,
-    program_id: programId,
-  }));
+  try {
+    if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+      return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+  }
 
-  const { data, error } = await db
-    .from("facilitator_missions")
-    .upsert(rows)
-    .select();
+  if (missionIds.length > 0) {
+    const { data: missions, error: missionError } = await db
+      .from("tbos_missions")
+      .select("id")
+      .in("id", missionIds);
+    if (missionError) return NextResponse.json({ success: false, error: missionError.message }, { status: 500 });
+    if ((missions || []).length !== new Set(missionIds).size) {
+      return NextResponse.json({ success: false, error: "Satu atau lebih misi tidak ditemukan." }, { status: 400 });
+    }
+  }
+
+  const { data, error } = await db.rpc("replace_facilitator_missions", {
+    p_facilitator_id: facilitatorId,
+    p_program_id: programId,
+    p_mission_ids: [...new Set(missionIds)],
+  });
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, assignments: data });
+  return NextResponse.json({ success: true, assignments: data || [] });
 }

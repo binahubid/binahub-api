@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { getUserFromBearer } from "@/lib/auth-role";
 import { calculateTbosTeamScore } from "@/lib/tbos-scoring";
+import { isProgramModuleEnabled } from "@/lib/program-access";
+import { z } from "zod";
+import { collectAllPages } from "@/lib/pagination";
 
 interface TeamRecord {
   id: string;
@@ -9,6 +12,7 @@ interface TeamRecord {
   batch: string;
   batch_id: string | null;
   organization_id: string | null;
+  engagement_id: string;
   batches?: { id: string; name: string }[] | { id: string; name: string } | null;
 }
 
@@ -48,22 +52,36 @@ export async function GET(req: NextRequest) {
 
   const userId = auth.user.id;
   const db = createServerSupabase();
+  const programId = req.nextUrl.searchParams.get("programId");
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
+  }
+  const { data: profile, error: profileError } = await db.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (profileError) return NextResponse.json({ success: false, error: profileError.message }, { status: 500 });
+  if (profile?.role !== "peserta") {
+    return NextResponse.json({ success: false, error: "Akses khusus peserta." }, { status: 403 });
+  }
+  if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
+  }
 
   // 1. Find the participant's team via tbos_team_members
   const { data: membership, error: memberError } = await db
     .from("tbos_team_members")
     .select(`
       team_id,
-      tbos_teams (
+      tbos_teams!inner (
         id,
         name,
         batch,
         batch_id,
         organization_id,
+        engagement_id,
         batches ( id, name )
       )
     `)
     .eq("profile_id", userId)
+    .eq("tbos_teams.engagement_id", programId)
     .maybeSingle();
 
   if (memberError) {
@@ -80,26 +98,24 @@ export async function GET(req: NextRequest) {
   const teamName = team.name;
   const batchRecord = Array.isArray(team.batches) ? team.batches[0] : team.batches;
   const batch = batchRecord?.name || team.batch;
-  const organizationId = team.organization_id;
-
-  // 2. Fetch the participant's organization cohort for ranking
-  let teamsQuery = db
-    .from("tbos_teams")
-    .select("id");
-  teamsQuery = organizationId
-    ? teamsQuery.eq("organization_id", organizationId)
-    : teamsQuery.is("organization_id", null);
-
-  const { data: cohortTeams, error: teamsError } = await teamsQuery;
-  if (teamsError) {
-    return NextResponse.json({ success: false, error: teamsError.message }, { status: 500 });
+  // 2. Rank only inside the same program, never across engagements.
+  let cohortTeams: Array<{ id: string }>;
+  try {
+    cohortTeams = await collectAllPages<{ id: string }>((from, to) => db
+      .from("tbos_teams")
+      .select("id")
+      .eq("engagement_id", programId)
+      .range(from, to));
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat tim." }, { status: 500 });
   }
 
   // 3. Fetch all observations (submitted/locked) for scoring
-  const cohortTeamIds = (cohortTeams || []).map((cohortTeam) => cohortTeam.id);
-  const { data: allObservations, error: observationsError } = await db
-    .from("tbos_observations")
-    .select(`
+  let allObservations: ObservationRecord[];
+  try {
+    allObservations = await collectAllPages<ObservationRecord>((from, to) => db
+      .from("tbos_observations")
+      .select(`
       id,
       team_id,
       mission_id,
@@ -111,12 +127,12 @@ export async function GET(req: NextRequest) {
         level_value,
         tbos_behavioral_dimensions (code, name)
       )
-    `)
-    .in("status", ["submitted", "locked"])
-    .in("team_id", cohortTeamIds);
-
-  if (observationsError) {
-    return NextResponse.json({ success: false, error: observationsError.message }, { status: 500 });
+      `)
+      .in("status", ["submitted", "locked"])
+      .eq("program_id", programId)
+      .range(from, to) as never);
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat observasi." }, { status: 500 });
   }
 
   const { data: missionDimensions, error: missionDimensionsError } = await db
@@ -139,7 +155,7 @@ export async function GET(req: NextRequest) {
     missionDimensionMap[missionCode].push(dimensionCode);
   }
 
-  const observations = ((allObservations || []) as unknown as ObservationRecord[]).map((obs) => ({
+  const observations = allObservations.map((obs) => ({
     id: obs.id,
     teamId: obs.team_id,
     missionId: obs.mission_id,
@@ -168,7 +184,7 @@ export async function GET(req: NextRequest) {
 
   // 5. Rank only against scored teams in the same organization.
   let rank: number | null = null;
-  const scoredCohort = (cohortTeams || [])
+  const scoredCohort = cohortTeams
     .map((cohortTeam) => ({
       teamId: cohortTeam.id,
       score: calculateTbosTeamScore(cohortTeam.id, observations, missionDimensionMap).overallScore,

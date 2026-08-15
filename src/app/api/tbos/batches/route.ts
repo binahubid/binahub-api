@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { requireFacilitator } from "@/lib/facilitator-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
 
 const createBatchSchema = z.object({
   programId: z.string().uuid(),
@@ -9,17 +11,35 @@ const createBatchSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin(req);
+  const auth = await requireFacilitator(req);
   if ("error" in auth) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
   const programId = req.nextUrl.searchParams.get("programId");
-  if (!programId) {
-    return NextResponse.json({ success: false, error: "programId wajib diisi." }, { status: 400 });
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
   }
 
   const db = createServerSupabase();
+  try {
+    if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+      return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+  }
+  if (auth.role === "facilitator") {
+    const { data: assignment, error: assignmentError } = await db
+      .from("facilitator_missions")
+      .select("mission_id")
+      .eq("profile_id", auth.userId)
+      .eq("program_id", programId)
+      .limit(1)
+      .maybeSingle();
+    if (assignmentError) return NextResponse.json({ success: false, error: assignmentError.message }, { status: 500 });
+    if (!assignment) return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
+  }
   const { data, error } = await db
     .from("batches")
     .select("id, program_id, name, sort_order, created_at")
@@ -52,20 +72,18 @@ export async function POST(req: NextRequest) {
   const db = createServerSupabase();
   const { programId, name } = parsed.data;
 
-  const { count } = await db
-    .from("batches")
-    .select("id", { count: "exact", head: true })
-    .eq("program_id", programId);
+  try {
+    if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+      return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+  }
 
-  const { data, error } = await db
-    .from("batches")
-    .insert({
-      program_id: programId,
-      name: name.trim(),
-      sort_order: (count || 0) + 1,
-    })
-    .select()
-    .single();
+  const { data, error } = await db.rpc("create_program_batch", {
+    p_program_id: programId,
+    p_name: name.trim(),
+  });
 
   if (error) {
     if (error.code === "23505") {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { requireFacilitator } from "@/lib/facilitator-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
 
 const teamSchema = z.object({
   name: z.string().min(1).max(50),
@@ -10,6 +11,17 @@ const teamSchema = z.object({
   organizationId: z.string().uuid().optional(),
   programId: z.string().uuid(),
 });
+
+interface TeamRow {
+  id: string;
+  name: string;
+  batch: string;
+  batch_id: string | null;
+  organization_id: string | null;
+  engagement_id: string;
+  created_at: string;
+  batches: { name: string } | null;
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requireFacilitator(req);
@@ -19,6 +31,12 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
   const programId = req.nextUrl.searchParams.get("programId");
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
+  }
+  if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
+  }
 
   let teamsQuery = db
     .from("tbos_teams")
@@ -32,7 +50,8 @@ export async function GET(req: NextRequest) {
     const { data: assignments, error: assignmentError } = await db
       .from("facilitator_missions")
       .select("program_id")
-      .eq("profile_id", auth.userId);
+      .eq("profile_id", auth.userId)
+      .eq("program_id", programId);
 
     if (assignmentError) {
       console.error("[T-BOS Teams] Assignment query failed:", assignmentError);
@@ -42,18 +61,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const assignedProgramIds = [...new Set((assignments || []).map((a) => a.program_id))];
-
-    if (assignedProgramIds.length === 0) {
-      return NextResponse.json({ success: true, teams: [] });
+    if (!assignments?.length) {
+      return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
     }
-
-    teamsQuery = teamsQuery.in("engagement_id", assignedProgramIds);
   }
-
-  if (programId) {
-    teamsQuery = teamsQuery.eq("engagement_id", programId);
-  }
+  teamsQuery = teamsQuery.eq("engagement_id", programId);
 
   const { data: teamRows, error: teamsError } = await teamsQuery;
 
@@ -99,7 +111,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const teams = (teamRows || []).map((team: any) => ({
+  const teams = ((teamRows || []) as unknown as TeamRow[]).map((team) => ({
     id: team.id,
     name: team.name,
     batch: team.batch,
@@ -132,6 +144,10 @@ export async function POST(req: NextRequest) {
   const db = createServerSupabase();
   const { name, batchId, organizationId, programId } = parsed.data;
 
+  if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
+
   const { data: batch, error: batchError } = await db
     .from("batches")
     .select("id, name")
@@ -159,7 +175,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const duplicate = error.code === "23505";
+    return NextResponse.json(
+      { success: false, error: duplicate ? "Nama tim sudah dipakai, gunakan nama lain." : error.message },
+      { status: duplicate ? 409 : 500 },
+    );
   }
 
   return NextResponse.json({ success: true, team: data });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
 
 const patchSchema = z.object({
   action: z.enum(["lock", "unlock", "edit"]),
@@ -13,6 +14,59 @@ const patchSchema = z.object({
     })
   ).optional(),
 });
+
+interface ObservationDetailRow {
+  id: string;
+  team_id: string;
+  mission_id: string;
+  program_id: string;
+  profile_id: string;
+  batch: string;
+  observed_at: string;
+  submitted_at: string;
+  status: string;
+  notes: string | null;
+  locked_at: string | null;
+  locked_by: string | null;
+  revision_deadline: string | null;
+  tbos_teams: { name: string } | null;
+  tbos_missions: { code: string; name: string } | null;
+  tbos_observation_scores: Array<{
+    dimension_id: string;
+    level_value: number;
+    tbos_behavioral_dimensions: { code: string; name: string } | null;
+  }>;
+  tbos_observation_members: Array<{
+    id: string;
+    team_member_id: string | null;
+    member_name: string;
+    is_present: boolean;
+    is_captain: boolean;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
+interface AuditLogRow {
+  id: string;
+  actor_id: string | null;
+  actor_role: string;
+  action: string;
+  previous_status: string | null;
+  new_status: string | null;
+  changes: unknown;
+  created_at: string;
+}
+
+interface MissionDimensionRow {
+  tbos_behavioral_dimensions: {
+    id: string;
+    code: string;
+    name: string;
+    question: string;
+    order_index: number;
+  } | null;
+}
 
 export async function GET(
   req: NextRequest,
@@ -32,6 +86,7 @@ export async function GET(
       id,
       team_id,
       mission_id,
+      program_id,
       profile_id,
       batch,
       observed_at,
@@ -66,9 +121,23 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Observasi tidak ditemukan." }, { status: 404 });
   }
 
+  const observationRecord = observation as unknown as ObservationDetailRow;
+  if (!(await isProgramModuleEnabled(db, observationRecord.program_id, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
+  }
+
   // Facilitators can only see their own
-  if (auth.role !== "admin" && (observation as any).profile_id !== auth.userId) {
-    return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
+  if (auth.role !== "admin") {
+    const { data: assignment } = await db
+      .from("facilitator_missions")
+      .select("mission_id")
+      .eq("profile_id", auth.userId)
+      .eq("program_id", observationRecord.program_id)
+      .eq("mission_id", observationRecord.mission_id)
+      .maybeSingle();
+    if (observationRecord.profile_id !== auth.userId || !assignment) {
+      return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
+    }
   }
 
   // Fetch audit log
@@ -87,9 +156,10 @@ export async function GET(
    .eq("observation_id", id)
    .order("created_at", { ascending: false });
 
+  const typedAuditLog = (auditLog || []) as AuditLogRow[];
   const profileIds = [
-    (observation as any).profile_id,
-    ...((auditLog || []) as any[]).map((entry) => entry.actor_id),
+    observationRecord.profile_id,
+    ...typedAuditLog.map((entry) => entry.actor_id),
   ].filter((profileId): profileId is string => Boolean(profileId));
   const { data: profileRows, error: profileError } = profileIds.length > 0
     ? await db.from("profiles").select("id, full_name").in("id", [...new Set(profileIds)])
@@ -109,10 +179,10 @@ export async function GET(
       dimension_id,
       tbos_behavioral_dimensions (id, code, name, question, order_index)
     `)
-    .eq("mission_id", (observation as any).mission_id);
+    .eq("mission_id", observationRecord.mission_id);
 
   const dimensions = await Promise.all(
-    (missionDims || []).map(async (md: any) => {
+    ((missionDims || []) as unknown as MissionDimensionRow[]).map(async (md) => {
       const dim = md.tbos_behavioral_dimensions;
       if (!dim) return null;
       const { data: levels } = await db
@@ -124,7 +194,7 @@ export async function GET(
     })
   );
 
-  const obs = observation as any;
+  const obs = observationRecord;
   const isAdmin = auth.role === "admin";
   const canEdit =
     obs.status === "submitted" &&
@@ -150,7 +220,7 @@ export async function GET(
       lockedBy: obs.locked_by,
       revisionDeadline: obs.revision_deadline,
       canEdit,
-      members: (obs.tbos_observation_members || []).map((member: any) => ({
+      members: (obs.tbos_observation_members || []).map((member) => ({
         id: member.id,
         teamMemberId: member.team_member_id,
         memberName: member.member_name,
@@ -159,14 +229,14 @@ export async function GET(
         createdAt: member.created_at,
         updatedAt: member.updated_at,
       })),
-      scores: (obs.tbos_observation_scores || []).map((s: any) => ({
+      scores: (obs.tbos_observation_scores || []).map((s) => ({
         dimensionId: s.dimension_id,
         dimensionCode: s.tbos_behavioral_dimensions?.code || "",
         dimensionName: s.tbos_behavioral_dimensions?.name || "",
         levelValue: s.level_value,
       })),
       dimensions: dimensions.filter(Boolean),
-      auditLog: (auditLog || []).map((al: any) => ({
+      auditLog: typedAuditLog.map((al) => ({
         id: al.id,
         actorId: al.actor_id,
         actorRole: al.actor_role,
@@ -202,6 +272,28 @@ export async function PATCH(
   }
 
   const db = createServerSupabase();
+  const { data: observation, error: observationError } = await db
+    .from("tbos_observations")
+    .select("profile_id, program_id, mission_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (observationError) return NextResponse.json({ success: false, error: observationError.message }, { status: 500 });
+  if (!observation) return NextResponse.json({ success: false, error: "Observasi tidak ditemukan." }, { status: 404 });
+  if (!(await isProgramModuleEnabled(db, observation.program_id, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
+  if (auth.role !== "admin") {
+    const { data: assignment } = await db
+      .from("facilitator_missions")
+      .select("mission_id")
+      .eq("profile_id", auth.userId)
+      .eq("program_id", observation.program_id)
+      .eq("mission_id", observation.mission_id)
+      .maybeSingle();
+    if (observation.profile_id !== auth.userId || !assignment) {
+      return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
+    }
+  }
   const { error } = await db.rpc("tbos_mutate_observation", {
     p_observation_id: id,
     p_actor_id: auth.userId,

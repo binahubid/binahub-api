@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { z } from "zod";
+
+const idSchema = z.string().uuid();
+const updateSpeakerSchema = z.object({ name: z.string().trim().min(1).max(200) });
 
 export async function PATCH(
   req: NextRequest,
@@ -12,23 +16,20 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = await req.json().catch(() => ({}));
-  const { name } = body as { name?: string };
-
-  if (!name || !name.trim()) {
-    return NextResponse.json({ success: false, error: "Nama pemateri wajib diisi." }, { status: 400 });
-  }
+  if (!idSchema.safeParse(id).success) return NextResponse.json({ success: false, error: "ID pemateri tidak valid." }, { status: 400 });
+  const parsed = updateSpeakerSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ success: false, error: "Nama pemateri tidak valid." }, { status: 400 });
 
   const db = createServerSupabase();
   const { data, error } = await db
     .from("lep_speakers")
-    .update({ name: name.trim() })
+    .update({ name: parsed.data.name })
     .eq("id", id)
     .select("id, program_id, name, sort_order")
     .single();
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: error.code === "23505" ? 409 : 500 });
   }
 
   return NextResponse.json({ success: true, speaker: data });
@@ -44,9 +45,13 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  if (!idSchema.safeParse(id).success) return NextResponse.json({ success: false, error: "ID pemateri tidak valid." }, { status: 400 });
   const db = createServerSupabase();
 
-  const { error } = await db.from("lep_speakers").delete().eq("id", id);
+  const { error } = await db
+    .from("lep_speakers")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

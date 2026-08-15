@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { isProgramModuleEnabled } from "@/lib/program-access";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(50).optional(),
@@ -17,7 +18,17 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   if (!parsed.success || Object.keys(parsed.data).length === 0) return NextResponse.json({ success: false, error: "Payload tidak valid." }, { status: 400 });
 
   const db = createServerSupabase();
-  const updatePayload: Record<string, any> = {};
+  const { data: existingTeam, error: teamError } = await db
+    .from("tbos_teams")
+    .select("engagement_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (teamError) return NextResponse.json({ success: false, error: teamError.message }, { status: 500 });
+  if (!existingTeam?.engagement_id) return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
+  if (!(await isProgramModuleEnabled(db, existingTeam.engagement_id, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
+  const updatePayload: Record<string, string> = {};
 
   if (parsed.data.name !== undefined) {
     updatePayload.name = parsed.data.name;
@@ -47,7 +58,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   }
 
   if (parsed.data.programId !== undefined) {
-    updatePayload.engagement_id = parsed.data.programId;
+    if (parsed.data.programId !== existingTeam.engagement_id) {
+      return NextResponse.json({ success: false, error: "Program tim tidak dapat dipindahkan setelah dibuat." }, { status: 409 });
+    }
   }
 
   const { data, error } = await db
@@ -66,6 +79,12 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   if ("error" in auth) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   const { id } = await context.params;
   const db = createServerSupabase();
+  const { data: team, error: teamError } = await db.from("tbos_teams").select("engagement_id").eq("id", id).maybeSingle();
+  if (teamError) return NextResponse.json({ success: false, error: teamError.message }, { status: 500 });
+  if (!team?.engagement_id) return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
+  if (!(await isProgramModuleEnabled(db, team.engagement_id, "tbos"))) {
+    return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+  }
   const { count, error: countError } = await db.from("tbos_observations").select("id", { count: "exact", head: true }).eq("team_id", id);
   if (countError) return NextResponse.json({ success: false, error: countError.message }, { status: 500 });
   if ((count || 0) > 0) return NextResponse.json({ success: false, error: "Tim memiliki histori observasi dan tidak dapat dihapus. Arsipkan programnya." }, { status: 409 });

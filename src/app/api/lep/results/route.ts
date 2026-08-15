@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { z } from "zod";
+import { collectAllPages } from "@/lib/pagination";
+import { isProgramModuleEnabled } from "@/lib/program-access";
+
+interface SpeakerRow {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
+interface SpeakerRatingRow {
+  speaker_id: string;
+  score: number;
+  comment: string | null;
+}
+
+interface LepResponseRow {
+  id: string;
+  submitted_at: string;
+  q_menyenangkan: number;
+  q_bermanfaat: number;
+  q_rekomendasi: number;
+  q_praktik: number;
+  hal_terpenting: string;
+  hal_menarik: string;
+  saran_program: string | null;
+  lep_speaker_ratings: SpeakerRatingRow[];
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req);
@@ -9,11 +37,18 @@ export async function GET(req: NextRequest) {
   }
 
   const programId = req.nextUrl.searchParams.get("programId");
-  if (!programId) {
-    return NextResponse.json({ success: false, error: "programId wajib diisi." }, { status: 400 });
+  if (!programId || !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
   }
 
   const db = createServerSupabase();
+  try {
+    if (!(await isProgramModuleEnabled(db, programId, "lep"))) {
+      return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 409 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+  }
 
   // Fetch speakers
   const { data: speakers, error: speakersError } = await db
@@ -27,26 +62,26 @@ export async function GET(req: NextRequest) {
   }
 
   // Fetch responses
-  const { data: responses, error: responsesError } = await db
-    .from("lep_responses")
-    .select(`
+  let responseList: LepResponseRow[];
+  try {
+    responseList = await collectAllPages<LepResponseRow>((from, to) => db
+      .from("lep_responses")
+      .select(`
       id, submitted_at,
       q_menyenangkan, q_bermanfaat, q_rekomendasi, q_praktik,
       hal_terpenting, hal_menarik, saran_program,
       lep_speaker_ratings ( speaker_id, score, comment )
     `)
-    .eq("program_id", programId)
-    .order("submitted_at", { ascending: false });
-
-  if (responsesError) {
-    return NextResponse.json({ success: false, error: responsesError.message }, { status: 500 });
+      .eq("program_id", programId)
+      .order("submitted_at", { ascending: false })
+      .range(from, to) as never);
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat respons LEP." }, { status: 500 });
   }
 
-  const responseList = (responses || []) as any[];
-
   // Average scores for 4 common questions
-  const avg = (field: string) => {
-    const vals = responseList.map((r: any) => r[field]).filter((v: any) => typeof v === "number");
+  const avg = (field: keyof Pick<LepResponseRow, "q_menyenangkan" | "q_bermanfaat" | "q_rekomendasi" | "q_praktik">) => {
+    const vals = responseList.map((response) => response[field]);
     return vals.length > 0 ? Math.round((vals.reduce((a: number, b: number) => a + b, 0) / vals.length) * 100) / 100 : null;
   };
 
@@ -58,17 +93,17 @@ export async function GET(req: NextRequest) {
   };
 
   // Speaker averages
-  const speakerAverages = (speakers || []).map((sp: any) => {
+  const speakerAverages = ((speakers || []) as SpeakerRow[]).map((speaker) => {
     const ratings: Array<{ score: number; comment?: string }> = [];
-    for (const resp of responseList) {
-      const sr = (resp.lep_speaker_ratings || []).find((r: any) => r.speaker_id === sp.id);
-      if (sr) ratings.push({ score: sr.score, comment: sr.comment });
+    for (const response of responseList) {
+      const rating = response.lep_speaker_ratings.find((item) => item.speaker_id === speaker.id);
+      if (rating) ratings.push({ score: rating.score, comment: rating.comment || undefined });
     }
     const scores = ratings.map((r) => r.score);
     const avgScore = scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100 : null;
     return {
-      speakerId: sp.id,
-      speakerName: sp.name,
+      speakerId: speaker.id,
+      speakerName: speaker.name,
       averageScore: avgScore,
       ratingCount: ratings.length,
       comments: ratings.filter((r) => r.comment).map((r) => r.comment!),
@@ -77,34 +112,25 @@ export async function GET(req: NextRequest) {
 
   // Open text answers
   const openText = {
-    halTerpenting: responseList.map((r: any, i: number) => ({ id: i, text: r.hal_terpenting })),
-    halMenarik: responseList.map((r: any, i: number) => ({ id: i, text: r.hal_menarik })),
+    halTerpenting: responseList.map((response, index) => ({ id: index, text: response.hal_terpenting })),
+    halMenarik: responseList.map((response, index) => ({ id: index, text: response.hal_menarik })),
     saranProgram: responseList
-      .map((r: any, i: number) => ({ id: i, text: r.saran_program }))
-      .filter((item: { text: any }) => item.text),
+      .map((response, index) => ({ id: index, text: response.saran_program }))
+      .filter((item): item is { id: number; text: string } => Boolean(item.text)),
   };
 
-  // Response rate via tbos_team_members
-  const { data: teamsInProgram } = await db
-    .from("tbos_teams")
-    .select("id")
+  const { count: totalParticipants, error: participantCountError } = await db
+    .from("engagement_participants")
+    .select("id", { count: "exact", head: true })
     .eq("engagement_id", programId);
-
-  const teamIds = (teamsInProgram || []).map((t: any) => t.id);
-  let totalParticipants = 0;
-  if (teamIds.length > 0) {
-    const { data: memberRows } = await db
-      .from("tbos_team_members")
-      .select("profile_id")
-      .in("team_id", teamIds);
-    const distinctProfileIds = new Set((memberRows || []).map((m: any) => m.profile_id).filter(Boolean));
-    totalParticipants = distinctProfileIds.size;
+  if (participantCountError) {
+    return NextResponse.json({ success: false, error: participantCountError.message }, { status: 500 });
   }
 
   const responseRate = {
     respondents: responseList.length,
-    totalParticipants,
-    percentage: totalParticipants > 0 ? Math.round((responseList.length / totalParticipants) * 100) : 0,
+    totalParticipants: totalParticipants || 0,
+    percentage: (totalParticipants || 0) > 0 ? Math.min(100, Math.round((responseList.length / (totalParticipants || 1)) * 100)) : 0,
   };
 
   return NextResponse.json({

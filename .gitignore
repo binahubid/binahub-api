@@ -42,3 +42,4 @@ AGENTS.md
 CLAUDE.md
 *.sql
 !supabase/migrations/*.sql
+!supabase/production_readiness.sql

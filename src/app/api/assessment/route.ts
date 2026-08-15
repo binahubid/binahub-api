@@ -4,6 +4,7 @@ import { analyzeAssessment, scoreLeadWithAI } from '@/lib/ai-service';
 import { sendAssessmentEmail } from '@/lib/email-service';
 import { generatePDFBuffer, AssessmentResult } from '@/lib/pdf-service';
 import { AssessmentSchema } from '@/lib/validations';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -13,6 +14,8 @@ export async function POST(req: NextRequest) {
   let requestLocale = 'id';
 
   try {
+    const rateLimited = await enforceRateLimit(req, 'assessment', 5, 60 * 60);
+    if (rateLimited) return rateLimited;
     const rawBody = await req.json();
     const isEnglish = rawBody?.locale === 'en';
     requestLocale = isEnglish ? 'en' : 'id';
@@ -76,6 +79,7 @@ export async function POST(req: NextRequest) {
       aiResult = await analyzeAssessment(body, body.locale);
     } catch (aiError: unknown) {
       console.error('[API Error] AI Analysis failed:', getErrorMessage(aiError));
+      await supabase.from('assessments').update({ assessment_status: 'Analisis Gagal' }).eq('id', assessment.id);
       return NextResponse.json(
         {
           success: false,
@@ -99,19 +103,22 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', assessment.id);
 
-    // 6. Score the lead with AI (non-blocking)
-    scoreLeadWithAI({
-      source: body.source || 'insight_assessment',
-      assessmentCompleted: true,
-      name: body.name,
-      company: body.company,
-      challenge: body.challenge,
-    }).then(async (leadScore) => {
+    // 6. Complete lead scoring before the serverless request ends.
+    try {
+      const leadScore = await scoreLeadWithAI({
+        source: body.source || 'insight_assessment',
+        assessmentCompleted: true,
+        name: body.name,
+        company: body.company,
+        challenge: body.challenge,
+      });
       await supabase
         .from('leads')
         .update({ lead_score: leadScore.score, lead_status: leadScore.status })
         .eq('id', lead.id);
-    }).catch((e: unknown) => console.warn('[API Warning] Lead scoring background task failed:', getErrorMessage(e)));
+    } catch (leadScoreError: unknown) {
+      console.warn('[API Warning] Lead scoring failed:', getErrorMessage(leadScoreError));
+    }
 
     // 7. Generate PDF
     const resultObj: AssessmentResult = {
@@ -192,7 +199,6 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         error: requestLocale === 'en' ? 'An internal server error occurred.' : 'Terjadi kesalahan internal server.',
-        details: getErrorMessage(error),
       },
       { status: 500 }
     );

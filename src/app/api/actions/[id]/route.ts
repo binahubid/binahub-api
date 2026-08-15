@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor } from "@/lib/transformation/auth";
 import { updateActionSchema } from "@/lib/transformation/schemas";
 import { getDb, updateAction } from "@/lib/transformation/service";
+import { assertCanAccessEngagement, assertCanAccessParticipant, transformationErrorResponse } from "@/lib/transformation/access";
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await requireTransformationActor(req);
@@ -16,9 +17,20 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
   try {
     const { id } = await context.params;
-    const action = await updateAction(getDb(), id, parsed.data, actor);
+    const db = getDb();
+    const { data: existing, error: existingError } = await db
+      .from("actions")
+      .select("engagement_id, participant_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    if (!existing) return NextResponse.json({ success: false, error: "Action tidak ditemukan." }, { status: 404 });
+    await assertCanAccessEngagement(db, actor, existing.engagement_id);
+    if (existing.participant_id) await assertCanAccessParticipant(db, actor, existing.participant_id, existing.engagement_id);
+    const action = await updateAction(db, id, parsed.data, actor);
     return NextResponse.json({ success: true, action });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal update action." }, { status: 500 });
+    const failure = transformationErrorResponse(error);
+    return NextResponse.json({ success: false, error: failure.message || "Gagal update action." }, { status: failure.status });
   }
 }

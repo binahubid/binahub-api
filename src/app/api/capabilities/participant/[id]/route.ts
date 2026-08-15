@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor } from "@/lib/transformation/auth";
 import { getDb } from "@/lib/transformation/service";
+import { assertCanAccessParticipant, transformationErrorResponse } from "@/lib/transformation/access";
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await requireTransformationActor(req);
@@ -10,11 +11,15 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
   const { id } = await context.params;
 
-  if (actor.role === "client" && actor.participantId && actor.participantId !== id) {
-    return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
+  const db = getDb();
+  try {
+    await assertCanAccessParticipant(db, actor, id);
+  } catch (error) {
+    const failure = transformationErrorResponse(error);
+    return NextResponse.json({ success: false, error: failure.message }, { status: failure.status });
   }
 
-  const { data, error } = await getDb()
+  const { data, error } = await db
     .from("participant_capabilities")
     .select("*, capability:capabilities(*), evidence:capability_evidence(*, evidence:evidence(*))")
     .eq("participant_id", id)

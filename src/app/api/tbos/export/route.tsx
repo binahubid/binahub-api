@@ -1,7 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
-import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, renderToBuffer, Svg, Polygon, Line, Circle } from "@react-pdf/renderer";
+import { isProgramModuleEnabled } from "@/lib/program-access";
+import { z } from "zod";
+import { collectAllPages } from "@/lib/pagination";
+
+interface TeamDimensionScore {
+  code: string;
+  name: string;
+  score: number | null;
+}
+
+interface ExportObservation {
+  id: string;
+  team_id: string;
+  batch: string;
+  observed_at: string;
+  submitted_at: string;
+  status: string;
+  notes: string | null;
+  tbos_teams: { name: string } | null;
+  tbos_missions: { code: string; name: string } | null;
+  profiles: { full_name: string } | null;
+  tbos_observation_scores: Array<{
+    level_value: number;
+    tbos_behavioral_dimensions: { code: string; name: string } | null;
+  }>;
+}
+
+function radarPoints(values: number[], radius: number, center: number) {
+  return values.map((value, index) => {
+    const angle = -Math.PI / 2 + (index * Math.PI * 2) / values.length;
+    const scaled = radius * (value / 5);
+    return `${center + Math.cos(angle) * scaled},${center + Math.sin(angle) * scaled}`;
+  }).join(" ");
+}
+
+function TeamRadar({ dimensions }: { dimensions: TeamDimensionScore[] }) {
+  const size = 180;
+  const center = size / 2;
+  const radius = 72;
+  const values = dimensions.map((dimension) => dimension.score || 0);
+  return (
+    <View style={{ alignItems: "center", marginVertical: 8 }}>
+      <Svg width={size} height={size}>
+        {[1, 2, 3, 4, 5].map((level) => (
+          <Polygon key={level} points={radarPoints(dimensions.map(() => level), radius, center)} fill="none" stroke="#CBD5E1" strokeWidth={0.7} />
+        ))}
+        {dimensions.map((dimension, index) => {
+          const endpoint = radarPoints(dimensions.map((_, pointIndex) => pointIndex === index ? 5 : 0), radius, center).split(" ")[index].split(",");
+          return <Line key={dimension.code} x1={center} y1={center} x2={Number(endpoint[0])} y2={Number(endpoint[1])} stroke="#CBD5E1" strokeWidth={0.7} />;
+        })}
+        <Polygon points={radarPoints(values, radius, center)} fill="#D9A441" fillOpacity={0.28} stroke="#0B2C6B" strokeWidth={1.5} />
+        <Circle cx={center} cy={center} r={2} fill="#0B2C6B" />
+      </Svg>
+    </View>
+  );
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req);
@@ -16,13 +72,33 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
 
+  if (!programId && !teamId) {
+    return NextResponse.json({ success: false, error: "programId atau teamId wajib diisi." }, { status: 400 });
+  }
+  if ((programId && !z.string().uuid().safeParse(programId).success)
+    || (teamId && !z.string().uuid().safeParse(teamId).success)
+    || !["csv", "pdf"].includes(format)) {
+    return NextResponse.json({ success: false, error: "Parameter export tidak valid." }, { status: 400 });
+  }
+
+  if (programId) {
+    try {
+      if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {
+        return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+      }
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
+    }
+  }
+
   if (teamId && format === "pdf") {
     return handleTeamReport(db, teamId);
   }
 
-  let { data: observations, error } = await db
-    .from("tbos_observations")
-    .select(`
+  let observations: ExportObservation[];
+  try {
+    observations = await collectAllPages<ExportObservation>((from, to) => {
+      let query = db.from("tbos_observations").select(`
        id,
        team_id,
       batch,
@@ -37,33 +113,27 @@ export async function GET(req: NextRequest) {
         level_value,
         tbos_behavioral_dimensions (code, name)
       )
-    `)
-    .order("submitted_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-
-  if (programId) {
-    const { data: teams, error: teamError } = await db
-      .from("tbos_teams")
-      .select("id")
-      .eq("engagement_id", programId);
-    if (teamError) return NextResponse.json({ success: false, error: teamError.message }, { status: 500 });
-    const teamIds = new Set((teams || []).map((team) => team.id));
-    observations = (observations || []).filter((observation) => teamIds.has(observation.team_id));
+      `)
+        .in("status", ["submitted", "locked"])
+        .order("submitted_at", { ascending: false });
+      if (programId) query = query.eq("program_id", programId);
+      return query.range(from, to) as never;
+    });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat data export." }, { status: 500 });
   }
 
   if (format === "csv") {
     const rows: string[] = [];
+    const typedObservations = observations;
 
     rows.push("Team,Mission,Batch,Facilitator,Observed At,Submitted At,Status,Dimension,Level Value,Level Label,Notes");
 
-    for (const obs of observations || []) {
-      const teamName = (obs as any).tbos_teams?.name || "";
-      const missionName = (obs as any).tbos_missions?.name || "";
-      const facilitatorName = (obs as any).profiles?.full_name || "";
-      const scores = (obs as any).tbos_observation_scores || [];
+    for (const obs of typedObservations) {
+      const teamName = obs.tbos_teams?.name || "";
+      const missionName = obs.tbos_missions?.name || "";
+      const facilitatorName = obs.profiles?.full_name || "";
+      const scores = obs.tbos_observation_scores || [];
 
       if (scores.length === 0) {
         rows.push([
@@ -119,7 +189,7 @@ export async function GET(req: NextRequest) {
       cell: { flex: 1, fontSize: 8 },
       header: { backgroundColor: "#0B2C6B", color: "#FFFFFF", padding: 6 },
     });
-    const rows = observations || [];
+    const rows = observations;
     const document = (
       <Document>
         <Page size="A4" style={styles.page}>
@@ -130,8 +200,8 @@ export async function GET(req: NextRequest) {
             <View style={[styles.row, styles.header]}><Text style={styles.cell}>Tim</Text><Text style={styles.cell}>Mission</Text><Text style={styles.cell}>Batch</Text><Text style={styles.cell}>Status</Text></View>
             {rows.map((obs) => (
               <View key={obs.id} style={styles.row}>
-                <Text style={styles.cell}>{(obs as any).tbos_teams?.name || "-"}</Text>
-                <Text style={styles.cell}>{(obs as any).tbos_missions?.name || "-"}</Text>
+                <Text style={styles.cell}>{obs.tbos_teams?.name || "-"}</Text>
+                <Text style={styles.cell}>{obs.tbos_missions?.name || "-"}</Text>
                 <Text style={styles.cell}>{obs.batch}</Text>
                 <Text style={styles.cell}>{obs.status}</Text>
               </View>
@@ -154,13 +224,12 @@ export async function GET(req: NextRequest) {
 
 function escapeCsv(value: string): string {
   if (!value) return "";
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safeValue = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  if (safeValue.includes(",") || safeValue.includes('"') || safeValue.includes("\n")) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safeValue;
 }
-
-const LEVEL_LABEL_MAP = ["", "Reactive", "Emerging", "Functional", "Effective", "Exemplary"];
 
 interface TeamReportRow {
   team: {
@@ -182,6 +251,19 @@ interface TeamReportRow {
   }>;
 }
 
+interface TeamReportObservationRow {
+  observed_at: string;
+  submitted_at: string;
+  status: string;
+  notes: string | null;
+  tbos_missions: { code: string; name: string } | null;
+  profiles: { full_name: string } | null;
+  tbos_observation_scores: Array<{
+    level_value: number;
+    tbos_behavioral_dimensions: { code: string; name: string } | null;
+  }>;
+}
+
 async function handleTeamReport(db: ReturnType<typeof createServerSupabase>, teamId: string) {
   const { data: teamRow, error: teamError } = await db
     .from("tbos_teams")
@@ -191,6 +273,17 @@ async function handleTeamReport(db: ReturnType<typeof createServerSupabase>, tea
 
   if (teamError || !teamRow) {
     return NextResponse.json({ success: false, error: teamError?.message || "Tim tidak ditemukan." }, { status: teamError ? 500 : 404 });
+  }
+
+  if (!teamRow.engagement_id) {
+    return NextResponse.json({ success: false, error: "Tim belum terhubung ke program." }, { status: 409 });
+  }
+  try {
+    if (!(await isProgramModuleEnabled(db, teamRow.engagement_id, "tbos"))) {
+      return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
   }
 
   const { data: memberRows, error: membersError } = await db
@@ -226,14 +319,14 @@ async function handleTeamReport(db: ReturnType<typeof createServerSupabase>, tea
     return NextResponse.json({ success: false, error: obsError.message }, { status: 500 });
   }
 
-  const observations = (obsRows || []).map((obs: any) => ({
+  const observations = ((obsRows || []) as unknown as TeamReportObservationRow[]).map((obs) => ({
     mission: obs.tbos_missions?.name || "-",
     missionCode: obs.tbos_missions?.code || "",
     observedAt: obs.observed_at,
     submittedAt: obs.submitted_at,
     status: obs.status,
     facilitator: obs.profiles?.full_name || "-",
-    scores: (obs.tbos_observation_scores || []).map((s: any) => ({
+    scores: (obs.tbos_observation_scores || []).map((s) => ({
       dimension: s.tbos_behavioral_dimensions?.name || "",
       dimensionCode: s.tbos_behavioral_dimensions?.code || "",
       levelValue: s.level_value,
@@ -355,6 +448,7 @@ async function handleTeamReport(db: ReturnType<typeof createServerSupabase>, tea
         {/* Dimension Scores */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Skor 8 Dimensi Perilaku</Text>
+          <TeamRadar dimensions={dimensionScores} />
           {dimensionScores.map((dim) => (
             <View key={dim.code} style={styles.dimRow}>
               <Text style={styles.dimName}>{dim.name}</Text>

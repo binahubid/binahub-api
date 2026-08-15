@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { corsHeadersFromRequest } from "@/lib/cors";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -13,12 +14,12 @@ const COMPANY_COPY = process.env.EMAIL_COMPANY_COPY || "admin@binahub.id";
 const COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME || "BinaHub";
 
 const ContactInquirySchema = z.object({
-  name: z.string().min(1, "Nama wajib diisi"),
-  company: z.string().min(1, "Nama organisasi wajib diisi"),
-  role: z.string().min(1, "Jabatan wajib diisi"),
+  name: z.string().trim().min(1, "Nama wajib diisi").max(200),
+  company: z.string().trim().min(1, "Nama organisasi wajib diisi").max(300),
+  role: z.string().trim().min(1, "Jabatan wajib diisi").max(200),
   email: z.string().email("Format email tidak valid"),
-  whatsapp: z.string().optional().default(""),
-  message: z.string().min(20, "Pesan minimal terdiri dari 20 karakter"),
+  whatsapp: z.string().max(50).optional().default(""),
+  message: z.string().trim().min(20, "Pesan minimal terdiri dari 20 karakter").max(5000),
   locale: z.enum(["id", "en"]).optional().default("id"),
 });
 
@@ -44,6 +45,11 @@ export async function POST(req: NextRequest) {
   let isEnglish = false;
 
   try {
+    const rateLimited = await enforceRateLimit(req, "contact", 5, 60 * 60);
+    if (rateLimited) {
+      for (const [key, value] of Object.entries(headers)) rateLimited.headers.set(key, value);
+      return rateLimited;
+    }
     const rawBody = await req.json();
     isEnglish = rawBody?.locale === "en";
 
@@ -160,7 +166,6 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         error: isEnglish ? "An internal server error occurred." : "Terjadi kesalahan internal server.",
-        details: getErrorMessage(error),
       },
       { status: 500, headers },
     );

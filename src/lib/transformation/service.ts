@@ -125,7 +125,10 @@ export async function createParticipant(
       participant_id: participant.id,
       role: payload.engagementRole,
     });
-    if (assignmentError) throw new Error(assignmentError.message);
+    if (assignmentError) {
+      await db.from("participants").delete().eq("id", participant.id);
+      throw new Error(assignmentError.message);
+    }
   }
 
   return participant;
@@ -135,9 +138,8 @@ function hashAccessCode(code: string) {
   return createHash("sha256").update(code.trim()).digest("hex");
 }
 
-function generateAccessCode(companyPrefix: string, teamName: string, index: number) {
-  const suffix = String.fromCharCode(65 + index);
-  return `${companyPrefix.toUpperCase()}-${suffix}`;
+function generateAccessCode(companyPrefix: string) {
+  return `${companyPrefix.toUpperCase()}-${randomBytes(9).toString("base64url").toUpperCase()}`;
 }
 
 export async function generateAccessCodesForEngagement(
@@ -156,7 +158,7 @@ export async function generateAccessCodesForEngagement(
 
   for (let i = 0; i < participants.length; i++) {
     const participant = participants[i];
-    const code = generateAccessCode(prefix, participant.name, i);
+    const code = generateAccessCode(prefix);
 
     const { error } = await db.from("app_client_access_codes").insert({
       company_name: organizationName,

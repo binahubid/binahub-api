@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { createServerSupabase } from "@/lib/supabase";
 
 export type AppRole = "admin" | "facilitator" | "client" | "peserta";
 
@@ -59,6 +60,29 @@ export function getUserRole(user: User): AppRole | null {
   }
 
   return null;
+}
+
+export async function getAuthoritativeUserRole(user: User): Promise<AppRole | null> {
+  const { data, error } = await createServerSupabase()
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Gagal memverifikasi role pengguna: ${error.message}`);
+  }
+
+  if (isAdminFallbackEmail(user.email)) return "admin";
+  if (isFacilitatorFallbackEmail(user.email)) return "facilitator";
+
+  const storedRole = String(data?.role || "").trim().toLowerCase();
+  if (storedRole === "admin" || storedRole === "facilitator" || storedRole === "client" || storedRole === "peserta") {
+    return storedRole;
+  }
+
+  // Trusted app_metadata is only a bootstrap fallback before a profile exists.
+  return data ? null : getUserRole(user);
 }
 
 export function isAdminFallbackEmail(email?: string | null) {

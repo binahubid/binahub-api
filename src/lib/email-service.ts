@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { AssessmentData } from './validations';
 import { AssessmentResult } from './pdf-service';
 import type { Locale } from '@/i18n/config';
+import { createProposalToken } from '@/lib/secure-token';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -10,6 +11,14 @@ const FROM = process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@')
   : 'onboarding@resend.dev';
 const COMPANY_COPY = process.env.EMAIL_COMPANY_COPY || 'admin@binahub.id';
 const COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME || 'BinaHub';
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function safeHeader(value: string) {
+  return value.replace(/[\r\n]+/g, ' ').trim().slice(0, 300);
+}
 
 function resendTagValue(value?: string) {
   return (value || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 256);
@@ -42,13 +51,19 @@ export async function sendAssessmentEmail(
   locale: Locale = 'id'
 ) {
   const isEnglish = locale === 'en';
+  const safeName = escapeHtml(formData.name);
+  const safeCompany = escapeHtml(formData.company);
+  const safeEmail = escapeHtml(formData.email);
+  const safeWhatsapp = escapeHtml(formData.whatsapp || '-');
+  const safeCategory = escapeHtml(String(result.category));
+  const safeArchetype = result.archetype ? escapeHtml(result.archetype) : '';
   const copy = isEnglish
     ? {
         title: 'Executive Report',
         preheader: 'BinaHub Insight Diagnostic',
         heading: 'Confidential Executive Assessment',
-        greeting: `Dear <strong>${formData.name}</strong>,`,
-        intro: `Thank you for completing the BinaHub Insight diagnostic process. Your initial report has been processed and attached as a PDF so it can be reviewed more fully by the internal team at ${formData.company}.`,
+        greeting: `Dear <strong>${safeName}</strong>,`,
+        intro: `Thank you for completing the BinaHub Insight diagnostic process. Your initial report has been processed and attached as a PDF so it can be reviewed more fully by the internal team at ${safeCompany}.`,
         overallScore: 'Overall Score',
         stage: 'Stage',
         noteTitle: 'Introductory Note',
@@ -60,15 +75,15 @@ export async function sendAssessmentEmail(
         chatCta: 'Ask an initial question through the BinaHub assistant',
         footer: 'People Transformation & Future Capability Partner',
         auto: 'This email was sent automatically. If you need assistance, reply to',
-        subject: `Confidential Executive Assessment · ${formData.company}`,
+        subject: safeHeader(`Confidential Executive Assessment · ${formData.company}`),
         fileName: `Diagnostic_Report_${formData.company.replace(/\s+/g, '_')}.pdf`,
       }
     : {
         title: 'Laporan Eksekutif',
         preheader: 'Diagnostik BinaHub Insight',
         heading: 'Asesmen Eksekutif Rahasia',
-        greeting: `Yth. <strong>Bapak/Ibu ${formData.name}</strong>,`,
-        intro: `Terima kasih telah menyelesaikan proses diagnostik BinaHub Insight. Laporan awal Anda telah kami proses dan kami lampirkan dalam bentuk PDF agar dapat ditinjau secara lebih utuh oleh tim internal ${formData.company}.`,
+        greeting: `Yth. <strong>Bapak/Ibu ${safeName}</strong>,`,
+        intro: `Terima kasih telah menyelesaikan proses diagnostik BinaHub Insight. Laporan awal Anda telah kami proses dan kami lampirkan dalam bentuk PDF agar dapat ditinjau secara lebih utuh oleh tim internal ${safeCompany}.`,
         overallScore: 'Skor Keseluruhan',
         stage: 'Tahap',
         noteTitle: 'Catatan Pendahuluan',
@@ -80,19 +95,20 @@ export async function sendAssessmentEmail(
         chatCta: 'Ajukan pertanyaan awal melalui asisten BinaHub',
         footer: 'Mitra Transformasi Manusia & Kapabilitas Masa Depan',
         auto: 'Email ini dikirim secara otomatis. Jika butuh bantuan, balas ke',
-        subject: `Asesmen Eksekutif Rahasia · ${formData.company}`,
+        subject: safeHeader(`Asesmen Eksekutif Rahasia · ${formData.company}`),
         fileName: `Laporan_Diagnostik_${formData.company.replace(/\s+/g, '_')}.pdf`,
       };
   // Brand Colors
   const navy = '#0B2C6B';
   const gold = '#D9A441';
   const offWhite = '#F5F7FA';
-  const scoreInterpretation = result.scoreInterpretation || `Skor ${result.scores.overall} menempatkan ${formData.company} pada kategori ${result.category}. Ini menunjukkan fondasi organisasi yang dapat diperkuat melalui prioritas strategis yang lebih tajam.`;
+  const scoreInterpretation = escapeHtml(result.scoreInterpretation || `Skor ${result.scores.overall} menempatkan ${formData.company} pada kategori ${result.category}. Ini menunjukkan fondasi organisasi yang dapat diperkuat melalui prioritas strategis yang lebih tajam.`);
   const crossInsights: string[] = [];
   const appUrl = getAppUrl();
+  const apiUrl = (process.env.NEXT_PUBLIC_BINAHUB_API_URL || '').replace(/\/$/, '');
   const localizedAppUrl = appUrl ? `${appUrl}${isEnglish ? '/en' : ''}` : '';
-  const proposalUrl = assessmentId && appUrl
-    ? `${appUrl}/api/proposal/request?assessmentId=${encodeURIComponent(assessmentId)}`
+  const proposalUrl = assessmentId && apiUrl
+    ? `${apiUrl}/api/proposal/request?assessmentId=${encodeURIComponent(assessmentId)}&token=${encodeURIComponent(createProposalToken(assessmentId))}`
     : `${appUrl || '#'}?proposal=request`;
 
   // Premium Corporate HTML Email
@@ -113,7 +129,7 @@ export async function sendAssessmentEmail(
       <h1 style="color:#FFFFFF;font-size:26px;font-weight:600;margin:0 0 10px;letter-spacing:0px;">
         ${copy.heading}
       </h1>
-      <p style="color:rgba(255,255,255,0.8);margin:0;font-size:16px;font-weight:300;">${formData.company}</p>
+      <p style="color:rgba(255,255,255,0.8);margin:0;font-size:16px;font-weight:300;">${safeCompany}</p>
     </div>
 
     <!-- Body -->
@@ -130,14 +146,14 @@ export async function sendAssessmentEmail(
         <p style="color:#64748B;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 15px;font-weight:600;">${copy.overallScore}</p>
         <div style="font-size:64px;font-weight:700;color:${navy};margin:0 0 15px;line-height:1;">${result.scores.overall}</div>
         <div style="display:inline-block;background:${gold};color:${navy};padding:6px 20px;border-radius:4px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
-          ${copy.stage}: ${result.category}
+          ${copy.stage}: ${safeCategory}
         </div>
         <p style="color:#475569;font-size:14px;line-height:1.6;margin:22px 0 0;font-weight:400;">
           ${scoreInterpretation}
         </p>
         ${result.archetype ? `
           <div style="margin-top:18px;display:inline-block;border:1px solid #E2E8F0;background:#FFFFFF;color:${navy};padding:8px 18px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;">
-            ${result.archetype}
+            ${safeArchetype}
           </div>
         ` : ''}
       </div>
@@ -239,10 +255,10 @@ export async function sendAssessmentEmail(
     const adminRes = await resend.emails.send({
       from: `${COMPANY_NAME} <${FROM}>`,
       to: COMPANY_COPY,
-      subject: `[LEAD BARU] Assessment: ${formData.company} (${result.category})`,
-      html: `<p>Data diagnostik baru telah diterima dari <strong>${formData.name}</strong> (${formData.company}).<br>
-      Email: ${formData.email}<br>WhatsApp: ${formData.whatsapp || '-'}<br>
-      Skor: ${result.scores.overall}/100 — Kategori: ${result.category}</p>`,
+      subject: safeHeader(`[LEAD BARU] Assessment: ${formData.company} (${result.category})`),
+      html: `<p>Data diagnostik baru telah diterima dari <strong>${safeName}</strong> (${safeCompany}).<br>
+      Email: ${safeEmail}<br>WhatsApp: ${safeWhatsapp}<br>
+      Skor: ${result.scores.overall}/100 — Kategori: ${safeCategory}</p>`,
     });
 
     console.log('[Email] Admin notification response:', adminRes);

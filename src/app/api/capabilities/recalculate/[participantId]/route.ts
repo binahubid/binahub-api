@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor } from "@/lib/transformation/auth";
 import { getDb, recalculateParticipantCapabilities } from "@/lib/transformation/service";
+import { assertCanAccessParticipant, transformationErrorResponse } from "@/lib/transformation/access";
 
 export async function POST(req: NextRequest, context: { params: Promise<{ participantId: string }> }) {
   const actor = await requireTransformationActor(req);
@@ -14,9 +15,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ partic
 
   try {
     const { participantId } = await context.params;
-    const capabilities = await recalculateParticipantCapabilities(getDb(), participantId);
+    const db = getDb();
+    await assertCanAccessParticipant(db, actor, participantId);
+    const capabilities = await recalculateParticipantCapabilities(db, participantId);
     return NextResponse.json({ success: true, capabilities });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal recalculate capability." }, { status: 500 });
+    const failure = transformationErrorResponse(error);
+    return NextResponse.json({ success: false, error: failure.message || "Gagal recalculate capability." }, { status: failure.status });
   }
 }

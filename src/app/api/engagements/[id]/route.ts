@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTransformationActor } from "@/lib/transformation/auth";
+import { requireTransformationAdmin } from "@/lib/transformation/auth";
 import { engagementTypeSchema, engagementStatusSchema } from "@/lib/transformation/schemas";
 import { getDb } from "@/lib/transformation/service";
 import { z } from "zod";
@@ -9,19 +9,28 @@ const updateSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   type: engagementTypeSchema.optional(),
   status: engagementStatusSchema.optional(),
-  startDate: z.string().trim().nullable().optional(),
-  endDate: z.string().trim().nullable().optional(),
+  startDate: z.string().date().nullable().optional(),
+  endDate: z.string().date().nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const actor = await requireTransformationActor(req);
-  if ("error" in actor || actor.role === "client") {
-    return NextResponse.json({ success: false, error: "Akses admin diperlukan." }, { status: "error" in actor ? actor.status : 403 });
+  const actor = await requireTransformationAdmin(req);
+  if ("error" in actor) {
+    return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
   }
   const { id } = await context.params;
   const parsed = updateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success || Object.keys(parsed.data).length === 0) return NextResponse.json({ success: false, error: "Payload tidak valid." }, { status: 400 });
-  const { data, error } = await getDb().from("engagements").update({
+  const db = getDb();
+  const { data: existing, error: existingError } = await db.from("engagements").select("start_date, end_date").eq("id", id).maybeSingle();
+  if (existingError) return NextResponse.json({ success: false, error: existingError.message }, { status: 500 });
+  if (!existing) return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
+  const nextStart = parsed.data.startDate === undefined ? existing.start_date : parsed.data.startDate;
+  const nextEnd = parsed.data.endDate === undefined ? existing.end_date : parsed.data.endDate;
+  if (nextStart && nextEnd && nextStart > nextEnd) {
+    return NextResponse.json({ success: false, error: "Tanggal selesai tidak boleh sebelum tanggal mulai." }, { status: 400 });
+  }
+  const { data, error } = await db.from("engagements").update({
     ...(parsed.data.code === undefined ? {} : { code: parsed.data.code.toUpperCase() }),
     ...(parsed.data.title === undefined ? {} : { title: parsed.data.title }),
     ...(parsed.data.type === undefined ? {} : { type: parsed.data.type }),
@@ -35,13 +44,26 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 }
 
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const actor = await requireTransformationActor(req);
-  if ("error" in actor || actor.role === "client") return NextResponse.json({ success: false, error: "Akses admin diperlukan." }, { status: "error" in actor ? actor.status : 403 });
+  const actor = await requireTransformationAdmin(req);
+  if ("error" in actor) {
+    return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
+  }
   const { id } = await context.params;
   const db = getDb();
-  const { count, error: countError } = await db.from("tbos_observations").select("id", { count: "exact", head: true }).in("team_id", (await db.from("tbos_teams").select("id").eq("engagement_id", id)).data?.map((team) => team.id) || ["00000000-0000-0000-0000-000000000000"]);
+  const { data: teamRows, error: teamsError } = await db.from("tbos_teams").select("id").eq("engagement_id", id);
+  if (teamsError) return NextResponse.json({ success: false, error: teamsError.message }, { status: 500 });
+  const teamIds = (teamRows || []).map((team) => team.id);
+  const { count, error: countError } = teamIds.length > 0
+    ? await db.from("tbos_observations").select("id", { count: "exact", head: true }).in("team_id", teamIds)
+    : { count: 0, error: null };
   if (countError) return NextResponse.json({ success: false, error: countError.message }, { status: 500 });
   if ((count || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki histori observasi dan hanya dapat diarsipkan." }, { status: 409 });
+  const { count: lepCount, error: lepCountError } = await db
+    .from("lep_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("program_id", id);
+  if (lepCountError) return NextResponse.json({ success: false, error: lepCountError.message }, { status: 500 });
+  if ((lepCount || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki respons LEP dan hanya dapat diarsipkan." }, { status: 409 });
   const { error } = await db.from("engagements").delete().eq("id", id);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

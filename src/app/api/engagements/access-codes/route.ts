@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTransformationActor } from "@/lib/transformation/auth";
+import { requireTransformationAdmin } from "@/lib/transformation/auth";
 import { getAccessCodesForEngagement, getDb } from "@/lib/transformation/service";
 
 export async function GET(req: NextRequest) {
-  const actor = await requireTransformationActor(req);
+  const actor = await requireTransformationAdmin(req);
   if ("error" in actor) {
     return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
   }

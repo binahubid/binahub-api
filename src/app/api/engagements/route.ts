@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTransformationActor } from "@/lib/transformation/auth";
+import { requireTransformationActor, requireTransformationAdmin } from "@/lib/transformation/auth";
 import { createEngagementSchema } from "@/lib/transformation/schemas";
 import { createEngagement, createParticipant, generateAccessCodesForEngagement, getDb } from "@/lib/transformation/service";
+import { z } from "zod";
+import { getAccessibleProgramIds, transformationErrorResponse } from "@/lib/transformation/access";
+
+const moduleSelectionSchema = z.array(z.object({
+  moduleKey: z.enum(["tbos", "lep"]),
+  enabled: z.boolean(),
+})).length(2)
+  .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === 2, "Modul T-BOS dan LEP wajib disebut tepat satu kali.")
+  .refine((modules) => modules.some((module) => module.enabled), "Pilih minimal satu modul.");
+
+const participantDraftSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320).optional(),
+  role: z.enum(["participant", "leader", "observer"]).optional().default("participant"),
+});
 
 export async function GET(req: NextRequest) {
   const actor = await requireTransformationActor(req);
@@ -13,10 +28,14 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   let query = db.from("engagements").select("*").order("created_at", { ascending: false }).limit(100);
 
-  if (actor.role === "client" && actor.organizationId) {
-    query = query.eq("organization_id", actor.organizationId);
-  } else if (organizationId) {
-    query = query.eq("organization_id", organizationId);
+  try {
+    const programIds = await getAccessibleProgramIds(db, actor);
+    if (programIds?.length === 0) return NextResponse.json({ success: true, engagements: [] });
+    if (programIds) query = query.in("id", programIds);
+    if (actor.role === "admin" && organizationId) query = query.eq("organization_id", organizationId);
+  } catch (error) {
+    const failure = transformationErrorResponse(error);
+    return NextResponse.json({ success: false, error: failure.message }, { status: failure.status });
   }
 
   const { data, error } = await query;
@@ -28,13 +47,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const actor = await requireTransformationActor(req);
+  const actor = await requireTransformationAdmin(req);
   if ("error" in actor) {
     return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
-  }
-
-  if (actor.role === "client") {
-    return NextResponse.json({ success: false, error: "Client tidak dapat membuat engagement." }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
@@ -42,23 +57,46 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || "Payload tidak valid." }, { status: 400 });
   }
+  const parsedModules = moduleSelectionSchema.safeParse(body?.modules);
+  if (!parsedModules.success) {
+    return NextResponse.json({ success: false, error: parsedModules.error.issues[0]?.message || "Pilihan modul tidak valid." }, { status: 400 });
+  }
+  const parsedParticipants = z.array(participantDraftSchema).max(500).safeParse(body?.participants ?? []);
+  if (!parsedParticipants.success) {
+    return NextResponse.json({ success: false, error: parsedParticipants.error.issues[0]?.message || "Daftar peserta tidak valid." }, { status: 400 });
+  }
 
+  let createdEngagementId: string | null = null;
+  const createdParticipantIds: string[] = [];
   try {
     const db = getDb();
     const engagement = await createEngagement(db, actor, parsed.data);
+    createdEngagementId = engagement.id;
 
-    const participants = body?.participants as Array<{ name: string; email?: string; role?: string }> | undefined;
+    const { error: moduleError } = await db.from("program_modules").insert(
+      parsedModules.data.map((module) => ({
+        program_id: engagement.id,
+        module_key: module.moduleKey,
+        enabled: module.enabled,
+      })),
+    );
+    if (moduleError) {
+      await db.from("engagements").delete().eq("id", engagement.id);
+      throw new Error(`Gagal menyimpan modul program: ${moduleError.message}`);
+    }
+
     const createdParticipants: Array<{ id: string; name: string }> = [];
 
-    if (participants && participants.length > 0) {
-      for (const p of participants) {
+    if (parsedParticipants.data.length > 0) {
+      for (const p of parsedParticipants.data) {
         const participant = await createParticipant(db, {
           organizationId: parsed.data.organizationId,
           engagementId: engagement.id,
           name: p.name,
           email: p.email,
-          engagementRole: p.role || "participant",
+          engagementRole: p.role,
         });
+        createdParticipantIds.push(participant.id);
         createdParticipants.push({ id: participant.id, name: p.name });
       }
     }
@@ -80,6 +118,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, engagement, accessCodes }, { status: 201 });
   } catch (error) {
+    if (createdEngagementId) {
+      const db = getDb();
+      if (createdParticipantIds.length > 0) {
+        await db.from("app_client_access_codes").delete().in("participant_id", createdParticipantIds);
+        await db.from("participants").delete().in("id", createdParticipantIds);
+      }
+      await db.from("engagements").delete().eq("id", createdEngagementId);
+    }
     return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal membuat engagement." }, { status: 500 });
   }
 }

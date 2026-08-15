@@ -16,15 +16,28 @@ export async function GET(req: NextRequest) {
   let role: string | null = null;
   let fullName = "";
 
-  const { data: profile } = await db
+  const { data: profile, error: profileError } = await db
     .from("profiles")
     .select("role, full_name")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
+
+  if (profileError) {
+    return NextResponse.json(
+      { success: false, error: "Gagal memverifikasi role pengguna." },
+      { status: 500 },
+    );
+  }
 
   if (profile) {
     role = profile.role || null;
     fullName = profile.full_name || "";
+    if (!role || !["admin", "facilitator", "client", "peserta"].includes(role)) {
+      return NextResponse.json(
+        { success: false, error: "Role profil pengguna tidak valid." },
+        { status: 500 },
+      );
+    }
   }
 
   // 2. Only use trusted app metadata when a profile row does not exist yet.
@@ -48,9 +61,21 @@ export async function GET(req: NextRequest) {
     role = "peserta";
   }
 
-  // Sync role back to profiles if it was different
+  fullName = fullName
+    || String(auth.user.user_metadata?.full_name || auth.user.user_metadata?.company_name || "").trim()
+    || email;
+
+  // Create the profile once for bootstrap users. Existing profile roles are never overwritten here.
   if (!profile) {
-    await db.from("profiles").upsert({ id: userId, role, full_name: fullName || email });
+    const { error: profileSyncError } = await db
+      .from("profiles")
+      .upsert({ id: userId, role, full_name: fullName });
+    if (profileSyncError) {
+      return NextResponse.json(
+        { success: false, error: "Gagal membuat profil pengguna." },
+        { status: 500 },
+      );
+    }
   }
 
   // Also sync to app_metadata so Supabase Auth has it
@@ -62,7 +87,7 @@ export async function GET(req: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
     await supabaseAdmin.auth.admin.updateUserById(userId, {
-      app_metadata: { role, provider: "email", providers: ["email"] },
+      app_metadata: { ...auth.user.app_metadata, role },
     });
   } catch (err) {
     console.error("[API] Failed to sync role to app_metadata:", err);

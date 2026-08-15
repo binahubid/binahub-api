@@ -7,20 +7,20 @@ import { masmindoCriteria } from "@/lib/team-building";
 const scoreKeys = masmindoCriteria.map((item) => item.key);
 
 const ScoreSchema = z.object(
-  Object.fromEntries(scoreKeys.map((key) => [key, z.number().int()])) as Record<
+  Object.fromEntries(scoreKeys.map((key) => [key, z.number().int().min(0).max(1000)])) as Record<
     (typeof scoreKeys)[number],
     z.ZodNumber
   >,
 );
 
 const PayloadSchema = z.object({
-  companyName: z.string().min(1),
-  teamName: z.string().min(1),
-  gameName: z.string().min(1),
-  sessionCount: z.number().int().min(1),
-  sessionNumber: z.number().int().min(1).optional(),
-  assessmentDate: z.string().min(1),
-  facilitatorName: z.string().min(1),
+  companyName: z.string().trim().min(1).max(200),
+  teamName: z.string().trim().min(1).max(200),
+  gameName: z.string().trim().min(1).max(200),
+  sessionCount: z.number().int().min(1).max(100),
+  sessionNumber: z.number().int().min(1).max(100).optional(),
+  assessmentDate: z.string().date(),
+  facilitatorName: z.string().trim().min(1).max(200),
   scores: ScoreSchema.optional(),
 });
 
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
   const scores = payload.scores || Object.fromEntries(scoreKeys.map((key) => [key, 0]));
   const totalScore = Object.values(scores).reduce((sum, value) => sum + value, 0);
   const db = createServerSupabase();
+  const { data: profile } = await db.from("profiles").select("full_name").eq("id", facilitator.userId).maybeSingle();
 
   const { data, error } = await db
     .from("facilitator_team_scores")
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       session_count: payload.sessionCount,
       session_number: payload.sessionNumber || 1,
       assessment_date: payload.assessmentDate,
-      facilitator_name: payload.facilitatorName,
+      facilitator_name: profile?.full_name || payload.facilitatorName,
       facilitator_email: facilitator.email,
       scores,
       total_score: totalScore,
@@ -86,6 +87,17 @@ export async function PATCH(req: NextRequest) {
   const totalScore = Object.values(payload.scores).reduce((sum, value) => sum + value, 0);
   const db = createServerSupabase();
 
+  if (facilitator.role !== "admin") {
+    const { data: ownedScore, error: ownershipError } = await db
+      .from("facilitator_team_scores")
+      .select("id")
+      .eq("id", payload.id)
+      .eq("facilitator_email", facilitator.email)
+      .maybeSingle();
+    if (ownershipError) return NextResponse.json({ success: false, error: ownershipError.message }, { status: 500 });
+    if (!ownedScore) return NextResponse.json({ success: false, error: "Penilaian di luar cakupan fasilitator." }, { status: 403 });
+  }
+
   const { data, error } = await db
     .from("facilitator_team_scores")
     .update({
@@ -110,10 +122,12 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
-  const { data, error } = await db
+  let query = db
     .from("facilitator_team_scores")
     .select("id, company_name, team_name, game_name, session_count, session_number, assessment_date, facilitator_name, facilitator_email, scores, total_score, created_at")
     .order("created_at", { ascending: false });
+  if (facilitator.role !== "admin") query = query.eq("facilitator_email", facilitator.email);
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

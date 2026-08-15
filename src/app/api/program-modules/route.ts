@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireTransformationActor } from "@/lib/transformation/auth";
+import { requireTransformationAdmin } from "@/lib/transformation/auth";
 import { getDb } from "@/lib/transformation/service";
 
 const MODULE_KEYS = ["tbos", "lep"] as const;
@@ -12,16 +12,20 @@ const moduleItemSchema = z.object({
 
 const putSchema = z.object({
   programId: z.string().uuid(),
-  modules: z.array(moduleItemSchema).min(1),
+  modules: z.array(moduleItemSchema).min(1).max(MODULE_KEYS.length)
+    .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === modules.length, "Module key tidak boleh duplikat."),
 });
 
 export async function GET(req: NextRequest) {
-  const actor = await requireTransformationActor(req);
+  const actor = await requireTransformationAdmin(req);
   if ("error" in actor) {
     return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
   }
 
   const programId = req.nextUrl.searchParams.get("programId");
+  if (programId && !z.string().uuid().safeParse(programId).success) {
+    return NextResponse.json({ success: false, error: "programId tidak valid." }, { status: 400 });
+  }
   const db = getDb();
   let query = db.from("program_modules").select("program_id, module_key, enabled");
   if (programId) {
@@ -37,14 +41,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const actor = await requireTransformationActor(req);
+  const actor = await requireTransformationAdmin(req);
   if ("error" in actor) {
     return NextResponse.json({ success: false, error: actor.error }, { status: actor.status });
   }
-  if (actor.role === "client") {
-    return NextResponse.json({ success: false, error: "Akses admin diperlukan." }, { status: 403 });
-  }
-
   const parsed = putSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: "Payload tidak valid." }, { status: 400 });

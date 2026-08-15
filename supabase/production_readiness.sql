@@ -1,0 +1,100 @@
+-- Read-only readiness check. Run after all production migrations.
+
+select
+  to_regclass('public.program_modules') is not null as program_modules_ready,
+  to_regclass('public.batches') is not null as batches_ready,
+  to_regclass('public.facilitator_missions') is not null as facilitator_missions_ready,
+  to_regclass('public.lep_responses') is not null as lep_ready,
+  to_regclass('public.tbos_observation_members') is not null as observation_snapshots_ready,
+  to_regclass('public.api_rate_limits') is not null as persistent_rate_limit_ready,
+  to_regclass('public.chat_sessions') is not null as chat_sessions_ready,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'app_client_access_codes'
+      and column_name = 'auth_user_id'
+  ) as client_auth_binding_ready,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'chat_sessions'
+      and column_name = 'expires_at'
+  ) as chat_expiry_ready,
+  to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
+  to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
+  to_regprocedure('public.tbos_submit_observation_v2(uuid,uuid,uuid,uuid,text,uuid,text,text,jsonb,jsonb,boolean)') is not null as observation_rpc_ready,
+  to_regprocedure('public.submit_lep_response(uuid,uuid,integer,integer,integer,integer,text,text,text,jsonb)') is not null as lep_rpc_ready,
+  to_regprocedure('public.consume_api_rate_limit(text,integer,integer)') is not null as rate_limit_rpc_ready;
+
+select count(*) as blank_profile_name_issues
+from public.profiles
+where full_name is null or btrim(full_name) = '';
+
+select count(*) as duplicate_batch_name_issues
+from (
+  select program_id, lower(btrim(name))
+  from public.batches
+  group by program_id, lower(btrim(name))
+  having count(*) > 1
+) duplicates;
+
+select count(*) as duplicate_active_speaker_issues
+from (
+  select program_id, lower(btrim(name))
+  from public.lep_speakers
+  where deleted_at is null
+  group by program_id, lower(btrim(name))
+  having count(*) > 1
+) duplicates;
+
+select count(*) as unscoped_observation_issues
+from public.tbos_observations
+where program_id is null;
+
+select count(*) as invalid_engagement_date_issues
+from public.engagements
+where end_date < start_date;
+
+select count(*) as duplicate_participant_team_per_program_issues
+from (
+  select team.engagement_id, member.profile_id
+  from public.tbos_team_members member
+  join public.tbos_teams team on team.id = member.team_id
+  where team.engagement_id is not null
+    and member.profile_id is not null
+  group by team.engagement_id, member.profile_id
+  having count(distinct member.team_id) > 1
+) duplicates;
+
+select count(*) as team_batch_program_mismatch_issues
+from public.tbos_teams team
+join public.batches batch on batch.id = team.batch_id
+where team.engagement_id is distinct from batch.program_id;
+
+select count(*) as assignment_program_module_issues
+from public.facilitator_missions assignment
+left join public.program_modules module
+  on module.program_id = assignment.program_id
+  and module.module_key = 'tbos'
+  and module.enabled
+where module.program_id is null;
+
+select
+  cls.relname as table_name,
+  cls.relrowsecurity as rls_enabled,
+  not (
+    has_table_privilege('anon', format('public.%I', cls.relname), 'SELECT')
+    or has_table_privilege('anon', format('public.%I', cls.relname), 'INSERT')
+    or has_table_privilege('anon', format('public.%I', cls.relname), 'UPDATE')
+    or has_table_privilege('anon', format('public.%I', cls.relname), 'DELETE')
+  ) as anon_blocked,
+  not (
+    has_table_privilege('authenticated', format('public.%I', cls.relname), 'INSERT')
+    or has_table_privilege('authenticated', format('public.%I', cls.relname), 'UPDATE')
+    or has_table_privilege('authenticated', format('public.%I', cls.relname), 'DELETE')
+  ) as authenticated_writes_blocked
+from pg_class cls
+join pg_namespace ns on ns.oid = cls.relnamespace
+where ns.nspname = 'public'
+  and cls.relkind in ('r', 'p')
+order by cls.relname;

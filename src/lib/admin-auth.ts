@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getUserFromBearer, getUserRole, isAdminFallbackEmail, normalizeEmail } from "@/lib/auth-role";
+import { getAuthoritativeUserRole, getUserFromBearer, isAdminFallbackEmail, normalizeEmail } from "@/lib/auth-role";
 
 export async function requireAdmin(req: NextRequest) {
   const auth = await getUserFromBearer(req);
@@ -9,7 +9,12 @@ export async function requireAdmin(req: NextRequest) {
   }
 
   const email = normalizeEmail(auth.user.email);
-  const role = getUserRole(auth.user);
+  let role;
+  try {
+    role = await getAuthoritativeUserRole(auth.user);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Gagal memverifikasi role", status: 500 as const };
+  }
 
   if (role !== "admin" && !isAdminFallbackEmail(email)) {
     return { error: "Akses admin tidak valid", status: 403 as const };
