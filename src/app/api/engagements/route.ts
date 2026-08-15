@@ -126,6 +126,11 @@ export async function POST(req: NextRequest) {
       }
       await db.from("engagements").delete().eq("id", createdEngagementId);
     }
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal membuat engagement." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Gagal membuat engagement.";
+    const duplicateCode = /engagements_code_unique_idx|duplicate key/i.test(message);
+    return NextResponse.json(
+      { success: false, error: duplicateCode ? "Kode program sudah digunakan. Gunakan kode lain." : message },
+      { status: duplicateCode ? 409 : 500 },
+    );
   }
 }

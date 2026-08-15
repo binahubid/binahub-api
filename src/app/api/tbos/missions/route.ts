@@ -3,6 +3,7 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
 import { z } from "zod";
+import { getFacilitatorProgramAssignment } from "@/lib/tbos-assignment";
 
 interface MissionRow {
   id: string;
@@ -47,14 +48,15 @@ export async function GET(req: NextRequest) {
     } catch (error) {
       return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
     }
-    const { data: assignments, error: assignmentError } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
-      .eq("profile_id", auth.userId)
-      .eq("program_id", programId);
-    if (assignmentError) return NextResponse.json({ success: false, error: assignmentError.message }, { status: 500 });
-    assignedMissionIds = [...new Set((assignments || []).map((assignment) => assignment.mission_id))];
-    if (assignedMissionIds.length === 0) return NextResponse.json({ success: true, missions: [] });
+    try {
+      const assignment = await getFacilitatorProgramAssignment(db, auth.userId, programId);
+      if (!assignment) {
+        return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
+      }
+      assignedMissionIds = assignment.selected_mission_id ? [assignment.selected_mission_id] : null;
+    } catch (error) {
+      return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat penugasan." }, { status: 500 });
+    }
   } else if (programId) {
     try {
       if (!(await isProgramModuleEnabled(db, programId, "tbos"))) {

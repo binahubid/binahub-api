@@ -16,9 +16,9 @@ export async function requirePeserta(req: NextRequest) {
     return { error: error instanceof Error ? error.message : "Gagal memverifikasi role", status: 500 as const };
   }
 
-  if (role !== "peserta") {
+  if (role !== "peserta" && role !== "client") {
     return { error: "Akses tidak valid", status: 403 as const };
   }
 
-  return { email, userId: auth.user.id, role: "peserta" as const };
+  return { email, userId: auth.user.id, role: role as "peserta" | "client" };
 }

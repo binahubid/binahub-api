@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   if (actor.role === "facilitator" && actor.userId) {
     const { data: assignments, error: assignmentError } = await db
-      .from("facilitator_missions")
+      .from("facilitator_program_assignments")
       .select("program_id")
       .eq("profile_id", actor.userId);
     if (assignmentError) return NextResponse.json({ success: false, error: assignmentError.message }, { status: 500 });

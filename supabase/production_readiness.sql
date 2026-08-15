@@ -4,6 +4,7 @@ select
   to_regclass('public.program_modules') is not null as program_modules_ready,
   to_regclass('public.batches') is not null as batches_ready,
   to_regclass('public.facilitator_missions') is not null as facilitator_missions_ready,
+  to_regclass('public.facilitator_program_assignments') is not null as facilitator_program_assignments_ready,
   to_regclass('public.lep_responses') is not null as lep_ready,
   to_regclass('public.tbos_observation_members') is not null as observation_snapshots_ready,
   to_regclass('public.api_rate_limits') is not null as persistent_rate_limit_ready,
@@ -17,11 +18,19 @@ select
   exists (
     select 1 from information_schema.columns
     where table_schema = 'public'
+      and table_name = 'app_client_access_codes'
+      and column_name = 'program_id'
+  ) as client_program_binding_ready,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
       and table_name = 'chat_sessions'
       and column_name = 'expires_at'
   ) as chat_expiry_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
+  to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
+  to_regprocedure('public.select_facilitator_program_mission(uuid,uuid,uuid)') is not null as mission_selection_rpc_ready,
   to_regprocedure('public.tbos_submit_observation_v2(uuid,uuid,uuid,uuid,text,uuid,text,text,jsonb,jsonb,boolean)') is not null as observation_rpc_ready,
   to_regprocedure('public.submit_lep_response(uuid,uuid,integer,integer,integer,integer,text,text,text,jsonb)') is not null as lep_rpc_ready,
   to_regprocedure('public.consume_api_rate_limit(text,integer,integer)') is not null as rate_limit_rpc_ready;
@@ -55,6 +64,10 @@ select count(*) as invalid_engagement_date_issues
 from public.engagements
 where end_date < start_date;
 
+select count(*) as missing_program_code_issues
+from public.engagements
+where code is null or btrim(code) = '';
+
 select count(*) as duplicate_participant_team_per_program_issues
 from (
   select team.engagement_id, member.profile_id
@@ -78,6 +91,33 @@ left join public.program_modules module
   and module.module_key = 'tbos'
   and module.enabled
 where module.program_id is null;
+
+select count(*) as facilitator_position_mirror_issues
+from public.facilitator_program_assignments assignment
+full join public.facilitator_missions legacy
+  on legacy.profile_id = assignment.profile_id
+  and legacy.program_id = assignment.program_id
+  and legacy.mission_id = assignment.selected_mission_id
+where (assignment.selected_mission_id is not null and legacy.profile_id is null)
+  or (legacy.profile_id is not null and assignment.profile_id is null);
+
+select count(*) as invalid_master_roster_captain_issues
+from (
+  select team.id
+  from public.tbos_teams team
+  join public.tbos_team_members member on member.team_id = team.id
+  group by team.id
+  having count(*) filter (where member.is_captain) <> 1
+) invalid_roster;
+
+select count(*) as duplicate_facilitator_position_issues
+from (
+  select program_id, selected_mission_id
+  from public.facilitator_program_assignments
+  where selected_mission_id is not null
+  group by program_id, selected_mission_id
+  having count(*) > 1
+) duplicate_position;
 
 select
   cls.relname as table_name,

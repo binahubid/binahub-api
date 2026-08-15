@@ -31,11 +31,10 @@ export async function GET(req: NextRequest) {
   }
   if (auth.role === "facilitator") {
     const { data: assignment, error: assignmentError } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
+      .from("facilitator_program_assignments")
+      .select("program_id")
       .eq("profile_id", auth.userId)
       .eq("program_id", programId)
-      .limit(1)
       .maybeSingle();
     if (assignmentError) return NextResponse.json({ success: false, error: assignmentError.message }, { status: 500 });
     if (!assignment) return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });

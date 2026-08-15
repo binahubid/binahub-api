@@ -4,6 +4,7 @@ import { requireFacilitator } from "@/lib/facilitator-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
 import { z } from "zod";
 import { collectAllPages } from "@/lib/pagination";
+import { getSelectedFacilitatorMission } from "@/lib/tbos-assignment";
 
 interface TeamRecord {
   id: string;
@@ -73,20 +74,15 @@ export async function GET(req: NextRequest) {
   let assignedMissionIds: string[] = [];
 
   if (auth.role !== "admin") {
-    const { data: assignments, error: assignmentError } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
-      .eq("profile_id", auth.userId)
-      .eq("program_id", programId);
-
-    if (assignmentError) {
+    try {
+      const selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, programId);
+      if (selectedMissionId) assignedMissionIds = [selectedMissionId];
+    } catch (assignmentError) {
       console.error("[T-BOS Dashboard] assignment query error:", assignmentError);
       return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
     }
-
-    assignedMissionIds = [...new Set((assignments || []).map((assignment) => assignment.mission_id))];
     if (assignedMissionIds.length === 0) {
-      return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "Pilih dan kunci pos sebelum melihat hasil observasi." }, { status: 409 });
     }
   }
 
@@ -119,7 +115,7 @@ export async function GET(req: NextRequest) {
          code,
          name
        ),
-       profiles (full_name),
+       profiles!tbos_observations_profile_id_fkey (full_name),
         tbos_observation_scores (
         dimension_id,
         level_value,

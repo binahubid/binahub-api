@@ -12,6 +12,7 @@ export type TransformationActor = {
   accessCodeId?: string | null;
   companyName?: string | null;
   teamName?: string | null;
+  programId?: string | null;
 };
 
 export async function requireTransformationActor(req: NextRequest): Promise<TransformationActor | { error: string; status: number }> {
@@ -44,6 +45,7 @@ export async function requireTransformationActor(req: NextRequest): Promise<Tran
           accessCodeId: access.id,
           companyName: access.company_name || null,
           teamName: access.team_name || null,
+          programId: access.program_id || null,
         };
       }
     } catch (error) {

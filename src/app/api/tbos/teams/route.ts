@@ -47,11 +47,12 @@ export async function GET(req: NextRequest) {
     .order("name", { ascending: true });
 
   if (auth.role === "facilitator") {
-    const { data: assignments, error: assignmentError } = await db
-      .from("facilitator_missions")
+    const { data: assignment, error: assignmentError } = await db
+      .from("facilitator_program_assignments")
       .select("program_id")
       .eq("profile_id", auth.userId)
-      .eq("program_id", programId);
+      .eq("program_id", programId)
+      .maybeSingle();
 
     if (assignmentError) {
       console.error("[T-BOS Teams] Assignment query failed:", assignmentError);
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (!assignments?.length) {
+    if (!assignment) {
       return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
     }
   }

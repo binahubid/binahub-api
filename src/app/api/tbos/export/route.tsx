@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
       notes,
       tbos_teams (name),
       tbos_missions (code, name),
-      profiles (full_name),
+      profiles!tbos_observations_profile_id_fkey (full_name),
       tbos_observation_scores (
         level_value,
         tbos_behavioral_dimensions (code, name)
@@ -305,7 +305,7 @@ async function handleTeamReport(db: ReturnType<typeof createServerSupabase>, tea
       status,
       notes,
       tbos_missions ( code, name ),
-      profiles ( full_name ),
+      profiles!tbos_observations_profile_id_fkey ( full_name ),
       tbos_observation_scores (
         level_value,
         tbos_behavioral_dimensions ( code, name )

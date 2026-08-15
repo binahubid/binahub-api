@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAuthoritativeUserRole, getUserFromBearer } from "@/lib/auth-role";
 import { createServerSupabase } from "@/lib/supabase";
 import { getParticipantProgramIds, type ProgramModuleKey } from "@/lib/program-access";
+import { getClientAccessBySupabaseUser } from "@/lib/client-access";
 
 const querySchema = z.object({
   moduleKey: z.enum(["tbos", "lep"]),
@@ -28,9 +29,12 @@ export async function GET(req: NextRequest) {
     const role = await getAuthoritativeUserRole(auth.user);
     if (role === "peserta") {
       allowedProgramIds = await getParticipantProgramIds(db, auth.user.id);
+    } else if (role === "client") {
+      const access = await getClientAccessBySupabaseUser(auth.user.id, auth.user.app_metadata || {});
+      allowedProgramIds = access?.program_id ? [access.program_id] : [];
     } else if (role === "facilitator") {
       const { data, error } = await db
-        .from("facilitator_missions")
+        .from("facilitator_program_assignments")
         .select("program_id")
         .eq("profile_id", auth.user.id);
       if (error) throw new Error(error.message);

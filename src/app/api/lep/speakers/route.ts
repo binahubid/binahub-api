@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const role = await getAuthoritativeUserRole(auth.user);
     const enabled = await isProgramModuleEnabled(db, programId, "lep");
     if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
-    if (role === "peserta") {
+    if (role === "peserta" || role === "client") {
       const member = await isParticipantInProgram(db, auth.user.id, programId);
       if (!member) return NextResponse.json({ success: false, error: "Anda tidak terdaftar pada program ini." }, { status: 403 });
     } else if (role !== "admin") {

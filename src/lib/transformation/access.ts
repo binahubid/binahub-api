@@ -9,7 +9,7 @@ export async function getAccessibleProgramIds(db: Db, actor: TransformationActor
   if (actor.role === "facilitator") {
     if (!actor.userId) return [];
     const { data, error } = await db
-      .from("facilitator_missions")
+      .from("facilitator_program_assignments")
       .select("program_id")
       .eq("profile_id", actor.userId);
     if (error) throw new Error(error.message);

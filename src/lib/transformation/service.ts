@@ -72,7 +72,7 @@ export async function createEngagement(
     .from("engagements")
     .insert({
       organization_id: orgId,
-      code: payload.code,
+      code: payload.code.trim().toUpperCase(),
       title: payload.title,
       type: payload.type,
       status: payload.status,
@@ -167,6 +167,7 @@ export async function generateAccessCodesForEngagement(
       is_active: true,
       organization_id: organizationId,
       participant_id: participant.id,
+      program_id: engagementId,
     });
 
     if (error) throw new Error(error.message);
@@ -195,7 +196,7 @@ export async function getAccessCodesForEngagement(db: Db, engagementId: string) 
 
   const { data: codes, error: codesError } = await db
     .from("app_client_access_codes")
-    .select("id, company_name, team_name, is_active, organization_id, participant_id, created_at")
+    .select("id, company_name, team_name, is_active, organization_id, participant_id, program_id, created_at")
     .in("participant_id", participantIds);
 
   if (codesError) throw new Error(codesError.message);

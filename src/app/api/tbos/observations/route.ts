@@ -4,14 +4,10 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
 import { collectAllPages } from "@/lib/pagination";
+import { getSelectedFacilitatorMission } from "@/lib/tbos-assignment";
 
 const observationSchema = z.object({
-  teamId: z.string().uuid().optional(),
-  newTeam: z.object({
-    name: z.string().min(1).max(50),
-    batchId: z.string().uuid(),
-    programId: z.string().uuid(),
-  }).optional(),
+  teamId: z.string().uuid(),
   missionId: z.string().uuid(),
   clientSubmissionId: z.string().min(1).max(128),
   batch: z.string().min(1).max(50).optional(),
@@ -28,10 +24,7 @@ const observationSchema = z.object({
     isPresent: z.boolean(),
     isCaptain: z.boolean(),
   })).min(1),
-}).superRefine(({ teamId, newTeam, members }, ctx) => {
-  if (!teamId && !newTeam) {
-    ctx.addIssue({ code: "custom", path: ["teamId"], message: "teamId atau newTeam wajib diisi." });
-  }
+}).superRefine(({ members }, ctx) => {
   if (!members.some((member) => member.isPresent)) {
     ctx.addIssue({ code: "custom", path: ["members"], message: "Minimal satu anggota harus hadir." });
   }
@@ -87,14 +80,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { teamId, newTeam, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
+  const { teamId, missionId, clientSubmissionId, notes, scores, members } = parsed.data;
   const db = createServerSupabase();
+  if (auth.role === "facilitator") {
+    const { data: team } = await db
+      .from("tbos_teams")
+      .select("engagement_id")
+      .eq("id", teamId)
+      .maybeSingle();
+    if (!team?.engagement_id) {
+      return NextResponse.json({ success: false, error: "Tim tidak ditemukan." }, { status: 404 });
+    }
+    try {
+      const selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, team.engagement_id);
+      if (!selectedMissionId) {
+        return NextResponse.json({ success: false, error: "Pilih dan kunci pos sebelum melakukan observasi." }, { status: 409 });
+      }
+      if (selectedMissionId !== missionId) {
+        return NextResponse.json({ success: false, error: "Anda hanya dapat menilai misi/pos yang sudah dikunci." }, { status: 403 });
+      }
+    } catch (assignmentError) {
+      return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa pos." }, { status: 500 });
+    }
+  }
   const { data: observationId, error } = await db.rpc("tbos_submit_observation_v2", {
     p_facilitator_id: auth.userId,
-    p_team_id: teamId || null,
-    p_program_id: newTeam?.programId || null,
-    p_batch_id: newTeam?.batchId || null,
-    p_team_name: newTeam?.name.trim() || null,
+    p_team_id: teamId,
+    p_program_id: null,
+    p_batch_id: null,
+    p_team_name: null,
     p_mission_id: missionId,
     p_client_submission_id: clientSubmissionId,
     p_notes: notes || null,
@@ -109,6 +123,15 @@ export async function POST(req: NextRequest) {
       ? "Nama tim sudah dipakai, gunakan nama lain atau pilih dari daftar."
       : error.message;
     return NextResponse.json({ success: false, error: message }, { status });
+  }
+
+  if (auth.role === "facilitator") {
+    await db
+      .from("tbos_teams")
+      .update({ roster_initialized_at: new Date().toISOString() })
+      .eq("id", teamId)
+      .eq("roster_initialized_by", auth.userId)
+      .is("roster_initialized_at", null);
   }
 
   return NextResponse.json({ success: true, observationId });
@@ -132,16 +155,16 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memeriksa program." }, { status: 500 });
   }
+  let selectedMissionId: string | null = null;
   if (auth.role === "facilitator") {
-    const { data: assignment, error: assignmentError } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
-      .eq("profile_id", auth.userId)
-      .eq("program_id", programId)
-      .limit(1)
-      .maybeSingle();
-    if (assignmentError) return NextResponse.json({ success: false, error: assignmentError.message }, { status: 500 });
-    if (!assignment) return NextResponse.json({ success: false, error: "Program di luar cakupan fasilitator." }, { status: 403 });
+    try {
+      selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, programId);
+    } catch (assignmentError) {
+      return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa pos." }, { status: 500 });
+    }
+    if (!selectedMissionId) {
+      return NextResponse.json({ success: false, error: "Pilih dan kunci pos untuk melihat hasil observasi." }, { status: 409 });
+    }
   }
   const url = new URL(req.url);
   const teamId = url.searchParams.get("teamId");
@@ -149,6 +172,9 @@ export async function GET(req: NextRequest) {
   if ((teamId && !z.string().uuid().safeParse(teamId).success)
     || (missionId && !z.string().uuid().safeParse(missionId).success)) {
     return NextResponse.json({ success: false, error: "Filter observasi tidak valid." }, { status: 400 });
+  }
+  if (auth.role === "facilitator" && missionId && missionId !== selectedMissionId) {
+    return NextResponse.json({ success: false, error: "Hasil hanya tersedia untuk misi/pos yang Anda pilih." }, { status: 403 });
   }
 
   let typedRows: ObservationListRow[];
@@ -174,7 +200,7 @@ export async function GET(req: NextRequest) {
         code,
         name
       ),
-      profiles (full_name),
+      profiles!tbos_observations_profile_id_fkey (full_name),
        tbos_observation_scores (
         dimension_id,
         level_value,
@@ -195,7 +221,7 @@ export async function GET(req: NextRequest) {
       `)
         .eq("program_id", programId)
         .order("submitted_at", { ascending: false });
-      if (auth.role !== "admin") query = query.eq("profile_id", auth.userId);
+      if (auth.role !== "admin" && selectedMissionId) query = query.eq("mission_id", selectedMissionId);
       if (teamId) query = query.eq("team_id", teamId);
       if (missionId) query = query.eq("mission_id", missionId);
       return query.range(from, to) as never;
@@ -220,7 +246,9 @@ export async function GET(req: NextRequest) {
     lockedAt: obs.locked_at,
     lockedBy: obs.locked_by,
     revisionDeadline: obs.revision_deadline,
-    canEdit: obs.status === "submitted" && (!obs.revision_deadline || new Date(obs.revision_deadline).getTime() > Date.now()),
+    canEdit: obs.status === "submitted"
+      && (auth.role === "admin" || obs.profile_id === auth.userId)
+      && (!obs.revision_deadline || new Date(obs.revision_deadline).getTime() > Date.now()),
     members: (obs.tbos_observation_members || []).map((member) => ({
       id: member.id,
       teamMemberId: member.team_member_id,

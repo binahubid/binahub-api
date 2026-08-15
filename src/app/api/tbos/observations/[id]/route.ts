@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
+import { getSelectedFacilitatorMission } from "@/lib/tbos-assignment";
 
 const patchSchema = z.object({
   action: z.enum(["lock", "unlock", "edit"]),
@@ -126,16 +127,10 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 403 });
   }
 
-  // Facilitators can only see their own
+  // Facilitators can see every team result at their locked mission/position.
   if (auth.role !== "admin") {
-    const { data: assignment } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
-      .eq("profile_id", auth.userId)
-      .eq("program_id", observationRecord.program_id)
-      .eq("mission_id", observationRecord.mission_id)
-      .maybeSingle();
-    if (observationRecord.profile_id !== auth.userId || !assignment) {
+    const selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, observationRecord.program_id);
+    if (selectedMissionId !== observationRecord.mission_id) {
       return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
     }
   }
@@ -198,6 +193,7 @@ export async function GET(
   const isAdmin = auth.role === "admin";
   const canEdit =
     obs.status === "submitted" &&
+    (isAdmin || obs.profile_id === auth.userId) &&
     (isAdmin || !obs.revision_deadline || new Date(obs.revision_deadline).getTime() > Date.now());
 
   return NextResponse.json({
@@ -283,14 +279,8 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: "Modul T-BOS tidak aktif." }, { status: 409 });
   }
   if (auth.role !== "admin") {
-    const { data: assignment } = await db
-      .from("facilitator_missions")
-      .select("mission_id")
-      .eq("profile_id", auth.userId)
-      .eq("program_id", observation.program_id)
-      .eq("mission_id", observation.mission_id)
-      .maybeSingle();
-    if (observation.profile_id !== auth.userId || !assignment) {
+    const selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, observation.program_id);
+    if (observation.profile_id !== auth.userId || selectedMissionId !== observation.mission_id) {
       return NextResponse.json({ success: false, error: "Akses ditolak." }, { status: 403 });
     }
   }

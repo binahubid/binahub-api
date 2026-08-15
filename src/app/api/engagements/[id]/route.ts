@@ -53,18 +53,41 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const { data: teamRows, error: teamsError } = await db.from("tbos_teams").select("id").eq("engagement_id", id);
   if (teamsError) return NextResponse.json({ success: false, error: teamsError.message }, { status: 500 });
   const teamIds = (teamRows || []).map((team) => team.id);
-  const { count, error: countError } = teamIds.length > 0
-    ? await db.from("tbos_observations").select("id", { count: "exact", head: true }).in("team_id", teamIds)
-    : { count: 0, error: null };
+  const { count, error: countError } = await db
+    .from("tbos_observations")
+    .select("id", { count: "exact", head: true })
+    .eq("program_id", id);
   if (countError) return NextResponse.json({ success: false, error: countError.message }, { status: 500 });
-  if ((count || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki histori observasi dan hanya dapat diarsipkan." }, { status: 409 });
+  if ((count || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki histori observasi dan hanya dapat diarsipkan.", code: "PROGRAM_HAS_OBSERVATIONS", canArchive: true }, { status: 409 });
   const { count: lepCount, error: lepCountError } = await db
     .from("lep_responses")
     .select("id", { count: "exact", head: true })
     .eq("program_id", id);
   if (lepCountError) return NextResponse.json({ success: false, error: lepCountError.message }, { status: 500 });
-  if ((lepCount || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki respons LEP dan hanya dapat diarsipkan." }, { status: 409 });
+  if ((lepCount || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki respons LEP dan hanya dapat diarsipkan.", code: "PROGRAM_HAS_LEP_RESPONSES", canArchive: true }, { status: 409 });
+  if (teamIds.length > 0) {
+    const { error: deleteTeamsError } = await db.from("tbos_teams").delete().eq("engagement_id", id);
+    if (deleteTeamsError) {
+      return NextResponse.json({
+        success: false,
+        error: "Tim program masih memiliki data terkait dan tidak dapat dihapus. Arsipkan program agar histori tetap aman.",
+        detail: deleteTeamsError.message,
+        code: "PROGRAM_TEAMS_HAVE_RELATED_DATA",
+        canArchive: true,
+      }, { status: 409 });
+    }
+  }
   const { error } = await db.from("engagements").delete().eq("id", id);
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  if (error) {
+    if (error.code === "23503") {
+      return NextResponse.json({
+        success: false,
+        error: "Program masih memiliki data terkait dan tidak dapat dihapus. Arsipkan program untuk mempertahankan histori.",
+        code: "PROGRAM_HAS_RELATED_DATA",
+        canArchive: true,
+      }, { status: 409 });
+    }
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }
