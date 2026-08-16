@@ -26,7 +26,11 @@ export async function GET(req: NextRequest) {
 
   const organizationId = req.nextUrl.searchParams.get("organization_id");
   const db = getDb();
-  let query = db.from("engagements").select("*").order("created_at", { ascending: false }).limit(100);
+  let query = db
+    .from("engagements")
+    .select("*, organization:organizations(id, name)")
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   try {
     const programIds = await getAccessibleProgramIds(db, actor);
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
     if (parsedParticipants.data.length > 0) {
       for (const p of parsedParticipants.data) {
         const participant = await createParticipant(db, {
-          organizationId: parsed.data.organizationId,
+          organizationId: engagement.organization_id,
           engagementId: engagement.id,
           name: p.name,
           email: p.email,
@@ -104,13 +108,13 @@ export async function POST(req: NextRequest) {
     let accessCodes: Array<{ code: string; companyName: string; teamName: string; participantId: string }> = [];
 
     if (createdParticipants.length > 0) {
-      const { data: org } = await db.from("organizations").select("name").eq("id", parsed.data.organizationId).single();
+      const { data: org } = await db.from("organizations").select("name").eq("id", engagement.organization_id).single();
       const orgName = org?.name || "Unknown";
 
       accessCodes = await generateAccessCodesForEngagement(
         db,
         engagement.id,
-        parsed.data.organizationId,
+        engagement.organization_id,
         orgName,
         createdParticipants,
       );

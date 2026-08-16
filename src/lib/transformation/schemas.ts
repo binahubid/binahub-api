@@ -19,7 +19,8 @@ export const evidenceSourceSchema = z.enum(["participant", "facilitator", "manag
 export const actionStatusSchema = z.enum(["todo", "in_progress", "blocked", "done"]);
 
 export const createEngagementSchema = z.object({
-  organizationId: uuidSchema,
+  organizationName: z.string().trim().min(2).max(160),
+  location: z.string().trim().max(200).optional(),
   code: z.string().trim().min(1).max(50),
   title: z.string().trim().min(1).max(200),
   type: engagementTypeSchema,

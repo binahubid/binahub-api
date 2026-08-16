@@ -35,7 +35,8 @@ export async function createEngagement(
   db: Db,
   actor: TransformationActor,
   payload: {
-    organizationId: string;
+    organizationName: string;
+    location?: string;
     code: string;
     title: string;
     type: string;
@@ -44,34 +45,32 @@ export async function createEngagement(
     endDate?: string;
   },
 ) {
-  let orgId = payload.organizationId;
-  
-  // Ensure a valid organization exists to satisfy foreign key constraint
+  const organizationName = payload.organizationName.trim();
+  const organizationNamePattern = organizationName.replace(/[\\%_]/g, "\\$&");
+  const { data: existingOrganization, error: organizationLookupError } = await db
+    .from("organizations")
+    .select("id")
+    .ilike("name", organizationNamePattern)
+    .limit(1)
+    .maybeSingle();
+  if (organizationLookupError) throw new Error(organizationLookupError.message);
+
+  let orgId = existingOrganization?.id as string | undefined;
   if (!orgId) {
-    const { data: firstOrg } = await db.from("organizations").select("id").limit(1).maybeSingle();
-    if (firstOrg?.id) {
-      orgId = firstOrg.id;
-    } else {
-      const { data: newOrg } = await db.from("organizations").insert({ name: "BinaHub Client Partner" }).select("id").single();
-      orgId = newOrg?.id;
-    }
-  } else {
-    const { data: orgCheck } = await db.from("organizations").select("id").eq("id", orgId).maybeSingle();
-    if (!orgCheck) {
-      const { data: newOrg } = await db.from("organizations").insert({ id: orgId, name: "BinaHub Client Partner" }).select("id").maybeSingle();
-      if (newOrg) {
-        orgId = newOrg.id;
-      } else {
-        const { data: firstOrg } = await db.from("organizations").select("id").limit(1).maybeSingle();
-        orgId = firstOrg?.id || orgId;
-      }
-    }
+    const { data: organization, error: organizationError } = await db
+      .from("organizations")
+      .insert({ name: organizationName })
+      .select("id")
+      .single();
+    if (organizationError) throw new Error(organizationError.message);
+    orgId = organization.id as string;
   }
 
   const { data, error } = await db
     .from("engagements")
     .insert({
       organization_id: orgId,
+      location: payload.location || null,
       code: payload.code.trim().toUpperCase(),
       title: payload.title,
       type: payload.type,
