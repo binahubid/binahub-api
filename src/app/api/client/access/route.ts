@@ -5,11 +5,15 @@ import { hashAccessCode } from "@/lib/client-access";
 import { createServerSupabase } from "@/lib/supabase";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { createOpaqueToken } from "@/lib/secure-token";
+import { participantAccessExpiry, programAccessAvailable, publicProgram, type ClientProgramRow } from "@/lib/client-program";
 
 const accessSchema = z.object({
   code: z.string().trim().min(1).max(128),
   displayName: z.string().trim().min(2).max(120).optional(),
+  programId: z.string().uuid().optional(),
 });
+
+const previewSchema = z.object({ program: z.string().uuid() });
 
 interface AccessRow {
   id: string;
@@ -21,6 +25,16 @@ interface AccessRow {
   participant_id: string | null;
   program_id: string | null;
   auth_user_id: string | null;
+}
+
+async function getEnabledModules(db: ReturnType<typeof createServerSupabase>, programId: string) {
+  const { data, error } = await db
+    .from("program_modules")
+    .select("module_key")
+    .eq("program_id", programId)
+    .eq("enabled", true);
+  if (error) throw new Error("Gagal memuat modul program.");
+  return (data || []).map((module) => module.module_key as "tbos" | "lep");
 }
 
 async function findLegacyUserByEmail(db: ReturnType<typeof createServerSupabase>, email: string): Promise<User | null> {
@@ -36,7 +50,7 @@ async function findLegacyUserByEmail(db: ReturnType<typeof createServerSupabase>
 
 async function createProgramParticipantAccess(
   db: ReturnType<typeof createServerSupabase>,
-  program: { id: string; organization_id: string; title: string },
+  program: ClientProgramRow,
   displayName: string,
 ): Promise<AccessRow> {
   const { data: organization, error: organizationError } = await db
@@ -73,6 +87,7 @@ async function createProgramParticipantAccess(
       organization_id: program.organization_id,
       participant_id: participant.id,
       program_id: program.id,
+      expires_at: participantAccessExpiry(program.end_date),
     })
     .select("id, company_name, team_name, expires_at, is_active, organization_id, participant_id, program_id, auth_user_id")
     .single();
@@ -101,7 +116,7 @@ async function createClientSession(db: ReturnType<typeof createServerSupabase>, 
     const { data: existing, error } = await db.auth.admin.getUserById(access.auth_user_id);
     if (error && error.status !== 404) throw new Error("Gagal memeriksa akun client.");
     existingUser = existing.user;
-  } else {
+  } else if (!access.program_id) {
     existingUser = await findLegacyUserByEmail(db, clientEmail);
   }
 
@@ -156,60 +171,135 @@ async function createClientSession(db: ReturnType<typeof createServerSupabase>, 
   return sessionData.session;
 }
 
-export async function POST(req: NextRequest) {
-  const rateLimited = await enforceRateLimit(req, "client-access", 10, 15 * 60);
+async function rollbackProgramParticipantAccess(db: ReturnType<typeof createServerSupabase>, access: AccessRow) {
+  const { data: persisted } = await db
+    .from("app_client_access_codes")
+    .select("auth_user_id")
+    .eq("id", access.id)
+    .maybeSingle();
+
+  await db.from("app_client_access_codes").delete().eq("id", access.id);
+  if (persisted?.auth_user_id) {
+    const { error } = await db.auth.admin.deleteUser(persisted.auth_user_id);
+    if (error) console.error("[Client Access] Failed to remove incomplete auth user:", error.message);
+  }
+  if (access.program_id && access.participant_id) {
+    await db.from("engagement_participants").delete().eq("engagement_id", access.program_id).eq("participant_id", access.participant_id);
+  }
+  if (access.participant_id) await db.from("participants").delete().eq("id", access.participant_id);
+}
+
+export async function GET(req: NextRequest) {
+  const rateLimited = await enforceRateLimit(req, "client-program-preview", 1000, 15 * 60);
   if (rateLimited) return rateLimited;
 
+  const parsed = previewSchema.safeParse({ program: req.nextUrl.searchParams.get("program") });
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, error: "Tautan program tidak valid." }, { status: 400 });
+  }
+
+  const db = createServerSupabase();
+  const { data, error } = await db
+    .from("engagements")
+    .select("id, title, code, organization_id, status, start_date, end_date, location, organization:organizations(name)")
+    .eq("id", parsed.data.program)
+    .maybeSingle();
+  if (error) return NextResponse.json({ success: false, error: "Gagal memuat program." }, { status: 500 });
+  if (!data || data.status === "archived") {
+    return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
+  }
+
+  try {
+    const modules = await getEnabledModules(db, data.id);
+    return NextResponse.json(
+      { success: true, program: publicProgram(data as ClientProgramRow, modules) },
+      { headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat program." }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
   const parsed = accessSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || "Kode akses wajib diisi." }, { status: 400 });
   }
 
+  const rateLimited = await enforceRateLimit(req, `client-access:${parsed.data.programId || "generic"}`, 1000, 15 * 60);
+  if (rateLimited) return rateLimited;
+
   const db = createServerSupabase();
   const normalizedCode = parsed.data.code.toUpperCase();
-  const { data: legacyAccess, error: accessError } = await db
-    .from("app_client_access_codes")
-    .select("id, company_name, team_name, expires_at, is_active, organization_id, participant_id, program_id, auth_user_id")
-    .eq("code_hash", hashAccessCode(normalizedCode))
-    .eq("is_active", true)
-    .maybeSingle();
-  if (accessError) {
-    return NextResponse.json({ success: false, error: "Gagal memeriksa kode akses." }, { status: 500 });
-  }
+  let access: AccessRow | null = null;
+  let program: ClientProgramRow | null = null;
+  let createdProgramAccess = false;
 
-  let access = legacyAccess as AccessRow | null;
-  if (!access) {
-    const { data: program, error: programError } = await db
+  if (parsed.data.programId) {
+    const { data, error } = await db
       .from("engagements")
-      .select("id, code, title, organization_id, status, start_date, end_date")
-      .ilike("code", normalizedCode)
+      .select("id, code, title, organization_id, status, start_date, end_date, location, organization:organizations(name)")
+      .eq("id", parsed.data.programId)
       .in("status", ["active", "in_progress", "review"])
       .maybeSingle();
-    if (programError || !program) {
+    if (error || !data || data.code?.trim().toUpperCase() !== normalizedCode) {
+      const failedLimit = await enforceRateLimit(req, `client-access-failed:${parsed.data.programId}`, 25, 15 * 60);
+      if (failedLimit) return failedLimit;
       return NextResponse.json({ success: false, error: "Kode program tidak valid atau program belum aktif." }, { status: 401 });
     }
+    program = data as ClientProgramRow;
+  } else {
+    const { data: legacyAccess, error: accessError } = await db
+      .from("app_client_access_codes")
+      .select("id, company_name, team_name, expires_at, is_active, organization_id, participant_id, program_id, auth_user_id")
+      .eq("code_hash", hashAccessCode(normalizedCode))
+      .eq("is_active", true)
+      .maybeSingle();
+    if (accessError) {
+      return NextResponse.json({ success: false, error: "Gagal memeriksa kode akses." }, { status: 500 });
+    }
+    access = legacyAccess as AccessRow | null;
 
-    const { data: modules, error: moduleError } = await db
-      .from("program_modules")
-      .select("module_key, enabled")
-      .eq("program_id", program.id)
-      .eq("enabled", true);
-    if (moduleError) return NextResponse.json({ success: false, error: "Gagal memuat modul program." }, { status: 500 });
+    if (!access) {
+      const { data, error } = await db
+        .from("engagements")
+        .select("id, code, title, organization_id, status, start_date, end_date, location, organization:organizations(name)")
+        .ilike("code", normalizedCode)
+        .in("status", ["active", "in_progress", "review"])
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) {
+        const failedLimit = await enforceRateLimit(req, "client-access-failed:generic", 25, 15 * 60);
+        if (failedLimit) return failedLimit;
+        return NextResponse.json({ success: false, error: "Kode program tidak valid atau program belum aktif." }, { status: 401 });
+      }
+      program = data as ClientProgramRow;
+    }
+  }
 
+  if (!access && program) {
     if (!parsed.data.displayName) {
-      return NextResponse.json({
-        success: true,
-        needsProfile: true,
-        program: { id: program.id, code: program.code, title: program.title, modules: modules || [] },
-      });
+      try {
+        const modules = await getEnabledModules(db, program.id);
+        return NextResponse.json({ success: true, needsProfile: true, program: publicProgram(program, modules) });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal memuat modul program." }, { status: 500 });
+      }
+    }
+
+    if (!programAccessAvailable(program)) {
+      return NextResponse.json({ success: false, error: "Masa akses program telah berakhir." }, { status: 403 });
     }
 
     try {
       access = await createProgramParticipantAccess(db, program, parsed.data.displayName);
+      createdProgramAccess = true;
     } catch (error) {
       return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal mendaftarkan peserta." }, { status: 500 });
     }
   }
+
+  if (!access) return NextResponse.json({ success: false, error: "Akses program tidak ditemukan." }, { status: 401 });
 
   if (access.expires_at && new Date(access.expires_at).getTime() < Date.now()) {
     return NextResponse.json({ success: false, error: "Kode akses sudah kedaluwarsa." }, { status: 401 });
@@ -235,6 +325,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[Client Access] Session setup failed:", error);
+    if (createdProgramAccess && access) await rollbackProgramParticipantAccess(db, access);
     return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal membuat sesi client." }, { status: 500 });
   }
 }

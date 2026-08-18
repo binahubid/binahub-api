@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const [{ data: program, error: programError }, { data: modules, error: moduleError }] = await Promise.all([
     db
       .from("engagements")
-      .select("id, code, title, type, status, start_date, end_date, organization_id")
+      .select("id, code, title, type, status, start_date, end_date, location, organization_id, organization:organizations(name)")
       .eq("id", actor.programId)
       .maybeSingle(),
     db
@@ -35,12 +35,23 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    program,
+    program: {
+      id: program.id,
+      code: program.code,
+      title: program.title,
+      type: program.type,
+      status: program.status,
+      startDate: program.start_date,
+      endDate: program.end_date,
+      location: program.location,
+      organizationId: program.organization_id,
+      companyName: program.organization[0]?.name || "Perusahaan",
+    },
     participant: { id: actor.participantId, name: actor.teamName || "Peserta" },
     modules: (modules || []).map((module) => ({
       key: module.module_key,
       enabled: module.enabled,
       clientAvailable: module.module_key === "lep",
     })),
-  });
+  }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

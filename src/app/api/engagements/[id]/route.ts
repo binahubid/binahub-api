@@ -11,6 +11,7 @@ const updateSchema = z.object({
   status: engagementStatusSchema.optional(),
   startDate: z.string().date().nullable().optional(),
   endDate: z.string().date().nullable().optional(),
+  location: z.string().trim().min(1).max(200).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -37,6 +38,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     ...(parsed.data.status === undefined ? {} : { status: parsed.data.status }),
     ...(parsed.data.startDate === undefined ? {} : { start_date: parsed.data.startDate }),
     ...(parsed.data.endDate === undefined ? {} : { end_date: parsed.data.endDate }),
+    ...(parsed.data.location === undefined ? {} : { location: parsed.data.location }),
     updated_at: new Date().toISOString(),
   }).eq("id", id).select().single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

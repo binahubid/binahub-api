@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   let query = db
     .from("engagements")
-    .select("*, organization:organizations(id, name)")
+    .select("*, organization:organizations(id, name), engagement_participants(count)")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -47,7 +47,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, engagements: data || [] });
+  return NextResponse.json({
+    success: true,
+    engagements: (data || []).map(({ engagement_participants: memberships, ...engagement }) => ({
+      ...engagement,
+      participants: memberships?.[0]?.count || 0,
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {
