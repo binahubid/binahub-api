@@ -61,12 +61,14 @@ export async function GET(req: NextRequest) {
   const format = (req.nextUrl.searchParams.get("format") || "csv").toLowerCase();
   const requestedProgramId = req.nextUrl.searchParams.get("programId");
   const teamId = req.nextUrl.searchParams.get("teamId");
+  const batch = req.nextUrl.searchParams.get("batch");
   if (!requestedProgramId && !teamId) {
     return NextResponse.json({ success: false, error: "programId atau teamId wajib diisi." }, { status: 400 });
   }
   if (!z.enum(["csv", "pdf"]).safeParse(format).success
     || (requestedProgramId && !z.string().uuid().safeParse(requestedProgramId).success)
-    || (teamId && !z.string().uuid().safeParse(teamId).success)) {
+    || (teamId && !z.string().uuid().safeParse(teamId).success)
+    || (batch !== null && (batch.length < 1 || batch.length > 120))) {
     return NextResponse.json({ success: false, error: "Parameter ekspor tidak valid." }, { status: 400 });
   }
 
@@ -103,17 +105,22 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const report = await fetchProgramReport(db, programId);
+    const report = await fetchProgramReport(db, programId, batch);
     const selectedTeam = teamId ? report.teams.find((team) => team.id === teamId) ?? null : null;
     if (teamId && !selectedTeam) {
       return NextResponse.json({ success: false, error: "Tim tidak ditemukan pada laporan program." }, { status: 404 });
+    }
+    if (batch && report.teams.length === 0) {
+      return NextResponse.json({ success: false, error: "Batch tidak ditemukan pada program ini." }, { status: 404 });
     }
 
     if (format === "csv") {
       const csv = buildCsv(report, teamId || null);
       const filename = teamId && selectedTeam
         ? `tbos_tim_${safeFilename(selectedTeam.name)}_${isoDate()}.csv`
-        : `tbos_program_${safeFilename(report.program.code)}_${isoDate()}.csv`;
+        : batch
+          ? `tbos_batch_${safeFilename(batch)}_${isoDate()}.csv`
+          : `tbos_program_${safeFilename(report.program.code)}_${isoDate()}.csv`;
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
@@ -123,10 +130,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const buffer = await renderReportPdf(report, selectedTeam);
+    const buffer = await renderReportPdf(report, selectedTeam, batch);
     const filename = selectedTeam
       ? `tbos_laporan_tim_${safeFilename(selectedTeam.name)}_${isoDate()}.pdf`
-      : `tbos_laporan_grup_${safeFilename(report.program.code)}_${isoDate()}.pdf`;
+      : batch
+        ? `tbos_laporan_batch_${safeFilename(batch)}_${isoDate()}.pdf`
+        : `tbos_laporan_grup_${safeFilename(report.program.code)}_${isoDate()}.pdf`;
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
@@ -146,14 +155,15 @@ export async function GET(req: NextRequest) {
 function renderReportPdf(
   report: TbosProgramReport,
   selectedTeam: TbosProgramReport["teams"][number] | null,
+  batch: string | null = null,
 ) {
   const document = selectedTeam
     ? <TbosTeamReportDocument report={report} team={selectedTeam} />
-    : <TbosGroupReportDocument report={report} />;
+    : <TbosGroupReportDocument report={report} batch={batch ?? undefined} />;
   return renderToBuffer(document);
 }
 
-async function fetchProgramReport(db: Db, programId: string): Promise<TbosProgramReport> {
+async function fetchProgramReport(db: Db, programId: string, batch: string | null = null): Promise<TbosProgramReport> {
   const { data: programRow, error: programError } = await db
     .from("engagements")
     .select("id, code, title, start_date, end_date")
@@ -168,7 +178,8 @@ async function fetchProgramReport(db: Db, programId: string): Promise<TbosProgra
     .eq("engagement_id", programId)
     .order("name", { ascending: true })
     .range(from, to) as never);
-  const teamIds = teams.map((team) => team.id);
+  const scopedTeams = batch ? teams.filter((team) => team.batch === batch) : teams;
+  const teamIds = scopedTeams.map((team) => team.id);
 
   let members: MemberRow[] = [];
   if (teamIds.length > 0) {
@@ -210,7 +221,7 @@ async function fetchProgramReport(db: Db, programId: string): Promise<TbosProgra
     membersByTeam.set(member.team_id, current);
   }
 
-  const teamInputs: TbosReportTeamInput[] = teams.map((team) => ({
+  const teamInputs: TbosReportTeamInput[] = scopedTeams.map((team) => ({
     id: team.id,
     name: team.name,
     batch: team.batch,
@@ -243,7 +254,9 @@ async function fetchProgramReport(db: Db, programId: string): Promise<TbosProgra
       endDate: program.end_date,
     },
     teams: teamInputs,
-    observations,
+    observations: batch
+      ? observations.filter((observation) => teamIds.includes(observation.teamId))
+      : observations,
   });
 }
 

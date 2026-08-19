@@ -1,4 +1,4 @@
-import {
+﻿import {
   Circle,
   Document,
   Line,
@@ -97,7 +97,10 @@ const styles = StyleSheet.create({
   missionNote: { marginTop: 3, fontSize: 6.5, color: SLATE, fontStyle: "italic" },
 });
 
-function ReportHeader({ eyebrow, title, report }: { eyebrow: string; title: string; report: TbosProgramReport }) {
+function ReportHeader({ eyebrow, title, report, scopeLabel }: { eyebrow: string; title: string; report: TbosProgramReport; scopeLabel?: string }) {
+  const meta = scopeLabel
+    ? `${scopeLabel} | ${report.program.title} | ${report.program.code}`
+    : `${report.program.title} | ${report.program.code}`;
   return (
     <View style={styles.header}>
       <View>
@@ -107,7 +110,7 @@ function ReportHeader({ eyebrow, title, report }: { eyebrow: string; title: stri
       <View style={{ maxWidth: 300, alignItems: "flex-end" }}>
         <Text style={styles.eyebrow}>{eyebrow}</Text>
         <Text style={[styles.pageTitle, { textAlign: "right" }]}>{title}</Text>
-        <Text style={[styles.meta, { textAlign: "right" }]}>{report.program.title} | {report.program.code}</Text>
+        <Text style={[styles.meta, { textAlign: "right" }]}>{meta}</Text>
       </View>
     </View>
   );
@@ -181,10 +184,10 @@ function TeamRadar({ dimensions }: { dimensions: TbosDimensionResult[] }) {
   );
 }
 
-function TeamDetailPage({ report, team }: { report: TbosProgramReport; team: TbosTeamReport }) {
+function TeamDetailPage({ report, team, scopeLabel }: { report: TbosProgramReport; team: TbosTeamReport; scopeLabel?: string }) {
   return (
     <Page size="A4" style={styles.page} wrap={false}>
-      <ReportHeader eyebrow="Laporan per Tim" title={team.name} report={report} />
+      <ReportHeader eyebrow="Laporan per Tim" title={team.name} report={report} scopeLabel={scopeLabel} />
       <View style={styles.teamHero} wrap={false}>
         <View>
           <Text style={styles.teamName}>{team.name}</Text>
@@ -241,12 +244,14 @@ function TeamDetailPage({ report, team }: { report: TbosProgramReport; team: Tbo
   );
 }
 
-export function TbosGroupReportDocument({ report }: { report: TbosProgramReport }) {
+export function TbosGroupReportDocument({ report, batch }: { report: TbosProgramReport; batch?: string }) {
   const rankedTeams = [...report.teams].sort((a, b) => (b.overallScore ?? -1) - (a.overallScore ?? -1));
+  const scopeLabel = batch;
+  const eyebrow = batch ? "Laporan per Batch" : "Laporan Grup";
   return (
-    <Document title={`T-BOS - ${report.program.title}`} author="BinaHub" subject="T-BOS Group Report">
+    <Document title={`T-BOS - ${batch ? `Batch ${batch} - ` : ""}${report.program.title}`} author="BinaHub" subject="T-BOS Group Report">
       <Page size="A4" style={styles.page}>
-        <ReportHeader eyebrow="Laporan Grup" title="Ringkasan Eksekutif" report={report} />
+        <ReportHeader eyebrow={eyebrow} title="Ringkasan Eksekutif" report={report} scopeLabel={scopeLabel} />
         <View style={styles.metrics}>
           <Metric label="Total tim" value={report.teams.length} />
           <Metric label="Total observasi" value={report.totalObservations} />
@@ -261,11 +266,11 @@ export function TbosGroupReportDocument({ report }: { report: TbosProgramReport 
         </View>
         <View style={[styles.twoColumns, styles.section]}>
           <View style={[styles.column, styles.listCard]}>
-            <Text style={styles.sectionTitle}>3 Kekuatan Utama</Text>
+            <Text style={styles.sectionTitle}>Kekuatan Utama</Text>
             <RankedDimensions dimensions={report.strengths} emptyText="Belum cukup data." />
           </View>
           <View style={[styles.column, styles.listCard]}>
-            <Text style={styles.sectionTitle}>3 Area Pengembangan</Text>
+            <Text style={styles.sectionTitle}>Area Pengembangan</Text>
             <RankedDimensions dimensions={report.developmentAreas} emptyText="Belum cukup data." />
           </View>
         </View>
@@ -277,7 +282,7 @@ export function TbosGroupReportDocument({ report }: { report: TbosProgramReport 
       </Page>
 
       <Page size="A4" style={styles.page} wrap>
-        <ReportHeader eyebrow="Ringkasan" title="Peringkat dan Skor Tim" report={report} />
+        <ReportHeader eyebrow="Ringkasan" title="Peringkat dan Skor Tim" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Peringkat memakai skor rata-rata misi yang telah diselesaikan. Misi yang belum diobservasi tidak dihitung sebagai nol.</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader} fixed>
@@ -305,7 +310,7 @@ export function TbosGroupReportDocument({ report }: { report: TbosProgramReport 
       </Page>
 
       <Page size="A4" style={styles.page} wrap>
-        <ReportHeader eyebrow="Grafik Radar" title="Profil Delapan Dimensi per Tim" report={report} />
+        <ReportHeader eyebrow="Grafik Radar" title="Profil Delapan Dimensi per Tim" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Setiap grafik menunjukkan pola skor tim pada delapan dimensi perilaku.</Text>
         <View style={styles.radarGrid}>
           {rankedTeams.map((team) => (
@@ -323,7 +328,7 @@ export function TbosGroupReportDocument({ report }: { report: TbosProgramReport 
       </Page>
 
       <Page size="A4" orientation="landscape" style={styles.landscapePage} wrap>
-        <ReportHeader eyebrow="Heatmap" title="Perbandingan Delapan Dimensi" report={report} />
+        <ReportHeader eyebrow="Heatmap" title="Perbandingan Delapan Dimensi" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Warna menunjukkan level skor: merah lebih rendah, kuning menengah, dan hijau lebih tinggi.</Text>
         <View style={{ borderWidth: 0.8, borderColor: BORDER }}>
           <View style={styles.heatmapHeader} fixed>
@@ -345,7 +350,7 @@ export function TbosGroupReportDocument({ report }: { report: TbosProgramReport 
       </Page>
 
       <Page size="A4" style={styles.page} wrap>
-        <ReportHeader eyebrow="Perbandingan Batch" title="Rata-rata per Batch" report={report} />
+        <ReportHeader eyebrow="Perbandingan Batch" title="Rata-rata per Batch" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Perbandingan dihitung dari skor tim yang memiliki data pada dimensi terkait.</Text>
         {report.batches.length === 0 ? <Text style={styles.calloutText}>Belum ada data batch.</Text> : report.batches.map((batch) => (
           <View key={batch.batch} style={styles.batchCard} wrap={false}>
@@ -356,7 +361,7 @@ export function TbosGroupReportDocument({ report }: { report: TbosProgramReport 
         <PageFooter report={report} />
       </Page>
 
-      {rankedTeams.map((team) => <TeamDetailPage key={team.id} report={report} team={team} />)}
+      {rankedTeams.map((team) => <TeamDetailPage key={team.id} report={report} team={team} scopeLabel={scopeLabel} />)}
     </Document>
   );
 }
