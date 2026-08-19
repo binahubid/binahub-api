@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import path from 'path';
 import { Document, Page, Text, View, StyleSheet, Font, Svg, Polygon, Circle, Image } from '@react-pdf/renderer';
 import { AssessmentData, DIMENSIONS } from './validations';
@@ -81,7 +81,7 @@ function getPdfCopy(locale: Locale = 'id') {
     ? {
         localeDate: 'en-US',
         documentTitle: 'Diagnostic Report',
-        compactSubtitle: 'Cross-dimensional reasoning Â· 7-dimension score distribution',
+        compactSubtitle: 'Cross-dimensional reasoning · 7-dimension score distribution',
         fiscalYear: 'FISCAL YEAR',
         preparedFor: 'PREPARED FOR',
         company: 'COMPANY',
@@ -115,18 +115,18 @@ function getPdfCopy(locale: Locale = 'id') {
         diagnosticReasoning: 'Diagnostic Reasoning',
         riskProjection: '12-18 Month Risk Projection',
         strategicOverview: 'Strategic Diagnostic Overview',
-        strategicOverviewSubtitle: 'Main priorities Â· 90-day action focus',
+        strategicOverviewSubtitle: 'Main priorities · 90-day action focus',
         priorityActions: 'Priority Action Recommendations',
         priorityActionsSubtitle: 'Top three priorities based on the BinaHub 7-dimension diagnostic result',
         strategy: 'STRATEGY',
         consultantKey: 'Strategic Key from the Consulting Team',
         roadmapTitle: 'Transformation Roadmap',
-        roadmapSubtitle: 'Follow-up roadmap Â· next consultation steps',
+        roadmapSubtitle: 'Follow-up roadmap · next consultation steps',
         roadmapSection: 'Follow-up Roadmap & Next Steps',
         roadmapSectionSubtitle: 'Supporting recommendations to strengthen implementation rhythm after the main priorities begin',
         nextSteps: 'Next Steps',
         nextStepsText: 'Discuss this result with the BinaHub team to translate diagnostic priorities into an implementation roadmap that fits your organization context.',
-        footer: 'Â© 2025 BinaHub Â· Strategic Transformation Division Â· Confidential Document',
+        footer: '© 2025 BinaHub · Strategic Transformation Division · Confidential Document',
         page: 'Page',
         of: 'of',
         reportHeaderLabel: 'Performance Diagnostic Report',
@@ -137,7 +137,7 @@ function getPdfCopy(locale: Locale = 'id') {
     : {
         localeDate: 'id-ID',
         documentTitle: 'Laporan Diagnostik',
-        compactSubtitle: 'Penalaran lintas dimensi Â· distribusi skor 7 dimensi',
+        compactSubtitle: 'Penalaran lintas dimensi · distribusi skor 7 dimensi',
         fiscalYear: 'TAHUN FISKAL',
         preparedFor: 'DISUSUN UNTUK',
         company: 'PERUSAHAAN',
@@ -171,18 +171,18 @@ function getPdfCopy(locale: Locale = 'id') {
         diagnosticReasoning: 'Penalaran Diagnostik',
         riskProjection: 'Proyeksi Risiko 12-18 Bulan',
         strategicOverview: 'Ikhtisar Strategis Diagnostik',
-        strategicOverviewSubtitle: 'Prioritas utama Â· fokus aksi 90 hari',
+        strategicOverviewSubtitle: 'Prioritas utama · fokus aksi 90 hari',
         priorityActions: 'Rekomendasi Tindakan Prioritas',
         priorityActionsSubtitle: 'Tiga prioritas awal berdasarkan hasil diagnostik 7 dimensi BinaHub',
         strategy: 'STRATEGI',
         consultantKey: 'Kunci Strategis dari Tim Konsultan',
         roadmapTitle: 'Roadmap Transformasi',
-        roadmapSubtitle: 'Roadmap lanjutan Â· langkah konsultasi berikutnya',
+        roadmapSubtitle: 'Roadmap lanjutan · langkah konsultasi berikutnya',
         roadmapSection: 'Roadmap Lanjutan & Langkah Berikutnya',
         roadmapSectionSubtitle: 'Rekomendasi pendukung untuk memperkuat ritme implementasi setelah prioritas utama berjalan',
         nextSteps: 'Langkah Berikutnya',
         nextStepsText: 'Diskusikan hasil ini bersama tim BinaHub untuk menerjemahkan prioritas diagnostik menjadi roadmap implementasi yang relevan dengan konteks organisasi Anda.',
-        footer: 'Â© 2025 BinaHub Â· Divisi Transformasi Strategis Â· Dokumen Rahasia',
+        footer: '© 2025 BinaHub · Divisi Transformasi Strategis · Dokumen Rahasia',
         page: 'Halaman',
         of: 'dari',
         reportHeaderLabel: 'Laporan Diagnostik Performa',
@@ -632,7 +632,7 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
           <View style={styles.summaryCard} wrap={false}>
             <Text style={styles.summaryTitle}>Ruang Lingkup Rekomendasi</Text>
             {(proposal.scope || []).slice(0, 6).map((item, index) => (
-              <Text key={index} style={styles.summaryText}>â€¢ {item}</Text>
+              <Text key={index} style={styles.summaryText}>• {item}</Text>
             ))}
           </View>
         </View>
@@ -661,11 +661,11 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
                 <Text style={styles.recDesc}>{pack.duration}</Text>
                 <Text style={[styles.miniLabel, { marginTop: 8 }]}>Cakupan</Text>
                 {pack.scope.slice(0, 5).map((item, itemIndex) => (
-                  <Text key={itemIndex} style={styles.recDesc}>â€¢ {item}</Text>
+                  <Text key={itemIndex} style={styles.recDesc}>• {item}</Text>
                 ))}
                 <Text style={[styles.miniLabel, { marginTop: 8 }]}>Output</Text>
                 {pack.deliverables.slice(0, 5).map((item, itemIndex) => (
-                  <Text key={itemIndex} style={styles.recDesc}>â€¢ {item}</Text>
+                  <Text key={itemIndex} style={styles.recDesc}>• {item}</Text>
                 ))}
               </View>
             ))}

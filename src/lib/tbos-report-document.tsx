@@ -1,4 +1,4 @@
-﻿import {
+import {
   Circle,
   Document,
   Line,
@@ -24,7 +24,6 @@ const BORDER = "#DCE3EC";
 
 const styles = StyleSheet.create({
   page: { paddingTop: 34, paddingHorizontal: 34, paddingBottom: 34, fontSize: 9, color: "#1E293B", backgroundColor: "#FFFFFF", fontFamily: "Helvetica" },
-  landscapePage: { paddingTop: 28, paddingHorizontal: 28, paddingBottom: 30, fontSize: 8, color: "#1E293B", backgroundColor: "#FFFFFF", fontFamily: "Helvetica" },
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", borderBottomWidth: 2, borderBottomColor: GOLD, paddingBottom: 9, marginBottom: 15 },
   brand: { fontSize: 17, fontWeight: 700, color: BLUE },
   brandAccent: { color: GOLD },
@@ -72,10 +71,10 @@ const styles = StyleSheet.create({
   radarLegendScore: { fontSize: 5.8, fontWeight: 700, color: BLUE },
   heatmapHeader: { flexDirection: "row", minHeight: 34, alignItems: "flex-end", paddingVertical: 5, backgroundColor: NAVY },
   heatmapRow: { flexDirection: "row", minHeight: 24, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: BORDER },
-  heatmapTeam: { width: 112, paddingHorizontal: 6, fontSize: 7, fontWeight: 700, color: NAVY },
-  heatmapBatch: { width: 58, paddingHorizontal: 4, fontSize: 6.5, color: SLATE },
-  heatmapCell: { width: 56, height: 18, marginHorizontal: 1.5, borderRadius: 3, alignItems: "center", justifyContent: "center" },
-  heatmapCellText: { fontSize: 6.5, fontWeight: 700 },
+  heatmapTeam: { width: 92, paddingHorizontal: 5, fontSize: 6.4, fontWeight: 700, color: NAVY },
+  heatmapBatch: { width: 44, paddingHorizontal: 3, fontSize: 6, color: SLATE },
+  heatmapCell: { width: 45, height: 18, marginHorizontal: 1.5, borderRadius: 3, alignItems: "center", justifyContent: "center" },
+  heatmapCellText: { fontSize: 6, fontWeight: 700 },
   batchCard: { marginBottom: 9, borderWidth: 0.8, borderColor: BORDER, borderRadius: 7, padding: 9, backgroundColor: PAPER },
   batchHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 7 },
   batchName: { fontSize: 9, fontWeight: 700, color: NAVY },
@@ -327,14 +326,14 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
         <PageFooter report={report} />
       </Page>
 
-      <Page size="A4" orientation="landscape" style={styles.landscapePage} wrap>
+      <Page size="A4" style={styles.page} wrap>
         <ReportHeader eyebrow="Heatmap" title="Perbandingan Delapan Dimensi" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Warna menunjukkan level skor: merah lebih rendah, kuning menengah, dan hijau lebih tinggi.</Text>
         <View style={{ borderWidth: 0.8, borderColor: BORDER }}>
           <View style={styles.heatmapHeader} fixed>
-            <Text style={[styles.tableHeaderText, { width: 112, paddingHorizontal: 6 }]}>Tim</Text>
-            <Text style={[styles.tableHeaderText, { width: 58, paddingHorizontal: 4 }]}>Batch</Text>
-            {report.dimensions.map((dimension) => <Text key={dimension.code} style={[styles.tableHeaderText, { width: 59, textAlign: "center", fontSize: 5.7 }]}>{shortDimensionName(dimension.code)}</Text>)}
+            <Text style={[styles.tableHeaderText, { width: 92, paddingHorizontal: 5 }]}>Tim</Text>
+            <Text style={[styles.tableHeaderText, { width: 44, paddingHorizontal: 3 }]}>Batch</Text>
+            {report.dimensions.map((dimension) => <Text key={dimension.code} style={[styles.tableHeaderText, { width: 45, textAlign: "center", fontSize: 5.5 }]}>{shortDimensionName(dimension.code)}</Text>)}
           </View>
           {rankedTeams.map((team, index) => (
             <View key={team.id} style={[styles.heatmapRow, ...(index % 2 ? [styles.tableRowAlt] : [])]} wrap={false}>
