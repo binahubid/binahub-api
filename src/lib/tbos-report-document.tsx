@@ -1,4 +1,4 @@
-import {
+﻿import {
   Circle,
   Document,
   Line,
@@ -244,7 +244,10 @@ function TeamDetailPage({ report, team, scopeLabel }: { report: TbosProgramRepor
 }
 
 export function TbosGroupReportDocument({ report, batch }: { report: TbosProgramReport; batch?: string }) {
+  // Ranking table stays score-ordered; every other section (radar, heatmap,
+  // per-team detail pages) lists teams alphabetically for predictable lookup.
   const rankedTeams = [...report.teams].sort((a, b) => (b.overallScore ?? -1) - (a.overallScore ?? -1));
+  const alphabeticalTeams = [...report.teams].sort((a, b) => a.name.localeCompare(b.name, "id-ID"));
   const scopeLabel = batch;
   const eyebrow = batch ? "Laporan per Batch" : "Laporan Grup";
   return (
@@ -312,7 +315,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
         <ReportHeader eyebrow="Grafik Radar" title="Profil Delapan Dimensi per Tim" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Setiap grafik menunjukkan pola skor tim pada delapan dimensi perilaku.</Text>
         <View style={styles.radarGrid}>
-          {rankedTeams.map((team) => (
+          {alphabeticalTeams.map((team) => (
             <View key={team.id} style={styles.radarCard} wrap={false}>
               <Text style={styles.radarTitle}>{team.name}</Text>
               <Text style={styles.radarMeta}>{team.batch} | Skor {formatScore(team.overallScore)}</Text>
@@ -335,7 +338,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
             <Text style={[styles.tableHeaderText, { width: 44, paddingHorizontal: 3 }]}>Batch</Text>
             {report.dimensions.map((dimension) => <Text key={dimension.code} style={[styles.tableHeaderText, { width: 45, textAlign: "center", fontSize: 5.5 }]}>{shortDimensionName(dimension.code)}</Text>)}
           </View>
-          {rankedTeams.map((team, index) => (
+          {alphabeticalTeams.map((team, index) => (
             <View key={team.id} style={[styles.heatmapRow, ...(index % 2 ? [styles.tableRowAlt] : [])]} wrap={false}>
               <Text style={styles.heatmapTeam}>{team.name}</Text><Text style={styles.heatmapBatch}>{team.batch}</Text>
               {team.dimensions.map((dimension) => {
@@ -360,7 +363,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
         <PageFooter report={report} />
       </Page>
 
-      {rankedTeams.map((team) => <TeamDetailPage key={team.id} report={report} team={team} scopeLabel={scopeLabel} />)}
+      {alphabeticalTeams.map((team) => <TeamDetailPage key={team.id} report={report} team={team} scopeLabel={scopeLabel} />)}
     </Document>
   );
 }
