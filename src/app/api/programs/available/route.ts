@@ -4,6 +4,7 @@ import { getAuthoritativeUserRole, getUserFromBearer } from "@/lib/auth-role";
 import { createServerSupabase } from "@/lib/supabase";
 import { getParticipantProgramIds, type ProgramModuleKey } from "@/lib/program-access";
 import { getClientAccessBySupabaseUser } from "@/lib/client-access";
+import { programAccessAvailable } from "@/lib/client-program";
 
 const querySchema = z.object({
   moduleKey: z.enum(["tbos", "lep"]),
@@ -81,5 +82,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, programs: data || [] });
+  return NextResponse.json({ success: true, programs: (data || []).filter((program) => programAccessAvailable(program)) });
 }

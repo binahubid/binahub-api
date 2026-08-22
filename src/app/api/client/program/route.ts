@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor } from "@/lib/transformation/auth";
 import { createServerSupabase } from "@/lib/supabase";
+import { programAccessAvailable } from "@/lib/client-program";
 
 export async function GET(req: NextRequest) {
   const actor = await requireTransformationActor(req);
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
   }
   if (moduleError) return NextResponse.json({ success: false, error: moduleError.message }, { status: 500 });
-  if (!["active", "in_progress", "review"].includes(program.status)) {
+  if (!programAccessAvailable(program)) {
     return NextResponse.json({ success: false, error: "Program tidak sedang aktif." }, { status: 403 });
   }
 

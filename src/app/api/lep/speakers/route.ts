@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { getAuthoritativeUserRole, getUserFromBearer } from "@/lib/auth-role";
 import { requireAdmin } from "@/lib/admin-auth";
-import { isParticipantInProgram, isProgramModuleEnabled } from "@/lib/program-access";
+import { isParticipantInProgram, isProgramAccessible, isProgramModuleEnabled } from "@/lib/program-access";
 import { z } from "zod";
 
 const createSpeakerSchema = z.object({
@@ -27,7 +27,11 @@ export async function GET(req: NextRequest) {
     const enabled = await isProgramModuleEnabled(db, programId, "lep");
     if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
     if (role === "peserta" || role === "client") {
-      const member = await isParticipantInProgram(db, auth.user.id, programId);
+      const [accessible, member] = await Promise.all([
+        isProgramAccessible(db, programId),
+        isParticipantInProgram(db, auth.user.id, programId),
+      ]);
+      if (!accessible) return NextResponse.json({ success: false, error: "Program tidak sedang aktif." }, { status: 403 });
       if (!member) return NextResponse.json({ success: false, error: "Anda tidak terdaftar pada program ini." }, { status: 403 });
     } else if (role !== "admin") {
       return NextResponse.json({ success: false, error: "Akses pemateri tidak valid." }, { status: 403 });

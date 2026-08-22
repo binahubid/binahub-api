@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requirePeserta } from "@/lib/peserta-auth";
-import { isParticipantInProgram, isProgramModuleEnabled } from "@/lib/program-access";
+import { isParticipantInProgram, isProgramAccessible, isProgramModuleEnabled } from "@/lib/program-access";
 
 const responseSchema = z.object({
   programId: z.string().uuid(),
@@ -22,11 +22,12 @@ const responseSchema = z.object({
 
 async function requireLepParticipantAccess(userId: string, programId: string) {
   const db = createServerSupabase();
-  const [enabled, member] = await Promise.all([
+  const [accessible, enabled, member] = await Promise.all([
+    isProgramAccessible(db, programId),
     isProgramModuleEnabled(db, programId, "lep"),
     isParticipantInProgram(db, userId, programId),
   ]);
-  return { db, enabled, member };
+  return { db, accessible, enabled, member };
 }
 
 export async function GET(req: NextRequest) {
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { db, enabled, member } = await requireLepParticipantAccess(auth.userId, programId);
+    const { db, accessible, enabled, member } = await requireLepParticipantAccess(auth.userId, programId);
+    if (!accessible) return NextResponse.json({ success: false, error: "Program tidak sedang aktif." }, { status: 403 });
     if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
     if (!member) return NextResponse.json({ success: false, error: "Anda tidak terdaftar pada program ini." }, { status: 403 });
 
@@ -73,7 +75,8 @@ export async function POST(req: NextRequest) {
   const input = parsed.data;
 
   try {
-    const { db, enabled, member } = await requireLepParticipantAccess(auth.userId, input.programId);
+    const { db, accessible, enabled, member } = await requireLepParticipantAccess(auth.userId, input.programId);
+    if (!accessible) return NextResponse.json({ success: false, error: "Masa akses program telah berakhir." }, { status: 403 });
     if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
     if (!member) return NextResponse.json({ success: false, error: "Anda tidak terdaftar pada program ini." }, { status: 403 });
 

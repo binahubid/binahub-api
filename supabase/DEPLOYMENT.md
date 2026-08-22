@@ -12,7 +12,7 @@ Kedua repositori memiliki migration historis bernomor `0005`–`0017`. Supabase 
 2. Jalankan `npx supabase migration list` dari direktori yang sebelumnya menjadi sumber migration production. Jangan melakukan `migration repair` otomatis.
 3. Jalankan `production_readiness.sql` secara read-only melalui SQL Editor.
 4. Jika object dari migration API `0005`–`0014` sudah ada, jangan replay file tersebut.
-5. Terapkan `0015_ceo_revision_hardening.sql`, `0016_public_endpoint_security.sql`, `0017_facilitator_program_positions.sql`, lalu `0018_tbos_single_observation_and_rubrics.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0017` mengubah assignment menjadi tingkat program, mengunci satu pos per fasilitator, mengamankan roster first-touch, dan mengikat sesi client ke program. File `0018` mencegah tim dinilai lebih dari sekali pada misi yang sama dan menyelaraskan rubrik observasi dengan brief CEO.
+5. Terapkan `0015_ceo_revision_hardening.sql`, `0016_public_endpoint_security.sql`, `0017_facilitator_program_positions.sql`, `0018_tbos_single_observation_and_rubrics.sql`, lalu `0019_program_company_location.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0017` mengubah assignment menjadi tingkat program, mengunci satu pos per fasilitator, mengamankan roster first-touch, dan mengikat sesi client ke program. File `0018` mencegah tim dinilai lebih dari sekali pada misi yang sama dan menyelaraskan rubrik observasi dengan brief CEO. File `0019` menambahkan lokasi program opsional yang digunakan halaman admin dan portal peserta.
 6. Jalankan kembali `production_readiness.sql`. Semua kolom `*_ready` harus `true` dan seluruh counter `*_issues` harus `0`.
 7. Deploy API lebih dahulu, lalu frontend. Lakukan smoke test role admin, fasilitator, dan peserta.
 
@@ -21,7 +21,7 @@ Jangan menandai migration sebagai applied hanya untuk melewati error. Error dupl
 ## Fresh Database
 
 1. Terapkan migration `app-binahub/supabase/migrations/0001` sampai migration terakhir secara leksikografis.
-2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0018` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
+2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0019` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
 3. Jalankan seed T-BOS yang disediakan frontend bila data mission/dimensi belum terbentuk.
 4. Jalankan `production_readiness.sql` dan health check T-BOS frontend.
 

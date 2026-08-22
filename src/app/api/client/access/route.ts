@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
       .in("status", ["active", "in_progress", "review"])
       .maybeSingle();
     if (error || !data || data.code?.trim().toUpperCase() !== normalizedCode) {
-      const failedLimit = await enforceRateLimit(req, `client-access-failed:${parsed.data.programId}`, 25, 15 * 60);
+      const failedLimit = await enforceRateLimit(req, `client-access-failed:${parsed.data.programId}`, 100, 15 * 60);
       if (failedLimit) return failedLimit;
       return NextResponse.json({ success: false, error: "Kode program tidak valid atau program belum aktif." }, { status: 401 });
     }

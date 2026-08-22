@@ -1,6 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { programAccessAvailable } from "@/lib/client-program";
 
 export type ProgramModuleKey = "tbos" | "lep";
+
+export async function isProgramAccessible(db: SupabaseClient, programId: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("engagements")
+    .select("status, end_date")
+    .eq("id", programId)
+    .maybeSingle();
+
+  if (error) throw new Error(`Gagal memeriksa masa akses program: ${error.message}`);
+  return Boolean(data && programAccessAvailable(data));
+}
 
 export async function isProgramModuleEnabled(
   db: SupabaseClient,
