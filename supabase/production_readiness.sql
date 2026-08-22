@@ -24,6 +24,18 @@ select
   exists (
     select 1 from information_schema.columns
     where table_schema = 'public'
+      and table_name = 'app_client_access_codes'
+      and column_name = 'credential_version'
+  ) as participant_reentry_code_ready,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'engagements'
+      and column_name = 'participant_limit'
+  ) as participant_limit_ready,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
       and table_name = 'chat_sessions'
       and column_name = 'expires_at'
   ) as chat_expiry_ready,
@@ -34,7 +46,8 @@ select
   to_regclass('public.tbos_observations_program_team_mission_unique') is not null as unique_team_mission_observation_ready,
   to_regprocedure('public.tbos_submit_observation_v2(uuid,uuid,uuid,uuid,text,uuid,text,text,jsonb,jsonb,boolean)') is not null as observation_rpc_ready,
   to_regprocedure('public.submit_lep_response(uuid,uuid,integer,integer,integer,integer,text,text,text,jsonb)') is not null as lep_rpc_ready,
-  to_regprocedure('public.consume_api_rate_limit(text,integer,integer)') is not null as rate_limit_rpc_ready;
+  to_regprocedure('public.consume_api_rate_limit(text,integer,integer)') is not null as rate_limit_rpc_ready,
+  to_regprocedure('public.register_program_participant(uuid,text,text,text,timestamptz,text,text,boolean,text)') is not null as participant_registration_rpc_ready;
 
 select count(*) as blank_profile_name_issues
 from public.profiles

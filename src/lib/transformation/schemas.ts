@@ -27,6 +27,7 @@ export const createEngagementSchema = z.object({
   status: engagementStatusSchema.optional().default("draft"),
   startDate: z.string().date().optional(),
   endDate: z.string().date().optional(),
+  participantLimit: z.number().int().min(1).max(5000).optional().default(100),
 }).refine((value) => !value.startDate || !value.endDate || value.startDate <= value.endDate, {
   message: "Tanggal selesai tidak boleh sebelum tanggal mulai.",
   path: ["endDate"],

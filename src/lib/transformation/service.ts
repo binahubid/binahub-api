@@ -1,5 +1,4 @@
 import { createServerSupabase } from "@/lib/supabase";
-import { createHash, randomBytes } from "node:crypto";
 import type { TransformationActor } from "@/lib/transformation/auth";
 
 type Db = ReturnType<typeof createServerSupabase>;
@@ -43,6 +42,7 @@ export async function createEngagement(
     status: string;
     startDate?: string;
     endDate?: string;
+    participantLimit?: number;
   },
 ) {
   const organizationName = payload.organizationName.trim();
@@ -77,6 +77,7 @@ export async function createEngagement(
       status: payload.status,
       start_date: payload.startDate || null,
       end_date: payload.endDate || null,
+      participant_limit: payload.participantLimit || 100,
       created_by: actor.userId,
     })
     .select()
@@ -131,75 +132,6 @@ export async function createParticipant(
   }
 
   return participant;
-}
-
-function hashAccessCode(code: string) {
-  return createHash("sha256").update(code.trim()).digest("hex");
-}
-
-function generateAccessCode(companyPrefix: string) {
-  return `${companyPrefix.toUpperCase()}-${randomBytes(9).toString("base64url").toUpperCase()}`;
-}
-
-export async function generateAccessCodesForEngagement(
-  db: Db,
-  engagementId: string,
-  organizationId: string,
-  organizationName: string,
-  participants: Array<{ id: string; name: string }>,
-) {
-  const prefix = organizationName
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .substring(0, 10)
-    .toUpperCase();
-
-  const codes: Array<{ code: string; companyName: string; teamName: string; participantId: string }> = [];
-
-  for (let i = 0; i < participants.length; i++) {
-    const participant = participants[i];
-    const code = generateAccessCode(prefix);
-
-    const { error } = await db.from("app_client_access_codes").insert({
-      company_name: organizationName,
-      team_name: participant.name,
-      code_hash: hashAccessCode(code),
-      is_active: true,
-      organization_id: organizationId,
-      participant_id: participant.id,
-      program_id: engagementId,
-    });
-
-    if (error) throw new Error(error.message);
-
-    codes.push({
-      code,
-      companyName: organizationName,
-      teamName: participant.name,
-      participantId: participant.id,
-    });
-  }
-
-  return codes;
-}
-
-export async function getAccessCodesForEngagement(db: Db, engagementId: string) {
-  const { data: epData, error: epError } = await db
-    .from("engagement_participants")
-    .select("participant_id")
-    .eq("engagement_id", engagementId);
-
-  if (epError) throw new Error(epError.message);
-  if (!epData || epData.length === 0) return [];
-
-  const participantIds = epData.map((ep) => ep.participant_id);
-
-  const { data: codes, error: codesError } = await db
-    .from("app_client_access_codes")
-    .select("id, company_name, team_name, is_active, organization_id, participant_id, program_id, created_at")
-    .in("participant_id", participantIds);
-
-  if (codesError) throw new Error(codesError.message);
-  return codes || [];
 }
 
 export async function createEvidence(

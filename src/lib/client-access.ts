@@ -15,7 +15,7 @@ export async function getClientAccessBySupabaseUser(userId: string, appMetadata:
   const db = createServerSupabase();
   const { data, error } = await db
     .from("app_client_access_codes")
-    .select("id, company_name, team_name, code_hash, expires_at, is_active, organization_id, participant_id, program_id")
+    .select("id, company_name, team_name, code_hash, expires_at, is_active, organization_id, participant_id, program_id, credential_version")
     .eq("id", accessCodeId)
     .eq("auth_user_id", userId)
     .eq("is_active", true)
@@ -23,6 +23,8 @@ export async function getClientAccessBySupabaseUser(userId: string, appMetadata:
 
   if (error || !data) return null;
   if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) return null;
+  const tokenVersion = Number(appMetadata.credential_version || 1);
+  if (tokenVersion !== Number(data.credential_version || 1)) return null;
 
   return data;
 }

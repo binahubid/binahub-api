@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor, requireTransformationAdmin } from "@/lib/transformation/auth";
 import { createEngagementSchema } from "@/lib/transformation/schemas";
-import { createEngagement, createParticipant, generateAccessCodesForEngagement, getDb } from "@/lib/transformation/service";
+import { createEngagement, getDb } from "@/lib/transformation/service";
 import { z } from "zod";
 import { getAccessibleProgramIds, transformationErrorResponse } from "@/lib/transformation/access";
 
@@ -11,12 +11,6 @@ const moduleSelectionSchema = z.array(z.object({
 })).length(2)
   .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === 2, "Modul T-BOS dan LEP wajib disebut tepat satu kali.")
   .refine((modules) => modules.some((module) => module.enabled), "Pilih minimal satu modul.");
-
-const participantDraftSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  email: z.string().trim().email().max(320).optional(),
-  role: z.enum(["participant", "leader", "observer"]).optional().default("participant"),
-});
 
 export async function GET(req: NextRequest) {
   const actor = await requireTransformationActor(req);
@@ -71,13 +65,14 @@ export async function POST(req: NextRequest) {
   if (!parsedModules.success) {
     return NextResponse.json({ success: false, error: parsedModules.error.issues[0]?.message || "Pilihan modul tidak valid." }, { status: 400 });
   }
-  const parsedParticipants = z.array(participantDraftSchema).max(500).safeParse(body?.participants ?? []);
-  if (!parsedParticipants.success) {
-    return NextResponse.json({ success: false, error: parsedParticipants.error.issues[0]?.message || "Daftar peserta tidak valid." }, { status: 400 });
+  if (Array.isArray(body?.participants) && body.participants.length > 0) {
+    return NextResponse.json({
+      success: false,
+      error: "Peserta tidak lagi ditambahkan saat membuat program. Bagikan tautan program agar peserta mendaftar mandiri.",
+    }, { status: 400 });
   }
 
   let createdEngagementId: string | null = null;
-  const createdParticipantIds: string[] = [];
   try {
     const db = getDb();
     const engagement = await createEngagement(db, actor, parsed.data);
@@ -95,45 +90,10 @@ export async function POST(req: NextRequest) {
       throw new Error(`Gagal menyimpan modul program: ${moduleError.message}`);
     }
 
-    const createdParticipants: Array<{ id: string; name: string }> = [];
-
-    if (parsedParticipants.data.length > 0) {
-      for (const p of parsedParticipants.data) {
-        const participant = await createParticipant(db, {
-          organizationId: engagement.organization_id,
-          engagementId: engagement.id,
-          name: p.name,
-          email: p.email,
-          engagementRole: p.role,
-        });
-        createdParticipantIds.push(participant.id);
-        createdParticipants.push({ id: participant.id, name: p.name });
-      }
-    }
-
-    let accessCodes: Array<{ code: string; companyName: string; teamName: string; participantId: string }> = [];
-
-    if (createdParticipants.length > 0) {
-      const { data: org } = await db.from("organizations").select("name").eq("id", engagement.organization_id).single();
-      const orgName = org?.name || "Unknown";
-
-      accessCodes = await generateAccessCodesForEngagement(
-        db,
-        engagement.id,
-        engagement.organization_id,
-        orgName,
-        createdParticipants,
-      );
-    }
-
-    return NextResponse.json({ success: true, engagement, accessCodes }, { status: 201 });
+    return NextResponse.json({ success: true, engagement }, { status: 201 });
   } catch (error) {
     if (createdEngagementId) {
       const db = getDb();
-      if (createdParticipantIds.length > 0) {
-        await db.from("app_client_access_codes").delete().in("participant_id", createdParticipantIds);
-        await db.from("participants").delete().in("id", createdParticipantIds);
-      }
       await db.from("engagements").delete().eq("id", createdEngagementId);
     }
     const message = error instanceof Error ? error.message : "Gagal membuat engagement.";

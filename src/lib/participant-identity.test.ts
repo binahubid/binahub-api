@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hasAmbiguousParticipantIdentity,
+  findSimilarParticipantNames,
   matchingParticipantAccesses,
   normalizeParticipantName,
 } from "./participant-identity";
@@ -24,5 +25,13 @@ describe("participant identity", () => {
       { participant_id: "participant-a" },
       { participant_id: "participant-b" },
     ])).toBe(true);
+  });
+
+  it("flags likely misspellings or shortened names for admin review", () => {
+    const existing = ["Dea Lestari", "Bunga Lestari"];
+    expect(findSimilarParticipantNames(existing, "Dhea Lestari")).toEqual(["Dea Lestari"]);
+    expect(findSimilarParticipantNames(existing, "Dea Lesatri")).toEqual(["Dea Lestari"]);
+    expect(findSimilarParticipantNames(existing, "Dea L")).toEqual(["Dea Lestari"]);
+    expect(findSimilarParticipantNames(existing, "Citra Dewi")).toEqual([]);
   });
 });

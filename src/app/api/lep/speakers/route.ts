@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { getAuthoritativeUserRole, getUserFromBearer } from "@/lib/auth-role";
 import { requireAdmin } from "@/lib/admin-auth";
+import { getClientAccessBySupabaseUser } from "@/lib/client-access";
 import { isParticipantInProgram, isProgramAccessible, isProgramModuleEnabled } from "@/lib/program-access";
 import { z } from "zod";
 
@@ -24,6 +25,12 @@ export async function GET(req: NextRequest) {
   const db = createServerSupabase();
   try {
     const role = await getAuthoritativeUserRole(auth.user);
+    if (role === "client") {
+      const access = await getClientAccessBySupabaseUser(auth.user.id, auth.user.app_metadata || {});
+      if (!access || access.program_id !== programId) {
+        return NextResponse.json({ success: false, error: "Akses peserta tidak valid." }, { status: 403 });
+      }
+    }
     const enabled = await isProgramModuleEnabled(db, programId, "lep");
     if (!enabled) return NextResponse.json({ success: false, error: "Modul LEP tidak aktif." }, { status: 403 });
     if (role === "peserta" || role === "client") {

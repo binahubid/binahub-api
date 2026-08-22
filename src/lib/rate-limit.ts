@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 
-function requestFingerprint(req: NextRequest, scope: string) {
+export function requestFingerprint(req: NextRequest, scope: string) {
   const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const address = req.headers.get("x-real-ip") || forwarded || "unknown";
   return createHash("sha256").update(`${scope}:${address}`).digest("hex");

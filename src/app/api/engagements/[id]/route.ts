@@ -12,6 +12,7 @@ const updateSchema = z.object({
   startDate: z.string().date().nullable().optional(),
   endDate: z.string().date().nullable().optional(),
   location: z.string().trim().min(1).max(200).nullable().optional(),
+  participantLimit: z.number().int().min(1).max(5000).optional(),
 });
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -26,6 +27,16 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   const { data: existing, error: existingError } = await db.from("engagements").select("start_date, end_date").eq("id", id).maybeSingle();
   if (existingError) return NextResponse.json({ success: false, error: existingError.message }, { status: 500 });
   if (!existing) return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
+  if (parsed.data.participantLimit !== undefined) {
+    const { count, error: countError } = await db
+      .from("engagement_participants")
+      .select("participant_id", { count: "exact", head: true })
+      .eq("engagement_id", id);
+    if (countError) return NextResponse.json({ success: false, error: countError.message }, { status: 500 });
+    if ((count || 0) > parsed.data.participantLimit) {
+      return NextResponse.json({ success: false, error: `Kapasitas tidak boleh lebih kecil dari ${count || 0} peserta yang sudah terdaftar.` }, { status: 409 });
+    }
+  }
   const nextStart = parsed.data.startDate === undefined ? existing.start_date : parsed.data.startDate;
   const nextEnd = parsed.data.endDate === undefined ? existing.end_date : parsed.data.endDate;
   if (nextStart && nextEnd && nextStart > nextEnd) {
@@ -39,6 +50,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     ...(parsed.data.startDate === undefined ? {} : { start_date: parsed.data.startDate }),
     ...(parsed.data.endDate === undefined ? {} : { end_date: parsed.data.endDate }),
     ...(parsed.data.location === undefined ? {} : { location: parsed.data.location }),
+    ...(parsed.data.participantLimit === undefined ? {} : { participant_limit: parsed.data.participantLimit }),
     updated_at: new Date().toISOString(),
   }).eq("id", id).select().single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
