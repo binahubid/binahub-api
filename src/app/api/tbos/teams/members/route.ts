@@ -4,10 +4,20 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
 
+const memberInputSchema = z.object({
+  memberName: z.string().trim().min(1).max(100),
+  isCaptain: z.boolean().optional().default(false),
+});
+
 const addMemberSchema = z.object({
   teamId: z.string().uuid(),
-  memberName: z.string().min(1).max(100),
+  memberName: z.string().trim().min(1).max(100),
   isCaptain: z.boolean().optional().default(false),
+});
+
+const addMembersSchema = z.object({
+  teamId: z.string().uuid(),
+  members: z.array(memberInputSchema).min(1).max(40),
 });
 
 const updateCaptainSchema = z.object({
@@ -118,12 +128,34 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  const parsed = addMemberSchema.safeParse(body);
-  if (!parsed.success) {
+  const bulkParsed = addMembersSchema.safeParse(body);
+  const singleParsed = addMemberSchema.safeParse(body);
+  if (!bulkParsed.success && !singleParsed.success) {
     return NextResponse.json({ success: false, error: "Nama peserta dan teamId wajib diisi." }, { status: 400 });
   }
 
-  const { teamId, memberName, isCaptain } = parsed.data;
+  let teamId: string;
+  let requestedMembers: Array<{ memberName: string; isCaptain: boolean }>;
+  if (bulkParsed.success) {
+    teamId = bulkParsed.data.teamId;
+    requestedMembers = bulkParsed.data.members;
+  } else if (singleParsed.success) {
+    teamId = singleParsed.data.teamId;
+    requestedMembers = [{ memberName: singleParsed.data.memberName, isCaptain: singleParsed.data.isCaptain }];
+  } else {
+    return NextResponse.json({ success: false, error: "Nama peserta dan teamId wajib diisi." }, { status: 400 });
+  }
+  const normalizedNames = new Set<string>();
+  for (const member of requestedMembers) {
+    const identity = member.memberName.replace(/\s+/g, " ").trim().toLocaleLowerCase("id-ID");
+    if (normalizedNames.has(identity)) {
+      return NextResponse.json({ success: false, error: `Nama ${member.memberName} tercantum lebih dari sekali.` }, { status: 400 });
+    }
+    normalizedNames.add(identity);
+  }
+  if (requestedMembers.filter((member) => member.isCaptain).length > 1) {
+    return NextResponse.json({ success: false, error: "Pilih tepat satu kapten tim." }, { status: 400 });
+  }
   const db = createServerSupabase();
 
   const access = await getTeamAccess(db, auth.userId, auth.role, teamId);
@@ -134,36 +166,59 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Roster tim sudah dikunci oleh kunjungan pos pertama." }, { status: 409 });
   }
 
-  const { count: memberCount } = await db
+  const { data: existingMembers, error: existingError } = await db
     .from("tbos_team_members")
-    .select("id", { count: "exact", head: true })
+    .select("id, member_name, is_captain")
     .eq("team_id", teamId);
-  const shouldBeCaptain = (memberCount || 0) === 0 ? true : isCaptain;
+  if (existingError) {
+    return NextResponse.json({ success: false, error: existingError.message }, { status: 500 });
+  }
 
-  // If setting as captain, first remove captain from other members
-  if (shouldBeCaptain) {
-    await db
+  const existingNames = new Set(
+    (existingMembers || []).map((member) => member.member_name.replace(/\s+/g, " ").trim().toLocaleLowerCase("id-ID")),
+  );
+  const duplicate = requestedMembers.find((member) => existingNames.has(
+    member.memberName.replace(/\s+/g, " ").trim().toLocaleLowerCase("id-ID"),
+  ));
+  if (duplicate) {
+    return NextResponse.json({ success: false, error: `${duplicate.memberName} sudah ada dalam tim.` }, { status: 409 });
+  }
+
+  const hasExistingCaptain = (existingMembers || []).some((member) => member.is_captain);
+  const requestedCaptainIndex = requestedMembers.findIndex((member) => member.isCaptain);
+  const captainIndex = requestedCaptainIndex >= 0
+    ? requestedCaptainIndex
+    : (!hasExistingCaptain && (existingMembers || []).length === 0 ? 0 : -1);
+
+  if (captainIndex >= 0 && hasExistingCaptain) {
+    const { error: captainResetError } = await db
       .from("tbos_team_members")
       .update({ is_captain: false })
       .eq("team_id", teamId);
+    if (captainResetError) {
+      return NextResponse.json({ success: false, error: captainResetError.message }, { status: 500 });
+    }
   }
 
-  // Insert member
   const { data, error } = await db
     .from("tbos_team_members")
-    .insert({
+    .insert(requestedMembers.map((member, index) => ({
       team_id: teamId,
-      member_name: memberName.trim(),
-      is_captain: shouldBeCaptain,
-    })
-    .select()
-    .single();
+      member_name: member.memberName.replace(/\s+/g, " ").trim(),
+      is_captain: index === captainIndex,
+    })))
+    .select("id, profile_id, member_name, is_captain");
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ success: true, member: data });
+  return NextResponse.json({
+    success: true,
+    members: data || [],
+    member: data?.[0] || null,
+    addedCount: data?.length || 0,
+  });
 }
 
 export async function PATCH(req: NextRequest) {

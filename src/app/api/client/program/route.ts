@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
-  const [{ data: program, error: programError }, { data: modules, error: moduleError }] = await Promise.all([
+  const [{ data: program, error: programError }, { data: modules, error: moduleError }, { data: lepResponse, error: lepResponseError }] = await Promise.all([
     db
       .from("engagements")
       .select("id, code, title, type, status, start_date, end_date, location, organization_id, organization:organizations(name)")
@@ -25,11 +25,19 @@ export async function GET(req: NextRequest) {
       .eq("program_id", actor.programId)
       .eq("enabled", true)
       .order("module_key", { ascending: true }),
+    db
+      .from("lep_responses")
+      .select("id")
+      .eq("program_id", actor.programId)
+      .eq("profile_id", actor.userId)
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (programError || !program) {
     return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
   }
   if (moduleError) return NextResponse.json({ success: false, error: moduleError.message }, { status: 500 });
+  if (lepResponseError) return NextResponse.json({ success: false, error: lepResponseError.message }, { status: 500 });
   if (!programAccessAvailable(program)) {
     return NextResponse.json({ success: false, error: "Program tidak sedang aktif." }, { status: 403 });
   }
@@ -53,6 +61,7 @@ export async function GET(req: NextRequest) {
       key: module.module_key,
       enabled: module.enabled,
       clientAvailable: module.module_key === "lep",
+      completed: module.module_key === "lep" && Boolean(lepResponse),
     })),
   }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

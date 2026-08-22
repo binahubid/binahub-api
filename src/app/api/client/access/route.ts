@@ -6,6 +6,7 @@ import { createServerSupabase } from "@/lib/supabase";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { createOpaqueToken } from "@/lib/secure-token";
 import { participantAccessExpiry, programAccessAvailable, publicProgram, type ClientProgramRow } from "@/lib/client-program";
+import { hasAmbiguousParticipantIdentity, matchingParticipantAccesses } from "@/lib/participant-identity";
 
 const accessSchema = z.object({
   code: z.string().trim().min(1).max(128),
@@ -291,11 +292,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Masa akses program telah berakhir." }, { status: 403 });
     }
 
-    try {
-      access = await createProgramParticipantAccess(db, program, parsed.data.displayName);
-      createdProgramAccess = true;
-    } catch (error) {
-      return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal mendaftarkan peserta." }, { status: 500 });
+    const { data: programAccesses, error: existingAccessError } = await db
+      .from("app_client_access_codes")
+      .select("id, company_name, team_name, expires_at, is_active, organization_id, participant_id, program_id, auth_user_id")
+      .eq("program_id", program.id)
+      .eq("is_active", true);
+    if (existingAccessError) {
+      return NextResponse.json({ success: false, error: "Gagal memeriksa data peserta program." }, { status: 500 });
+    }
+
+    const matchingAccesses = matchingParticipantAccesses((programAccesses || []) as AccessRow[], parsed.data.displayName);
+    if (hasAmbiguousParticipantIdentity(matchingAccesses)) {
+      return NextResponse.json({
+        success: false,
+        error: "Nama ini terdaftar lebih dari sekali. Hubungi admin program untuk memastikan identitas peserta.",
+      }, { status: 409 });
+    }
+
+    access = matchingAccesses[0] || null;
+    if (!access) {
+      try {
+        access = await createProgramParticipantAccess(db, program, parsed.data.displayName.replace(/\s+/g, " ").trim());
+        createdProgramAccess = true;
+      } catch (error) {
+        return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Gagal mendaftarkan peserta." }, { status: 500 });
+      }
     }
   }
 
