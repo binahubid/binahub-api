@@ -51,6 +51,7 @@ type AssessmentRow = {
   proposal_follow_up_sent_at?: string | null;
   proposal_follow_up_email_id?: string | null;
   follow_up_history?: unknown;
+  follow_up_paused?: boolean | null;
   proposal_data?: unknown;
   created_at: string;
 };
@@ -78,6 +79,9 @@ type InquiryRow = {
   source?: string | null;
   status?: string | null;
   admin_notes?: string | null;
+  follow_up_level?: number | null;
+  follow_up_last_sent_at?: string | null;
+  follow_up_paused?: boolean | null;
   created_at: string | null;
 };
 
@@ -283,7 +287,7 @@ export async function GET(req: NextRequest) {
   const db = createServerSupabase();
 
   const assessmentSelect =
-    "id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, assessment_status, result_email_sent_at, result_email_id, proposal_status, proposal_sent_at, proposal_email_id, proposal_requested_at, result_follow_up_level, result_follow_up_sent_at, result_follow_up_email_id, proposal_follow_up_level, proposal_follow_up_sent_at, proposal_follow_up_email_id, follow_up_history, proposal_data, created_at";
+    "id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, assessment_status, result_email_sent_at, result_email_id, proposal_status, proposal_sent_at, proposal_email_id, proposal_requested_at, result_follow_up_level, result_follow_up_sent_at, result_follow_up_email_id, proposal_follow_up_level, proposal_follow_up_sent_at, proposal_follow_up_email_id, follow_up_history, follow_up_paused, proposal_data, created_at";
 
   const assessmentSelectWithoutEmailIds =
     "id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, assessment_status, result_email_sent_at, proposal_status, proposal_sent_at, proposal_requested_at, proposal_data, created_at";
@@ -451,6 +455,7 @@ export async function GET(req: NextRequest) {
       resultFollowUpSentAt: row.result_follow_up_sent_at || null,
       proposalFollowUpLevel: row.proposal_follow_up_level || 0,
       proposalFollowUpSentAt: row.proposal_follow_up_sent_at || null,
+      followUpPaused: row.follow_up_paused === true,
       leadScore: lead?.lead_score || null,
       leadStatus: lead?.lead_status || null,
       createdAt: row.created_at,
@@ -646,6 +651,9 @@ export async function GET(req: NextRequest) {
       source: item.source || "contact_form",
       status: item.status || "Baru",
       notes: item.admin_notes || "",
+      followUpLevel: item.follow_up_level || 0,
+      followUpLastSentAt: item.follow_up_last_sent_at || null,
+      followUpPaused: item.follow_up_paused === true,
       createdAt: item.created_at,
     }))
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());

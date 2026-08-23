@@ -79,6 +79,12 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     .eq("program_id", id);
   if (lepCountError) return NextResponse.json({ success: false, error: lepCountError.message }, { status: 500 });
   if ((lepCount || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki respons LEP dan hanya dapat diarsipkan.", code: "PROGRAM_HAS_LEP_RESPONSES", canArchive: true }, { status: 409 });
+  const { count: assessmentCount, error: assessmentCountError } = await db
+    .from("assessments")
+    .select("id", { count: "exact", head: true })
+    .eq("program_id", id);
+  if (assessmentCountError) return NextResponse.json({ success: false, error: assessmentCountError.message }, { status: 500 });
+  if ((assessmentCount || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki hasil BinaInsight dan hanya dapat diarsipkan.", code: "PROGRAM_HAS_BINAINSIGHT_RESULTS", canArchive: true }, { status: 409 });
   if (teamIds.length > 0) {
     const { error: deleteTeamsError } = await db.from("tbos_teams").delete().eq("engagement_id", id);
     if (deleteTeamsError) {

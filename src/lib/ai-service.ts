@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
+import { z } from 'zod';
 import { AssessmentData, DIMENSIONS } from './validations';
+import { calculateAssessmentScores, getAssessmentCategory } from './assessment-scoring';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'arcee-ai/trinity-large-thinking:free';
@@ -13,6 +15,8 @@ const openai = new OpenAI({
     'HTTP-Referer': APP_URL,
     'X-Title': COMPANY_NAME,
   },
+  timeout: 45_000,
+  maxRetries: 1,
 });
 
 type AIMessage = {
@@ -20,11 +24,33 @@ type AIMessage = {
   content: string;
 };
 
-type AIRecommendationDraft = {
-  service?: string;
-  diagnosis?: string;
-  [key: string]: unknown;
-};
+const aiAssessmentResultSchema = z.object({
+  category: z.string().trim().max(100).optional(),
+  archetype: z.string().trim().max(200).optional(),
+  scoreInterpretation: z.string().trim().max(2000).optional(),
+  analysis: z.string().trim().max(6000).optional(),
+  crossDimensionalInsights: z.array(z.string().trim().max(2000)).max(4).optional(),
+  riskProjection: z.string().trim().max(3000).optional(),
+  strategicKey: z.string().trim().max(3000).optional(),
+  recommendations: z.array(z.object({
+    title: z.string().trim().min(1).max(300),
+    diagnosis: z.string().trim().max(1500).optional(),
+    description: z.string().trim().min(1).max(3000),
+    priority: z.string().trim().max(50).optional(),
+    service: z.enum(DIMENSIONS).optional(),
+  })).max(5).optional(),
+});
+
+const aiLeadScoreSchema = z.object({
+  score: z.number().int().min(0).max(100),
+  status: z.enum(['hot', 'warm', 'cold']),
+  reasoning: z.string().trim().max(1000),
+});
+
+const aiFollowUpSchema = z.object({
+  subject: z.string().trim().min(1).max(300),
+  html: z.string().trim().min(1).max(20_000),
+}).strict();
 
 async function callAI(messages: AIMessage[], _jsonMode: boolean = false) {
   void _jsonMode;
@@ -53,24 +79,9 @@ async function callAI(messages: AIMessage[], _jsonMode: boolean = false) {
 }
 
 export async function analyzeAssessment(data: AssessmentData, locale: 'id' | 'en' = data.locale || 'id') {
-  // Group answers by dimension for cleaner analysis
-  const dimensionScores: Record<string, number> = {};
-  const dimensionDetails: Record<string, number[]> = {};
-
-  DIMENSIONS.forEach((dim, index) => {
-    const start = index * 7 + 1;
-    const end = start + 6;
-    const scores: number[] = [];
-    for (let i = start; i <= end; i++) {
-      scores.push(data.answers[i.toString()] || 0);
-    }
-    const sum = scores.reduce((a, b) => a + b, 0);
-    dimensionScores[dim] = Math.round((sum / 35) * 100);
-    dimensionDetails[dim] = scores;
-  });
-
-  const totalSum = Object.values(data.answers).reduce((a, b) => a + b, 0);
-  const overallScore = Math.round((totalSum / 245) * 100);
+  const scores = calculateAssessmentScores(data.answers);
+  const dimensionScores = Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, scores[dimension]]));
+  const overallScore = scores.overall;
   const sortedDimensions = [...DIMENSIONS].sort((a, b) => dimensionScores[b] - dimensionScores[a]);
   const topDimension = sortedDimensions[0];
   const lowestDimension = sortedDimensions[sortedDimensions.length - 1];
@@ -218,21 +229,24 @@ Buat 5 rekomendasi yang spesifik dan actionable. Setiap rekomendasi harus diawal
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Invalid AI response format');
 
-  const aiResult = JSON.parse(jsonMatch[0]);
+  const parsedAIResult = aiAssessmentResultSchema.safeParse(JSON.parse(jsonMatch[0]));
+  if (!parsedAIResult.success) throw new Error('Invalid AI assessment result');
+  const aiResult = parsedAIResult.data;
   const fallbackArchetype = isEnglish
-    ? overallScore >= 80 ? 'Growth Transformer' : overallScore >= 61 ? 'Strategic Builder' : overallScore >= 40 ? 'Developing Operator' : 'Early Builder'
-    : overallScore >= 80 ? 'Transformer Pertumbuhan' : overallScore >= 61 ? 'Pembangun Strategis' : overallScore >= 40 ? 'Operator Berkembang' : 'Pembangun Awal';
-  const fallbackCategory = isEnglish
-    ? overallScore > 80 ? 'Leading' : overallScore >= 61 ? 'Professional' : overallScore >= 40 ? 'Developing' : 'Starter'
-    : aiResult.category;
+    ? overallScore > 80 ? 'Growth Transformer' : overallScore >= 61 ? 'Strategic Builder' : overallScore >= 40 ? 'Developing Operator' : 'Early Builder'
+    : overallScore > 80 ? 'Transformer Pertumbuhan' : overallScore >= 61 ? 'Pembangun Strategis' : overallScore >= 40 ? 'Operator Berkembang' : 'Pembangun Awal';
+  const fallbackCategory = getAssessmentCategory(overallScore, locale);
 
   return {
     ...aiResult,
-    category: aiResult.category || fallbackCategory,
+    category: fallbackCategory,
     archetype: aiResult.archetype || fallbackArchetype,
+    analysis: aiResult.analysis || (isEnglish
+      ? `${data.company}'s diagnostic result shows its strongest relative foundation in ${topDimension}, while ${lowestDimension} requires the clearest management priority.`
+      : `Hasil diagnostik ${data.company} menunjukkan fondasi relatif terkuat pada dimensi ${topDimension}, sementara ${lowestDimension} memerlukan prioritas manajemen yang paling jelas.`),
     scoreInterpretation: aiResult.scoreInterpretation || (isEnglish
       ? `A score of ${overallScore}% places ${data.company} in the ${fallbackCategory} category. This indicates a foundation that can be strengthened through sharper priorities around the ${lowestDimension} dimension.`
-      : `Skor ${overallScore}% menempatkan ${data.company} pada kategori ${aiResult.category}. Ini menunjukkan adanya fondasi yang dapat dikembangkan lebih lanjut melalui prioritas yang lebih tajam pada dimensi ${lowestDimension}.`),
+      : `Skor ${overallScore}% menempatkan ${data.company} pada kategori ${fallbackCategory}. Ini menunjukkan adanya fondasi yang dapat dikembangkan lebih lanjut melalui prioritas yang lebih tajam pada dimensi ${lowestDimension}.`),
     crossDimensionalInsights: Array.isArray(aiResult.crossDimensionalInsights) ? aiResult.crossDimensionalInsights : [
       isEnglish
         ? `${topDimension} is a relative strength, while ${lowestDimension} is the area that needs the clearest priority.`
@@ -248,8 +262,10 @@ Buat 5 rekomendasi yang spesifik dan actionable. Setiap rekomendasi harus diawal
       ? `Over the next 90 days, ${data.company}'s main focus is to strengthen ${lowestDimension} and connect it to the most consequential operational priorities.`
       : `Dalam 90 hari ke depan, fokus utama ${data.company} adalah memperkuat dimensi ${lowestDimension} dan menghubungkannya dengan prioritas operasional yang paling berdampak.`),
     recommendations: Array.isArray(aiResult.recommendations)
-      ? aiResult.recommendations.map((rec: AIRecommendationDraft) => ({
+      ? aiResult.recommendations.map((rec) => ({
           ...rec,
+          priority: rec.priority || 'medium',
+          service: rec.service || lowestDimension,
           diagnosis: rec.diagnosis || (isEnglish
             ? `This recommendation is relevant because ${rec.service || lowestDimension} is an important signal in the diagnostic result.`
             : `Rekomendasi ini relevan karena dimensi ${rec.service || lowestDimension} menjadi sinyal penting dalam hasil diagnostik.`),
@@ -291,8 +307,10 @@ Output JSON:
   ], true);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return { score: 30, status: 'cold', reasoning: 'Insufficient data' };
-  return JSON.parse(jsonMatch[0]);
+  const fallback = { score: 30, status: 'cold' as const, reasoning: 'Insufficient data' };
+  if (!jsonMatch) return fallback;
+  const parsed = aiLeadScoreSchema.safeParse(JSON.parse(jsonMatch[0]));
+  return parsed.success ? parsed.data : fallback;
 }
 
 export async function generateAssessmentProposal(input: {
@@ -375,7 +393,9 @@ Berikan JSON PERSIS:
     throw new Error('Invalid proposal AI response format');
   }
 
-  return JSON.parse(jsonMatch[0]);
+  const parsed = aiFollowUpSchema.safeParse(JSON.parse(jsonMatch[0]));
+  if (!parsed.success) throw new Error('Invalid inquiry follow up AI response');
+  return parsed.data;
 }
 
 export async function generateInquiryFollowUp(input: {
@@ -420,7 +440,9 @@ Output JSON persis:
     throw new Error('Invalid follow up AI response format');
   }
 
-  return JSON.parse(jsonMatch[0]);
+  const parsed = aiFollowUpSchema.safeParse(JSON.parse(jsonMatch[0]));
+  if (!parsed.success) throw new Error('Invalid assessment follow up AI response');
+  return parsed.data;
 }
 
 export async function generateAssessmentFollowUp(input: {

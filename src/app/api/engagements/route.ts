@@ -6,10 +6,10 @@ import { z } from "zod";
 import { getAccessibleProgramIds, transformationErrorResponse } from "@/lib/transformation/access";
 
 const moduleSelectionSchema = z.array(z.object({
-  moduleKey: z.enum(["tbos", "lep"]),
+  moduleKey: z.enum(["tbos", "lep", "binainsight"]),
   enabled: z.boolean(),
-})).length(2)
-  .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === 2, "Modul T-BOS dan LEP wajib disebut tepat satu kali.")
+})).length(3)
+  .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === 3, "Setiap modul program wajib disebut tepat satu kali.")
   .refine((modules) => modules.some((module) => module.enabled), "Pilih minimal satu modul.");
 
 export async function GET(req: NextRequest) {

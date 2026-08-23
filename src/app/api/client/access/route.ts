@@ -63,7 +63,7 @@ async function getEnabledModules(db: ReturnType<typeof createServerSupabase>, pr
     .eq("program_id", programId)
     .eq("enabled", true);
   if (error) throw new Error("Gagal memuat modul program.");
-  return (data || []).map((module) => module.module_key as "tbos" | "lep");
+  return (data || []).map((module) => module.module_key as "tbos" | "lep" | "binainsight");
 }
 
 async function findLegacyUserByEmail(db: ReturnType<typeof createServerSupabase>, email: string): Promise<User | null> {

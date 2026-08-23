@@ -7,7 +7,7 @@ import { getClientAccessBySupabaseUser } from "@/lib/client-access";
 import { programAccessAvailable } from "@/lib/client-program";
 
 const querySchema = z.object({
-  moduleKey: z.enum(["tbos", "lep"]),
+  moduleKey: z.enum(["tbos", "lep", "binainsight"]),
 });
 
 export async function GET(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     moduleKey: req.nextUrl.searchParams.get("moduleKey"),
   });
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "moduleKey wajib berupa tbos atau lep." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "moduleKey wajib berupa tbos, lep, atau binainsight." }, { status: 400 });
   }
 
   const db = createServerSupabase();

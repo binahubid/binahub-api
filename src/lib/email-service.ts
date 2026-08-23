@@ -20,6 +20,42 @@ function safeHeader(value: string) {
   return value.replace(/[\r\n]+/g, ' ').trim().slice(0, 300);
 }
 
+function safeFilenamePart(value: string) {
+  return value
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 80) || 'Dokumen';
+}
+
+function generatedHtmlToPlainText(value: string) {
+  return value
+    .replace(/<(script|style|template|iframe|object|svg|math)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p\s*>|<\/div\s*>|<\/li\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 20_000);
+}
+
+function renderGeneratedEmailSafely(htmlContent: string, replacements: Record<string, string>) {
+  let substituted = htmlContent;
+  for (const [placeholder, replacement] of Object.entries(replacements)) {
+    substituted = substituted.replaceAll(placeholder, replacement);
+  }
+
+  const safeBody = escapeHtml(generatedHtmlToPlainText(substituted)).replace(/\n/g, '<br>');
+  return `<!DOCTYPE html>
+<html><body style="margin:0;padding:24px;background:#F1F5F9;font-family:Arial,sans-serif;color:#334155;">
+  <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:32px;line-height:1.7;">
+    ${safeBody}
+  </div>
+</body></html>`;
+}
+
 function resendTagValue(value?: string) {
   return (value || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 256);
 }
@@ -76,7 +112,7 @@ export async function sendAssessmentEmail(
         footer: 'People Transformation & Future Capability Partner',
         auto: 'This email was sent automatically. If you need assistance, reply to',
         subject: safeHeader(`Confidential Executive Assessment · ${formData.company}`),
-        fileName: `Diagnostic_Report_${formData.company.replace(/\s+/g, '_')}.pdf`,
+        fileName: `Diagnostic_Report_${safeFilenamePart(formData.company)}.pdf`,
       }
     : {
         title: 'Laporan Eksekutif',
@@ -96,7 +132,7 @@ export async function sendAssessmentEmail(
         footer: 'Mitra Transformasi Manusia & Kapabilitas Masa Depan',
         auto: 'Email ini dikirim secara otomatis. Jika butuh bantuan, balas ke',
         subject: safeHeader(`Asesmen Eksekutif Rahasia · ${formData.company}`),
-        fileName: `Laporan_Diagnostik_${formData.company.replace(/\s+/g, '_')}.pdf`,
+        fileName: `Laporan_Diagnostik_${safeFilenamePart(formData.company)}.pdf`,
       };
   // Brand Colors
   const navy = '#0B2C6B';
@@ -248,6 +284,7 @@ export async function sendAssessmentEmail(
           }]
         : [],
     });
+    if (clientRes.error) throw new Error(`Resend gagal mengirim hasil assessment: ${clientRes.error.message}`);
 
     console.log('[Email] Client email response:', clientRes);
 
@@ -260,6 +297,10 @@ export async function sendAssessmentEmail(
       Email: ${safeEmail}<br>WhatsApp: ${safeWhatsapp}<br>
       Skor: ${result.scores.overall}/100 — Kategori: ${safeCategory}</p>`,
     });
+
+    if (adminRes.error) {
+      console.warn('[Email Warning] Client result sent, but admin copy failed:', adminRes.error.message);
+    }
 
     console.log('[Email] Admin notification response:', adminRes);
 
@@ -280,15 +321,19 @@ export async function sendOutreachEmail(
   htmlContent: string,
   company?: string
 ) {
-  return resend.emails.send({
+  const appUrl = getAppUrl();
+  const response = await resend.emails.send({
     from: `${COMPANY_NAME} <${FROM}>`,
     to,
-    subject,
-    html: htmlContent.replace('{{name}}', name).replace('{{company}}', company || 'Perusahaan Anda'),
-    headers: {
-      'List-Unsubscribe': `<${getAppUrl()}/unsubscribe>`,
-    },
+    subject: safeHeader(subject),
+    html: renderGeneratedEmailSafely(htmlContent, {
+      '{{name}}': name,
+      '{{company}}': company || 'Perusahaan Anda',
+    }),
+    headers: appUrl ? { 'List-Unsubscribe': `<${appUrl}/unsubscribe>` } : undefined,
   });
+  if (response.error) throw new Error(`Resend gagal mengirim follow up: ${response.error.message}`);
+  return response;
 }
 
 export async function sendAssociateInvitationEmail(
@@ -298,18 +343,21 @@ export async function sendAssociateInvitationEmail(
   htmlContent: string,
   projectName?: string
 ) {
-  return resend.emails.send({
+  const response = await resend.emails.send({
     from: `${COMPANY_NAME} <${FROM}>`,
     to,
-    subject,
-    html: htmlContent
-      .replaceAll('{{name}}', name)
-      .replaceAll('{{project}}', projectName || 'Project BinaHub'),
+    subject: safeHeader(subject),
+    html: renderGeneratedEmailSafely(htmlContent, {
+      '{{name}}': name,
+      '{{project}}': projectName || 'Project BinaHub',
+    }),
     tags: [
       { name: 'category', value: 'associate_invitation' },
       { name: 'project', value: resendTagValue(projectName) },
     ],
   });
+  if (response.error) throw new Error(`Resend gagal mengirim undangan associate: ${response.error.message}`);
+  return response;
 }
 
 export async function sendProposalEmail(
@@ -330,8 +378,13 @@ export async function sendProposalEmail(
 ) {
   const navy = '#0B2C6B';
   const gold = '#D9A441';
-  const subject = proposal.subject || `Proposal Penawaran BinaHub untuk ${company}`;
+  const subject = safeHeader(proposal.subject || `Proposal Penawaran BinaHub untuk ${company}`);
   const appUrl = getAppUrl();
+  const safeName = escapeHtml(name);
+  const safeCompany = escapeHtml(company);
+  const safeProgram = escapeHtml(proposal.proposedProgram || 'Program Transformasi Organisasi');
+  const safeOpening = escapeHtml(proposal.opening || 'Berdasarkan hasil diagnostik yang telah Anda selesaikan, kami menyusun penawaran awal yang dapat menjadi bahan diskusi internal dan tindak lanjut bersama tim BinaHub.');
+  const safeNextStep = escapeHtml(proposal.nextStep || 'Langkah berikutnya adalah menyelaraskan prioritas program, ruang lingkup, peserta, dan paket yang paling sesuai.');
 
   const html = `
 <!DOCTYPE html>
@@ -340,16 +393,16 @@ export async function sendProposalEmail(
   <div style="max-width:640px;margin:36px auto;background:#FFFFFF;border-radius:10px;overflow:hidden;border:1px solid #DDE5F0;">
     <div style="background:${navy};padding:34px 38px;border-bottom:4px solid ${gold};">
       <p style="margin:0 0 10px;color:${gold};font-size:10px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;">Proposal Penawaran BinaHub</p>
-      <h1 style="margin:0;color:#FFFFFF;font-size:25px;font-weight:600;line-height:1.25;">${proposal.proposedProgram || 'Program Transformasi Organisasi'}</h1>
-      <p style="margin:12px 0 0;color:rgba(255,255,255,0.72);font-size:14px;">${company}</p>
+      <h1 style="margin:0;color:#FFFFFF;font-size:25px;font-weight:600;line-height:1.25;">${safeProgram}</h1>
+      <p style="margin:12px 0 0;color:rgba(255,255,255,0.72);font-size:14px;">${safeCompany}</p>
     </div>
     <div style="padding:36px 38px;color:#334155;">
-      <p style="margin:0 0 18px;color:${navy};font-size:16px;">Yth. <strong>${name}</strong>,</p>
-      <p style="margin:0 0 22px;line-height:1.7;font-size:15px;">${proposal.opening || 'Berdasarkan hasil diagnostik yang telah Anda selesaikan, kami menyusun penawaran awal yang dapat menjadi bahan diskusi internal dan tindak lanjut bersama tim BinaHub.'}</p>
+      <p style="margin:0 0 18px;color:${navy};font-size:16px;">Yth. <strong>${safeName}</strong>,</p>
+      <p style="margin:0 0 22px;line-height:1.7;font-size:15px;">${safeOpening}</p>
       <p style="margin:0 0 26px;line-height:1.7;font-size:15px;">Detail ruang lingkup, estimasi timeline, pilihan paket A/B/C, dan catatan investasi kami lampirkan dalam PDF proposal. Email ini kami buat sebagai pengantar agar dokumen utama tetap menjadi rujukan resmi.</p>
 
       <div style="border-top:1px solid #E2E8F0;padding-top:24px;text-align:center;">
-        <p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.6;">${proposal.nextStep || 'Langkah berikutnya adalah menyelaraskan prioritas program, ruang lingkup, peserta, dan paket yang paling sesuai.'}</p>
+        <p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.6;">${safeNextStep}</p>
         <a href="https://calendly.com/binahub-diagnostic/consultation" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:700;font-size:14px;">Jadwalkan Diskusi Lanjutan</a>
         <div style="margin-top:22px;">
           <a href="${appUrl || '#'}?chat=open&name=${encodeURIComponent(name)}&company=${encodeURIComponent(company)}"
@@ -364,7 +417,7 @@ export async function sendProposalEmail(
 </html>
 `;
 
-  return resend.emails.send({
+  const response = await resend.emails.send({
     from: `${COMPANY_NAME} <${FROM}>`,
     to,
     subject,
@@ -375,9 +428,11 @@ export async function sendProposalEmail(
     ],
     attachments: pdfBuffer
       ? [{
-          filename: `Proposal_Penawaran_${company.replace(/\s+/g, '_')}.pdf`,
+          filename: `Proposal_Penawaran_${safeFilenamePart(company)}.pdf`,
           content: pdfBuffer.toString('base64'),
         }]
       : [],
   });
+  if (response.error) throw new Error(`Resend gagal mengirim proposal: ${response.error.message}`);
+  return response;
 }

@@ -18,6 +18,7 @@ build/
 
 # testing
 coverage/
+tmp/
 
 # env and secrets
 .env

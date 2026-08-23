@@ -25,7 +25,7 @@ export function programAccessAvailable(program: Pick<ClientProgramRow, "status" 
   return new Date(participantAccessExpiry(program.end_date, now)).getTime() >= now;
 }
 
-export function publicProgram(program: ClientProgramRow, modules: Array<"tbos" | "lep">) {
+export function publicProgram(program: ClientProgramRow, modules: Array<"tbos" | "lep" | "binainsight">) {
   const companyName = Array.isArray(program.organization)
     ? program.organization[0]?.name
     : program.organization?.name;

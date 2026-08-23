@@ -1,6 +1,6 @@
 import React from 'react';
 import path from 'path';
-import { Document, Page, Text, View, StyleSheet, Font, Svg, Polygon, Circle, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font, Svg, Polygon, Circle } from '@react-pdf/renderer';
 import { AssessmentData, DIMENSIONS } from './validations';
 import type { Locale } from '@/i18n/config';
 
@@ -61,19 +61,17 @@ const ICE = '#F4F7FB';
 const SILVER = '#8A9BB0';
 
 const MATURITY_LEVELS = [
-  { label: 'Awal', min: 0, max: 39 },
-  { label: 'Berkembang', min: 40, max: 59 },
-  { label: 'Profesional', min: 60, max: 74 },
-  { label: 'Maju', min: 75, max: 89 },
-  { label: 'Unggul', min: 90, max: 100 },
+  { label: 'Pemula', min: 0, max: 39 },
+  { label: 'Berkembang', min: 40, max: 60 },
+  { label: 'Profesional', min: 61, max: 80 },
+  { label: 'Unggulan', min: 81, max: 100 },
 ];
 
 const MATURITY_LEVELS_EN = [
   { label: 'Starter', min: 0, max: 39 },
-  { label: 'Developing', min: 40, max: 59 },
-  { label: 'Professional', min: 60, max: 74 },
-  { label: 'Advanced', min: 75, max: 89 },
-  { label: 'Leading', min: 90, max: 100 },
+  { label: 'Developing', min: 40, max: 60 },
+  { label: 'Professional', min: 61, max: 80 },
+  { label: 'Leading', min: 81, max: 100 },
 ];
 
 function getPdfCopy(locale: Locale = 'id') {
@@ -82,19 +80,19 @@ function getPdfCopy(locale: Locale = 'id') {
         localeDate: 'en-US',
         documentTitle: 'Diagnostic Report',
         compactSubtitle: 'Cross-dimensional reasoning · 7-dimension score distribution',
-        fiscalYear: 'FISCAL YEAR',
+        fiscalYear: 'REPORT YEAR',
         preparedFor: 'PREPARED FOR',
         company: 'COMPANY',
         issueDate: 'ISSUE DATE',
         overallScore: 'Overall Index Score',
         stage: 'Stage',
         totalDimensions: 'Total Dimensions',
-        coreCriteria: 'Core Criteria',
+        coreCriteria: '49 Core Criteria',
         teamScale: 'Team Scale',
         organizationScale: 'Organization Scale',
         classification: 'Classification',
         confidential: 'Confidential',
-        highPriority: 'High Priority',
+        highPriority: 'Recipient Only',
         orgProfile: 'Organization Profile',
         strategicBuilder: 'Strategic Builder',
         maturityLadder: 'Organization Maturity Ladder',
@@ -126,7 +124,7 @@ function getPdfCopy(locale: Locale = 'id') {
         roadmapSectionSubtitle: 'Supporting recommendations to strengthen implementation rhythm after the main priorities begin',
         nextSteps: 'Next Steps',
         nextStepsText: 'Discuss this result with the BinaHub team to translate diagnostic priorities into an implementation roadmap that fits your organization context.',
-        footer: '© 2025 BinaHub · Strategic Transformation Division · Confidential Document',
+        footer: 'BinaHub · Strategic Transformation Division · Confidential Document',
         page: 'Page',
         of: 'of',
         reportHeaderLabel: 'Performance Diagnostic Report',
@@ -138,19 +136,19 @@ function getPdfCopy(locale: Locale = 'id') {
         localeDate: 'id-ID',
         documentTitle: 'Laporan Diagnostik',
         compactSubtitle: 'Penalaran lintas dimensi · distribusi skor 7 dimensi',
-        fiscalYear: 'TAHUN FISKAL',
+        fiscalYear: 'TAHUN LAPORAN',
         preparedFor: 'DISUSUN UNTUK',
         company: 'PERUSAHAAN',
         issueDate: 'TANGGAL ISU',
         overallScore: 'Skor Indeks Keseluruhan',
         stage: 'Tahap',
         totalDimensions: 'Total Dimensi',
-        coreCriteria: 'Kriteria Inti',
+        coreCriteria: '49 Kriteria Inti',
         teamScale: 'Skala Tim',
         organizationScale: 'Skala Organisasi',
         classification: 'Klasifikasi',
         confidential: 'Rahasia',
-        highPriority: 'Prioritas Tinggi',
+        highPriority: 'Khusus Penerima',
         orgProfile: 'Profil Organisasi',
         strategicBuilder: 'Pembangun Strategis',
         maturityLadder: 'Tangga Kematangan Organisasi',
@@ -182,7 +180,7 @@ function getPdfCopy(locale: Locale = 'id') {
         roadmapSectionSubtitle: 'Rekomendasi pendukung untuk memperkuat ritme implementasi setelah prioritas utama berjalan',
         nextSteps: 'Langkah Berikutnya',
         nextStepsText: 'Diskusikan hasil ini bersama tim BinaHub untuk menerjemahkan prioritas diagnostik menjadi roadmap implementasi yang relevan dengan konteks organisasi Anda.',
-        footer: '© 2025 BinaHub · Divisi Transformasi Strategis · Dokumen Rahasia',
+        footer: 'BinaHub · Divisi Transformasi Strategis · Dokumen Rahasia',
         page: 'Halaman',
         of: 'dari',
         reportHeaderLabel: 'Laporan Diagnostik Performa',
@@ -202,22 +200,24 @@ function getNextMaturityLevel(score: number, levels = MATURITY_LEVELS) {
 
 const styles = StyleSheet.create({
   page: { backgroundColor: ICE, color: '#1A2332', fontFamily: 'Inter', padding: 0 },
-  header: { position: 'relative', backgroundColor: '#FFFFFF', height: 185, padding: '30 44', color: '#1A2332' },
-  compactHeader: { position: 'relative', backgroundColor: '#FFFFFF', height: 70, padding: '15 44', color: '#1A2332' },
+  header: { position: 'relative', backgroundColor: NAVY, height: 180, padding: '24 44', color: '#FFFFFF', flexShrink: 0 },
+  compactHeader: { position: 'relative', backgroundColor: '#FFFFFF', height: 70, padding: '15 44', color: '#1A2332', flexShrink: 0 },
   headerAccent: { position: 'absolute', bottom: -6, left: 0, right: 0, height: 6, backgroundColor: GOLD },
-  headerMotif: { position: 'absolute', top: -30, right: -40, opacity: 0.1 },
-  logoBox: { width: 100, height: 28, marginBottom: 15 },
-  logoImage: { width: '100%', height: '100%', objectFit: 'contain' },
-  headerTitleBlock: { marginTop: 8 },
+  headerMotif: { position: 'absolute', top: -30, right: -40, opacity: 0.18 },
+  wordmark: { flexDirection: 'row', alignItems: 'baseline' },
+  wordmarkBina: { fontSize: 16, fontWeight: 700, color: NAVY },
+  wordmarkHub: { fontSize: 16, fontWeight: 700, color: GOLD },
+  wordmarkTagline: { fontSize: 5.5, fontWeight: 600, color: SILVER, letterSpacing: 1.1, marginLeft: 8 },
+  headerTitleBlock: { marginTop: 18 },
   headerLabel: { color: GOLD, fontSize: 8, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
-  headerTitle: { fontSize: 22, fontWeight: 700, lineHeight: 1 },
-  headerSubtitle: { fontSize: 22, fontWeight: 700, color: NAVY, marginTop: 8 },
-  metaRow: { flexDirection: 'row', marginTop: 25, gap: 40 },
-  metaItem: { flexDirection: 'column' },
-  metaLabel: { fontSize: 6.5, color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  metaValue: { fontSize: 8, color: NAVY, fontWeight: 600 },
-  content: { padding: '22 44 72 44' },
-  kpiRow: { flexDirection: 'row', padding: '0 44', marginTop: 10, gap: 12, zIndex: 10 },
+  headerTitle: { fontSize: 23, fontWeight: 700, lineHeight: 1, color: '#FFFFFF' },
+  headerSubtitle: { fontSize: 23, fontWeight: 700, color: GOLD, marginTop: 7 },
+  metaRow: { flexDirection: 'row', marginTop: 22, gap: 34 },
+  metaItem: { flexDirection: 'column', maxWidth: 130 },
+  metaLabel: { fontSize: 6.5, color: '#AAB9CD', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  metaValue: { fontSize: 8, color: '#FFFFFF', fontWeight: 600 },
+  content: { padding: '22 44 56 44', flexShrink: 0 },
+  kpiRow: { flexDirection: 'row', padding: '0 44', marginTop: 12, gap: 12, zIndex: 10, flexShrink: 0 },
   kpiCard: { flex: 1, backgroundColor: '#FFFFFF', padding: 15, borderRadius: 8, borderTopWidth: 4, borderTopColor: GOLD, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 4 } },
   kpiLabel: { fontSize: 7, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 },
   kpiValue: { fontSize: 18, fontWeight: 700, color: NAVY },
@@ -257,8 +257,10 @@ const styles = StyleSheet.create({
   barTrack: { flex: 1, height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden', marginHorizontal: 8 },
   barFill: { height: '100%', backgroundColor: NAVY, borderRadius: 3 },
   barValue: { width: 25, fontSize: 8, color: NAVY, fontWeight: 700, textAlign: 'right' },
-  recGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  recCard: { width: '31.5%', backgroundColor: '#FFFFFF', padding: 14, borderRadius: 8, borderTopWidth: 3, borderTopColor: GOLD },
+  recGrid: { flexDirection: 'column', gap: 12 },
+  recCard: { width: '100%', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: GOLD, flexShrink: 0 },
+  packageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  packageCard: { width: '31.5%', backgroundColor: '#FFFFFF', padding: 14, borderRadius: 8, borderTopWidth: 3, borderTopColor: GOLD, flexShrink: 0 },
   recIcon: { width: 14, height: 14, backgroundColor: NAVY, borderRadius: 7, marginBottom: 10, justifyContent: 'center', alignItems: 'center' },
   recIconInner: { width: 6, height: 6, backgroundColor: GOLD, borderRadius: 3 },
   recTitle: { fontSize: 9, fontWeight: 700, color: NAVY, marginBottom: 7, lineHeight: 1.3 },
@@ -266,18 +268,24 @@ const styles = StyleSheet.create({
   recDesc: { fontSize: 8.2, color: '#64748B', lineHeight: 1.45 },
   callout: { marginTop: 24, backgroundColor: '#E2E8F0', padding: 18, borderRadius: 8, borderTopWidth: 4, borderTopColor: NAVY },
   riskCard: { marginTop: 16, backgroundColor: '#FFFFFF', padding: 18, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: GOLD },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 44, backgroundColor: NAVY, borderTopWidth: 2, borderTopColor: GOLD, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '0 44' },
-  footerText: { fontSize: 7.5, color: SILVER },
-  footerPage: { fontSize: 8, color: '#FFFFFF', fontWeight: 600 },
+  footerLine: { position: 'absolute', bottom: 0, left: 0, width: 595.28, height: 44, paddingTop: 16, paddingHorizontal: 44, backgroundColor: NAVY, borderTopWidth: 2, borderTopColor: GOLD, color: '#FFFFFF', fontSize: 7.5, fontWeight: 600, textAlign: 'center' },
 });
+
+function PdfWordmark({ inverse = false }: { inverse?: boolean }) {
+  return (
+    <View style={styles.wordmark}>
+      <Text style={[styles.wordmarkBina, inverse ? { color: '#FFFFFF' } : {}]}>Bina</Text>
+      <Text style={styles.wordmarkHub}>Hub</Text>
+      <Text style={[styles.wordmarkTagline, inverse ? { color: '#C9D5E5' } : {}]}>HUMAN SYNERGY PARTNER</Text>
+    </View>
+  );
+}
 
 function CompactHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <View style={styles.compactHeader}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: NAVY, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 800 }}>B</Text>
-        </View>
+        <PdfWordmark />
         <View>
           <Text style={{ fontSize: 12, fontWeight: 700, color: NAVY }}>{title}</Text>
           <Text style={{ fontSize: 7, color: '#64748B' }}>{subtitle}</Text>
@@ -288,12 +296,11 @@ function CompactHeader({ title, subtitle }: { title: string; subtitle: string })
   );
 }
 
-function Footer({ page, copy }: { page: number; copy: ReturnType<typeof getPdfCopy> }) {
+function Footer({ page, copy, totalPages = 4 }: { page: number; copy: ReturnType<typeof getPdfCopy>; totalPages?: number }) {
   return (
-    <View style={styles.footer}>
-      <Text style={styles.footerText}>{copy.footer}</Text>
-      <Text style={styles.footerPage}>{copy.page} {page} {copy.of} 4</Text>
-    </View>
+    <Text style={styles.footerLine}>
+      {copy.footer}   ·   {copy.page} {page} {copy.of} {totalPages}
+    </Text>
   );
 }
 
@@ -304,7 +311,7 @@ function compactText(text = '', maxLength = 280) {
   return `${trimmed.slice(0, lastSpace > 180 ? lastSpace : maxLength).trim()}...`;
 }
 
-const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData: AssessmentData; result: AssessmentResult; logoPath?: string; locale?: Locale }) => {
+const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: AssessmentData; result: AssessmentResult; locale?: Locale }) => {
   const copy = getPdfCopy(locale);
   const scores = result.scores;
   const sortedDimensions = [...DIMENSIONS].sort((a, b) => (scores[b] || 0) - (scores[a] || 0));
@@ -319,7 +326,7 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
   }).map((p) => `${p.x},${p.y}`).join(' ');
 
   const date = new Date().toLocaleDateString(copy.localeDate, { day: 'numeric', month: 'long', year: 'numeric' });
-  const logoSrc = logoPath || 'https://binahub.id/logo.webp';
+  const reportYear = String(new Date().getFullYear());
   const maturityLevel = getMaturityLevel(scores.overall, copy.maturityLevels);
   const nextMaturityLevel = getNextMaturityLevel(scores.overall, copy.maturityLevels);
   const gapToNext = nextMaturityLevel ? Math.max(0, nextMaturityLevel.min - scores.overall) : 0;
@@ -348,20 +355,17 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Svg style={styles.headerMotif} width="200" height="200">
-            <Circle cx="150" cy="50" r="100" fill={NAVY} fillOpacity="0.03" />
-            <Circle cx="170" cy="70" r="70" fill={NAVY} fillOpacity="0.03" />
+            <Circle cx="150" cy="50" r="100" fill="#FFFFFF" fillOpacity="0.06" />
+            <Circle cx="170" cy="70" r="70" fill={GOLD} fillOpacity="0.08" />
           </Svg>
-          <View style={styles.logoBox}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={logoSrc} style={styles.logoImage} />
-          </View>
+          <PdfWordmark inverse />
           <View style={styles.headerTitleBlock}>
             <Text style={styles.headerLabel}>{copy.reportHeaderLabel}</Text>
             <Text style={styles.headerTitle}>{copy.reportHeaderTitle}</Text>
             <Text style={styles.headerSubtitle}>{copy.reportHeaderSubtitle}</Text>
           </View>
           <View style={styles.metaRow}>
-            <View style={styles.metaItem}><Text style={styles.metaLabel}>{copy.fiscalYear}</Text><Text style={styles.metaValue}>2024-2025</Text></View>
+            <View style={styles.metaItem}><Text style={styles.metaLabel}>{copy.fiscalYear}</Text><Text style={styles.metaValue}>{reportYear}</Text></View>
             <View style={styles.metaItem}><Text style={styles.metaLabel}>{copy.preparedFor}</Text><Text style={styles.metaValue}>{formData.name.toUpperCase()}</Text></View>
             <View style={styles.metaItem}><Text style={styles.metaLabel}>{copy.company}</Text><Text style={styles.metaValue}>{formData.company.toUpperCase()}</Text></View>
             <View style={styles.metaItem}><Text style={styles.metaLabel}>{copy.issueDate}</Text><Text style={styles.metaValue}>{date.toUpperCase()}</Text></View>
@@ -410,7 +414,7 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
               </Text>
             </View>
             <View style={styles.maturityTrack}>
-              {MATURITY_LEVELS.map((level) => {
+              {copy.maturityLevels.map((level) => {
                 const isActive = level.label === maturityLevel.label;
                 return (
                   <View key={level.label} style={[styles.maturityStep, isActive ? styles.maturityStepActive : {}]}>
@@ -434,10 +438,6 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
             </View>
           </View>
 
-          <View style={styles.summaryCard} wrap={false}>
-            <Text style={styles.summaryTitle}>{copy.executiveSummary}</Text>
-              <Text style={styles.summaryText}>{compactText(result.aiAnalysis, 620)}</Text>
-          </View>
         </View>
         <Footer page={1} copy={copy} />
       </Page>
@@ -495,9 +495,15 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
             ))}
           </View>
 
-          <View style={styles.riskCard} wrap={false}>
-            <Text style={styles.summaryTitle}>{copy.riskProjection}</Text>
-            <Text style={styles.summaryText}>{compactText(riskProjection, 520)}</Text>
+          <View style={[styles.twoColumn, { marginBottom: 0 }]} wrap={false}>
+            <View style={[styles.miniCard, { borderTopColor: GOLD }]}>
+              <Text style={styles.summaryTitle}>{copy.riskProjection}</Text>
+              <Text style={styles.miniText}>{compactText(riskProjection, 380)}</Text>
+            </View>
+            <View style={[styles.miniCard, { borderTopColor: NAVY }]}>
+              <Text style={styles.summaryTitle}>{copy.executiveSummary}</Text>
+              <Text style={styles.miniText}>{compactText(result.aiAnalysis, 620)}</Text>
+            </View>
           </View>
         </View>
         <Footer page={2} copy={copy} />
@@ -517,7 +523,6 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
           <View style={styles.recGrid}>
             {primaryRecommendations.map((rec, i) => (
               <View key={i} wrap={false} style={styles.recCard}>
-                <View style={styles.recIcon}><View style={styles.recIconInner} /></View>
                 <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 4 }}>{copy.strategy} 0{i + 1} · {rec.service}</Text>
                 <Text style={styles.recTitle}>{compactText(rec.title, 86)}</Text>
                 {rec.diagnosis && <Text style={styles.recDiagnosis}>{compactText(rec.diagnosis, 180)}</Text>}
@@ -534,7 +539,7 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
         <Footer page={3} copy={copy} />
       </Page>
 
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={[styles.page, { paddingTop: 18 }]}>
         <CompactHeader title={copy.roadmapTitle} subtitle={copy.roadmapSubtitle} />
         <View style={styles.content}>
           <View style={styles.sectionHeader}>
@@ -547,8 +552,7 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
 
           <View style={styles.recGrid}>
             {secondaryRecommendations.map((rec, i) => (
-              <View key={i} wrap={false} style={[styles.recCard, { width: '48.5%' }]}>
-                <View style={styles.recIcon}><View style={styles.recIconInner} /></View>
+              <View key={i} wrap={false} style={styles.recCard}>
                 <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 4 }}>{copy.strategy} 0{i + 4} · {rec.service}</Text>
                 <Text style={styles.recTitle}>{compactText(rec.title, 96)}</Text>
                 {rec.diagnosis && <Text style={styles.recDiagnosis}>{compactText(rec.diagnosis, 220)}</Text>}
@@ -570,10 +574,9 @@ const AssessmentPDF = ({ formData, result, logoPath, locale = 'id' }: { formData
   );
 };
 
-const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentData; proposal: ProposalResult; logoPath?: string }) => {
+const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposal: ProposalResult }) => {
   const copy = getPdfCopy('id');
   const date = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const logoSrc = logoPath || 'https://binahub.id/logo.webp';
   const packages = proposal.packages?.length ? proposal.packages.slice(0, 3) : [
     {
       name: 'Paket A - Essential',
@@ -590,13 +593,10 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Svg style={styles.headerMotif} width="200" height="200">
-            <Circle cx="150" cy="50" r="100" fill={NAVY} fillOpacity="0.03" />
-            <Circle cx="170" cy="70" r="70" fill={NAVY} fillOpacity="0.03" />
+            <Circle cx="150" cy="50" r="100" fill="#FFFFFF" fillOpacity="0.06" />
+            <Circle cx="170" cy="70" r="70" fill={GOLD} fillOpacity="0.08" />
           </Svg>
-          <View style={styles.logoBox}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={logoSrc} style={styles.logoImage} />
-          </View>
+          <PdfWordmark inverse />
           <View style={styles.headerTitleBlock}>
             <Text style={styles.headerLabel}>Proposal Penawaran Strategis</Text>
             <Text style={styles.headerTitle}>{proposal.proposedProgram || 'Program Transformasi Organisasi'}</Text>
@@ -636,7 +636,7 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
             ))}
           </View>
         </View>
-        <Footer page={1} copy={copy} />
+        <Footer page={1} copy={copy} totalPages={2} />
       </Page>
 
       <Page size="A4" style={styles.page}>
@@ -650,9 +650,9 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
             </View>
           </View>
 
-          <View style={styles.recGrid}>
+          <View style={styles.packageGrid}>
             {packages.map((pack, index) => (
-              <View key={pack.name} wrap={false} style={[styles.recCard, { width: '31.5%', borderTopColor: index === 1 ? NAVY : GOLD }]}>
+              <View key={pack.name} wrap={false} style={[styles.packageCard, { borderTopColor: index === 1 ? NAVY : GOLD }]}>
                 <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 6 }}>PAKET {String.fromCharCode(65 + index)}</Text>
                 <Text style={styles.recTitle}>{pack.name}</Text>
                 <Text style={[styles.kpiValue, { fontSize: 13, marginBottom: 8 }]}>{pack.price}</Text>
@@ -676,42 +676,20 @@ const ProposalPDF = ({ formData, proposal, logoPath }: { formData: AssessmentDat
             <Text style={styles.summaryText}>{proposal.nextStep || 'Jadwalkan konsultasi untuk memfinalisasi kebutuhan, ruang lingkup, peserta, timeline, dan opsi paket yang paling sesuai.'}</Text>
           </View>
         </View>
-        <Footer page={2} copy={copy} />
+        <Footer page={2} copy={copy} totalPages={2} />
       </Page>
     </Document>
   );
 };
 
-async function getLogoBase64() {
-  let logoBase64 = 'https://binahub.id/logo.webp';
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-    const logoPath = path.join(process.cwd(), 'public', 'full-logo.png');
-    if (fs.existsSync(logoPath)) {
-      const logoBuffer = fs.readFileSync(logoPath);
-      logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[PDF Service] Failed to read logo file locally, using URL fallback:', message);
-  }
-  return logoBase64;
-}
-
 export async function generatePDFBuffer(formData: AssessmentData, result: AssessmentResult, locale: Locale = 'id'): Promise<Buffer> {
   const { renderToBuffer } = await import('@react-pdf/renderer');
-
-  const logoBase64 = await getLogoBase64();
-
-  return await renderToBuffer(<AssessmentPDF formData={formData} result={result} logoPath={logoBase64} locale={locale} />);
+  return await renderToBuffer(<AssessmentPDF formData={formData} result={result} locale={locale} />);
 }
 
 export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult): Promise<Buffer> {
   const { renderToBuffer } = await import('@react-pdf/renderer');
-  const logoBase64 = await getLogoBase64();
-
-  return await renderToBuffer(<ProposalPDF formData={formData} proposal={proposal} logoPath={logoBase64} />);
+  return await renderToBuffer(<ProposalPDF formData={formData} proposal={proposal} />);
 }
 
 

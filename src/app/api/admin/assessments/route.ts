@@ -4,6 +4,8 @@ import { generateAssessmentProposal } from "@/lib/ai-service";
 import { sendAssessmentEmail, sendProposalEmail } from "@/lib/email-service";
 import { generatePDFBuffer, generateProposalPDFBuffer, AssessmentResult } from "@/lib/pdf-service";
 import { requireAdmin } from "@/lib/admin-auth";
+import { adminError, parseValidatedBody } from "@/lib/admin-api";
+import { assessmentActionSchema, assessmentStatusUpdateSchema } from "@/lib/admin-mutation-schemas";
 
 type AssessmentRow = {
   id: string;
@@ -73,17 +75,16 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status });
   }
 
-  const body = await req.json();
-  const id = String(body.id || "");
-  if (!id) {
-    return NextResponse.json({ success: false, error: "ID assessment tidak ditemukan." }, { status: 400 });
-  }
+  const parsed = await parseValidatedBody(req, assessmentStatusUpdateSchema);
+  if (parsed.error || !parsed.data) return adminError(parsed.error, 400, "INVALID_ASSESSMENT_STATUS");
+  const { id, assessmentStatus, proposalStatus, followUpPaused } = parsed.data;
 
   const { data, error } = await createServerSupabase()
     .from("assessments")
     .update({
-      assessment_status: String(body.assessmentStatus || "Follow Up"),
-      proposal_status: String(body.proposalStatus || "Belum Diminta"),
+      assessment_status: assessmentStatus,
+      proposal_status: proposalStatus,
+      ...(followUpPaused === undefined ? {} : { follow_up_paused: followUpPaused }),
     })
     .eq("id", id)
     .select()
@@ -102,12 +103,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status });
   }
 
-  const body = await req.json();
-  const id = String(body.id || "");
-  const action = String(body.action || "");
-  if (!id || !action) {
-    return NextResponse.json({ success: false, error: "Action assessment tidak valid." }, { status: 400 });
-  }
+  const parsed = await parseValidatedBody(req, assessmentActionSchema);
+  if (parsed.error || !parsed.data) return adminError(parsed.error, 400, "INVALID_ASSESSMENT_ACTION");
+  const { id, action } = parsed.data;
 
   const db = createServerSupabase();
 
@@ -137,7 +135,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "request_proposal") {
-      await db
+      const { error: requestError } = await db
         .from("assessments")
         .update({
           assessment_status: "Minta Proposal",
@@ -145,6 +143,7 @@ export async function POST(req: NextRequest) {
           proposal_requested_at: new Date().toISOString(),
         })
         .eq("id", id);
+      if (requestError) throw requestError;
       return NextResponse.json({ success: true });
     }
 
@@ -188,7 +187,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, proposal });
     }
 
-    return NextResponse.json({ success: false, error: "Action assessment tidak dikenal." }, { status: 400 });
+    return adminError("Action assessment tidak dikenal.", 400, "INVALID_ASSESSMENT_ACTION");
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : "Gagal memproses assessment." },

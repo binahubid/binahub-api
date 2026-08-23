@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
-import { createServerSupabase } from "@/lib/supabase";
+import { supabase, createServerSupabase } from "./supabase";
 
 export type AppRole = "admin" | "facilitator" | "client" | "peserta";
 
@@ -23,6 +22,11 @@ export function normalizeEmail(email?: string | null) {
   return email?.trim().toLowerCase() || "";
 }
 
+export function getBearerToken(authorization: string | null | undefined) {
+  const match = authorization?.match(/^Bearer\s+([^\s]+)$/i);
+  return match?.[1] || null;
+}
+
 export async function getUserFromBearer(req: NextRequest): Promise<
   | {
       token: string;
@@ -30,8 +34,7 @@ export async function getUserFromBearer(req: NextRequest): Promise<
     }
   | AuthError
 > {
-  const authHeader = req.headers.get("authorization");
-  const token = authHeader?.replace("Bearer ", "");
+  const token = getBearerToken(req.headers.get("authorization"));
 
   if (!token) {
     return { error: "Token tidak ditemukan", status: 401 };
@@ -92,9 +95,7 @@ export function isAdminFallbackEmail(email?: string | null) {
     return false;
   }
 
-  return readEmailAllowlist(process.env.ADMIN_EMAILS, "admin@binahub.id").has(
-    normalizedEmail,
-  );
+  return readEmailAllowlist(process.env.ADMIN_EMAILS).has(normalizedEmail);
 }
 
 export function isFacilitatorFallbackEmail(email?: string | null) {
@@ -102,10 +103,6 @@ export function isFacilitatorFallbackEmail(email?: string | null) {
 
   if (!normalizedEmail) {
     return false;
-  }
-
-  if (normalizedEmail === "facilitator@binahub.id" || normalizedEmail === "fasilitator@binahub.id") {
-    return true;
   }
 
   return readEmailAllowlist(process.env.FACILITATOR_EMAILS).has(normalizedEmail);

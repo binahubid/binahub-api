@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { adminError, parseValidatedBody } from "@/lib/admin-api";
+import { contactUpdateSchema } from "@/lib/admin-mutation-schemas";
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin(req);
@@ -8,17 +10,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status });
   }
 
-  const body = await req.json();
-  const id = String(body.id || "");
-  if (!id) {
-    return NextResponse.json({ success: false, error: "ID kontak tidak ditemukan." }, { status: 400 });
-  }
+  const parsed = await parseValidatedBody(req, contactUpdateSchema);
+  if (parsed.error || !parsed.data) return adminError(parsed.error, 400, "INVALID_CONTACT_UPDATE");
+  const { id, status, notes } = parsed.data;
 
   const { data, error } = await createServerSupabase()
     .from("leads")
     .update({
-      lead_status: String(body.status || "New Lead"),
-      notes: String(body.notes || ""),
+      lead_status: status,
+      notes,
     })
     .eq("id", id)
     .select()

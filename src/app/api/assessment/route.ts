@@ -1,13 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import { createServerSupabase } from '@/lib/supabase';
 import { analyzeAssessment, scoreLeadWithAI } from '@/lib/ai-service';
 import { sendAssessmentEmail } from '@/lib/email-service';
 import { generatePDFBuffer, AssessmentResult } from '@/lib/pdf-service';
 import { AssessmentSchema } from '@/lib/validations';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { requireTransformationActor } from '@/lib/transformation/auth';
+import { isProgramModuleEnabled } from '@/lib/program-access';
+
+const MAX_ASSESSMENT_BODY_BYTES = 64 * 1024;
+const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9._:-]{16,128}$/;
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function getOptionalProgramContext(
+  req: NextRequest,
+  db: ReturnType<typeof createServerSupabase>,
+) {
+  if (!req.headers.get('authorization')) return null;
+
+  const actor = await requireTransformationActor(req);
+  if (
+    'error' in actor
+    || actor.role !== 'client'
+    || !actor.programId
+    || !actor.participantId
+  ) {
+    return null;
+  }
+
+  try {
+    const enabled = await isProgramModuleEnabled(db, actor.programId, 'binainsight');
+    return enabled
+      ? { programId: actor.programId, participantId: actor.participantId }
+      : null;
+  } catch (error) {
+    console.warn('[Assessment API] Program context could not be resolved:', getErrorMessage(error));
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -16,8 +49,30 @@ export async function POST(req: NextRequest) {
   try {
     const rateLimited = await enforceRateLimit(req, 'assessment', 5, 60 * 60);
     if (rateLimited) return rateLimited;
-    const rawBody = await req.json();
-    const isEnglish = rawBody?.locale === 'en';
+
+    const idempotencyKey = req.headers.get('idempotency-key')?.trim() || '';
+    if (idempotencyKey && !IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+      return NextResponse.json({ success: false, error: 'Idempotency-Key tidak valid.' }, { status: 400 });
+    }
+
+    const rawText = await req.text();
+    if (Buffer.byteLength(rawText, 'utf8') > MAX_ASSESSMENT_BODY_BYTES) {
+      return NextResponse.json({ success: false, error: 'Payload assessment terlalu besar.' }, { status: 413 });
+    }
+
+    let rawBody: unknown;
+    try {
+      rawBody = JSON.parse(rawText);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Payload JSON tidak valid.' }, { status: 400 });
+    }
+
+    const isEnglish = Boolean(
+      rawBody
+      && typeof rawBody === 'object'
+      && 'locale' in rawBody
+      && rawBody.locale === 'en'
+    );
     requestLocale = isEnglish ? 'en' : 'id';
     
     // 1. Zod Validation
@@ -28,7 +83,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: isEnglish ? 'Data validation failed' : 'Validasi data gagal',
-          details: validationResult.error.format(),
+          details: validationResult.error.issues[0]?.message,
         },
         { status: 400 }
       );
@@ -36,6 +91,41 @@ export async function POST(req: NextRequest) {
     
     const body = validationResult.data;
     const supabase = createServerSupabase();
+    const programContext = await getOptionalProgramContext(req, supabase);
+    const submissionKeyHash = idempotencyKey
+      ? createHash('sha256').update(idempotencyKey).digest('hex')
+      : null;
+
+    let retryAssessmentId: string | null = null;
+    if (submissionKeyHash) {
+      const { data: existing, error: existingError } = await supabase
+        .from('assessments')
+        .select('id, scores, category, assessment_status, result_email_sent_at')
+        .eq('submission_key_hash', submissionKeyHash)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+      if (existing) {
+        if (existing.scores && existing.assessment_status !== 'Analisis Gagal') {
+          return NextResponse.json({
+            success: true,
+            assessmentId: existing.id,
+            category: existing.category,
+            reused: true,
+            emailFailed: !existing.result_email_sent_at,
+          });
+        }
+
+        if (existing.assessment_status === 'Analisis Gagal') {
+          retryAssessmentId = existing.id;
+        } else {
+          return NextResponse.json(
+            { success: false, error: isEnglish ? 'This assessment is still being processed.' : 'Assessment ini masih diproses.' },
+            { status: 409 },
+          );
+        }
+      }
+    }
 
     // 2. Upsert lead
     const { data: lead, error: leadError } = await supabase
@@ -59,16 +149,41 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Save raw assessment
-    const { data: assessment, error: assessmentError } = await supabase
-      .from('assessments')
-      .insert({ 
-        lead_id: lead.id, 
-        form_data: body 
-      })
-      .select()
-      .single();
+    const assessmentQuery = retryAssessmentId
+      ? supabase
+          .from('assessments')
+          .update({
+            lead_id: lead.id,
+            form_data: body,
+            scores: null,
+            category: null,
+            ai_analysis: null,
+            recommendations: null,
+            overall_score: null,
+            assessment_status: 'Belum Dikirim',
+            program_id: programContext?.programId || null,
+            participant_id: programContext?.participantId || null,
+          })
+          .eq('id', retryAssessmentId)
+      : supabase
+          .from('assessments')
+          .insert({
+            lead_id: lead.id,
+            form_data: body,
+            submission_key_hash: submissionKeyHash,
+            program_id: programContext?.programId || null,
+            participant_id: programContext?.participantId || null,
+          });
+
+    const { data: assessment, error: assessmentError } = await assessmentQuery.select().single();
 
     if (assessmentError) {
+      if (assessmentError.code === '23505' && submissionKeyHash) {
+        return NextResponse.json(
+          { success: false, error: isEnglish ? 'This assessment is already being processed.' : 'Assessment ini sudah sedang diproses.' },
+          { status: 409 },
+        );
+      }
       console.error('[API Error] Supabase Assessment error:', assessmentError);
       throw assessmentError;
     }
@@ -92,7 +207,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Update assessment with AI results and calculated score
-    await supabase
+    const { error: resultUpdateError } = await supabase
       .from('assessments')
       .update({
         scores: aiResult.scores,
@@ -102,6 +217,7 @@ export async function POST(req: NextRequest) {
         overall_score: aiResult.scores.overall,
       })
       .eq('id', assessment.id);
+    if (resultUpdateError) throw resultUpdateError;
 
     // 6. Complete lead scoring before the serverless request ends.
     try {
@@ -112,10 +228,11 @@ export async function POST(req: NextRequest) {
         company: body.company,
         challenge: body.challenge,
       });
-      await supabase
+      const { error: leadScoreUpdateError } = await supabase
         .from('leads')
         .update({ lead_score: leadScore.score, lead_status: leadScore.status })
         .eq('id', lead.id);
+      if (leadScoreUpdateError) throw leadScoreUpdateError;
     } catch (leadScoreError: unknown) {
       console.warn('[API Warning] Lead scoring failed:', getErrorMessage(leadScoreError));
     }
@@ -186,11 +303,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       assessmentId: assessment.id,
-      leadId: lead.id,
       scores: aiResult.scores,
       category: aiResult.category,
-      analysis: aiResult.analysis,
-      recommendations: aiResult.recommendations,
       emailFailed,
     });
   } catch (error: unknown) {

@@ -13,7 +13,12 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
-  const [{ data: program, error: programError }, { data: modules, error: moduleError }, { data: lepResponse, error: lepResponseError }] = await Promise.all([
+  const [
+    { data: program, error: programError },
+    { data: modules, error: moduleError },
+    { data: lepResponse, error: lepResponseError },
+    { data: insightAssessment, error: insightAssessmentError },
+  ] = await Promise.all([
     db
       .from("engagements")
       .select("id, code, title, type, status, start_date, end_date, location, organization_id, organization:organizations(name)")
@@ -32,12 +37,21 @@ export async function GET(req: NextRequest) {
       .eq("profile_id", actor.userId)
       .limit(1)
       .maybeSingle(),
+    db
+      .from("assessments")
+      .select("id")
+      .eq("program_id", actor.programId)
+      .eq("participant_id", actor.participantId)
+      .not("scores", "is", null)
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (programError || !program) {
     return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
   }
   if (moduleError) return NextResponse.json({ success: false, error: moduleError.message }, { status: 500 });
   if (lepResponseError) return NextResponse.json({ success: false, error: lepResponseError.message }, { status: 500 });
+  if (insightAssessmentError) return NextResponse.json({ success: false, error: insightAssessmentError.message }, { status: 500 });
   if (!programAccessAvailable(program)) {
     return NextResponse.json({ success: false, error: "Program tidak sedang aktif." }, { status: 403 });
   }
@@ -60,8 +74,12 @@ export async function GET(req: NextRequest) {
     modules: (modules || []).map((module) => ({
       key: module.module_key,
       enabled: module.enabled,
-      clientAvailable: module.module_key === "lep",
-      completed: module.module_key === "lep" && Boolean(lepResponse),
+      clientAvailable: module.module_key === "lep" || module.module_key === "binainsight",
+      completed: module.module_key === "lep"
+        ? Boolean(lepResponse)
+        : module.module_key === "binainsight"
+          ? Boolean(insightAssessment)
+          : false,
     })),
   }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

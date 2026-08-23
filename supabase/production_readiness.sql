@@ -39,6 +39,39 @@ select
       and table_name = 'chat_sessions'
       and column_name = 'expires_at'
   ) as chat_expiry_ready,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'assessments'
+      and column_name = 'submission_key_hash'
+  )
+  and to_regclass('public.assessments_submission_key_unique_idx') is not null
+    as assessment_idempotency_ready,
+  (
+    to_regclass('public.follow_up_claims') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'assessments'
+        and column_name = 'program_id'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'assessments'
+        and column_name = 'participant_id'
+    )
+    and exists (
+      select 1
+      from pg_constraint constraint_record
+      join pg_class table_record on table_record.oid = constraint_record.conrelid
+      join pg_namespace schema_record on schema_record.oid = table_record.relnamespace
+      where schema_record.nspname = 'public'
+        and table_record.relname = 'program_modules'
+        and constraint_record.contype = 'c'
+        and pg_get_constraintdef(constraint_record.oid) like '%binainsight%'
+    )
+  ) as binainsight_program_module_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

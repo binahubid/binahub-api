@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { programAccessAvailable } from "@/lib/client-program";
 
-export type ProgramModuleKey = "tbos" | "lep";
+export type ProgramModuleKey = "tbos" | "lep" | "binainsight";
 
 export async function isProgramAccessible(db: SupabaseClient, programId: string): Promise<boolean> {
   const { data, error } = await db
