@@ -6,7 +6,7 @@ import { generateAssessmentFollowUp, generateInquiryFollowUp } from "@/lib/ai-se
 import { OutreachSuppressedError, sendOutreachEmail } from "@/lib/email-service";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getBearerToken } from "@/lib/auth-role";
-import { evaluateFollowUpWindow, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
+import { evaluateFollowUpWindow, followUpStopReason, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
 
 type FollowUpLevel = 1 | 2 | 3;
 type AssessmentFollowUpChannel = "result" | "proposal";
@@ -68,6 +68,7 @@ const followUpBodySchema = z.union([
 
 type InquiryForFollowUp = {
   id?: string;
+  lead_id?: string | null;
   name?: string | null;
   email?: string | null;
   company?: string | null;
@@ -83,6 +84,7 @@ type InquiryForFollowUp = {
 
 type AssessmentForFollowUp = {
   id?: string;
+  lead_id?: string | null;
   form_data?: unknown;
   category?: string | null;
   ai_analysis?: string | null;
@@ -133,7 +135,49 @@ function appendHistory(current: unknown, entry: Record<string, unknown>) {
   return [...(Array.isArray(history) ? history : []), entry];
 }
 
+async function loadFollowUpControl(
+  db: ReturnType<typeof createServerSupabase>,
+  targetType: "inquiry" | "assessment",
+  targetId: string,
+  leadId?: string | null,
+) {
+  const eventCountQuery = db
+    .from("follow_up_events")
+    .select("id", { count: "exact", head: true });
+  const scopedEventCountQuery = leadId
+    ? eventCountQuery.eq("lead_id", leadId)
+    : eventCountQuery.eq("target_type", targetType).eq("target_id", targetId);
+  const leadQuery = leadId
+    ? db.from("leads").select("opportunity_stage").eq("id", leadId).maybeSingle()
+    : Promise.resolve({ data: null, error: null });
+  let bookingQuery = db
+    .from("calendar_bookings")
+    .select("status")
+    .in("status", ["requested", "confirmed", "rescheduled"])
+    .limit(1);
+  if (targetType === "assessment" && leadId) {
+    bookingQuery = bookingQuery.or(`assessment_id.eq.${targetId},lead_id.eq.${leadId}`);
+  } else if (targetType === "assessment") {
+    bookingQuery = bookingQuery.eq("assessment_id", targetId);
+  } else if (leadId) {
+    bookingQuery = bookingQuery.eq("lead_id", leadId);
+  } else {
+    bookingQuery = bookingQuery.eq("lead_id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  const [events, lead, booking] = await Promise.all([scopedEventCountQuery, leadQuery, bookingQuery.maybeSingle()]);
+  if (events.error) throw new Error(`Gagal membaca jumlah follow up: ${events.error.message}`);
+  if (lead.error) throw new Error(`Gagal membaca opportunity lead: ${lead.error.message}`);
+  if (booking.error) throw new Error(`Gagal membaca booking konsultasi: ${booking.error.message}`);
+  return {
+    sentCount: events.count || 0,
+    opportunityStage: lead.data?.opportunity_stage || null,
+    bookingStatus: booking.data?.status || null,
+  };
+}
+
 class FollowUpAlreadyClaimedError extends Error {}
+class FollowUpLimitReachedError extends Error {}
 
 async function claimFollowUp(
   db: ReturnType<typeof createServerSupabase>,
@@ -142,17 +186,21 @@ async function claimFollowUp(
   channel: "inquiry" | AssessmentFollowUpChannel,
   level: FollowUpLevel,
   actor: string,
+  leadId?: string | null,
 ) {
-  const { error } = await db.from("follow_up_claims").insert({
-    target_type: targetType,
-    target_id: targetId,
-    channel,
-    level,
-    status: "processing",
-    actor,
+  const { error } = await db.rpc("claim_follow_up_delivery", {
+    p_target_type: targetType,
+    p_target_id: targetId,
+    p_channel: channel,
+    p_level: level,
+    p_actor: actor,
+    p_lead_id: leadId || null,
   });
   if (error?.code === "23505") {
     throw new FollowUpAlreadyClaimedError("Follow up ini sudah pernah diproses atau sedang dikirim.");
+  }
+  if (error?.message?.includes("MAX_FOLLOW_UP_MESSAGES_REACHED")) {
+    throw new FollowUpLimitReachedError("Maksimum tiga pesan follow up untuk opportunity ini sudah tercapai.");
   }
   if (error) throw new Error(`Gagal mengunci pengiriman follow up: ${error.message}`);
 }
@@ -259,7 +307,7 @@ async function sendFollowUpForInquiry(
     throw new Error("Email inquiry tidak tersedia.");
   }
 
-  await claimFollowUp(db, "inquiry", inquiry.id, "inquiry", level, actor);
+  await claimFollowUp(db, "inquiry", inquiry.id, "inquiry", level, actor, inquiry.lead_id);
   let emailDelivered = false;
   let emailId: string | null = null;
 
@@ -303,6 +351,7 @@ async function sendFollowUpForInquiry(
     const { error: eventError } = await db.from("follow_up_events").insert({
       target_type: "inquiry",
       target_id: inquiry.id,
+      lead_id: inquiry.lead_id || null,
       channel: "inquiry",
       level,
       status,
@@ -355,7 +404,7 @@ async function sendFollowUpForAssessment(
     throw new Error("Email assessment tidak tersedia.");
   }
 
-  await claimFollowUp(db, "assessment", assessment.id, channel, level, actor);
+  await claimFollowUp(db, "assessment", assessment.id, channel, level, actor, assessment.lead_id);
   let emailDelivered = false;
   let emailId: string | null = null;
 
@@ -409,6 +458,7 @@ async function sendFollowUpForAssessment(
     const { error: eventError } = await db.from("follow_up_events").insert({
       target_type: "assessment",
       target_id: assessment.id,
+      lead_id: assessment.lead_id || null,
       channel,
       level,
       status,
@@ -496,12 +546,26 @@ function followUpErrorResponse(error: unknown) {
   if (error instanceof FollowUpAlreadyClaimedError) {
     return adminError(error.message, 409, "FOLLOW_UP_ALREADY_CLAIMED");
   }
+  if (error instanceof FollowUpLimitReachedError) {
+    return adminError(error.message, 409, "FOLLOW_UP_LIMIT_REACHED");
+  }
   console.error("[Follow Up] Delivery failed:", error);
   return adminError(
     error instanceof Error ? error.message : "Gagal mengirim follow up.",
     502,
     "FOLLOW_UP_DELIVERY_FAILED",
   );
+}
+
+function followUpStopMessage(reason: ReturnType<typeof followUpStopReason>) {
+  if (reason === "MAX_MESSAGES_REACHED") return "Maksimum tiga pesan follow up untuk opportunity ini sudah tercapai.";
+  if (reason === "MEETING_BOOKED") return "Follow up dihentikan karena konsultasi sudah dijadwalkan.";
+  if (reason === "OPPORTUNITY_ACTIVE_OR_CLOSED") return "Follow up dihentikan karena opportunity sedang ditangani atau sudah ditutup.";
+  return null;
+}
+
+function followUpOpportunityKey(targetType: "inquiry" | "assessment", targetId: string, leadId?: string | null) {
+  return leadId ? `lead:${leadId}` : `${targetType}:${targetId}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -528,6 +592,9 @@ export async function POST(req: NextRequest) {
     if (invalidReason) return adminError(invalidReason, 409, "FOLLOW_UP_NOT_ALLOWED");
 
     try {
+      const control = await loadFollowUpControl(db, "inquiry", body.inquiryId, inquiry.lead_id);
+      const stopMessage = followUpStopMessage(followUpStopReason(control));
+      if (stopMessage) return adminError(stopMessage, 409, "FOLLOW_UP_STOPPED");
       const result = await sendFollowUpForInquiry(db, inquiry, level, admin.email);
       return NextResponse.json({ success: true, target: "inquiry", level, ...result });
     } catch (error) {
@@ -544,6 +611,9 @@ export async function POST(req: NextRequest) {
     if (invalidReason) return adminError(invalidReason, 409, "FOLLOW_UP_NOT_ALLOWED");
 
     try {
+      const control = await loadFollowUpControl(db, "assessment", body.assessmentId, assessment.lead_id);
+      const stopMessage = followUpStopMessage(followUpStopReason(control));
+      if (stopMessage) return adminError(stopMessage, 409, "FOLLOW_UP_STOPPED");
       const result = await sendFollowUpForAssessment(db, assessment, body.channel, level, admin.email);
       return NextResponse.json({ success: true, target: "assessment", channel: body.channel, level, ...result });
     } catch (error) {
@@ -582,6 +652,7 @@ export async function GET(req: NextRequest) {
   const sent: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel; status: string; emailId: string | null }> = [];
   const candidates: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel }> = [];
   const failures: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level?: FollowUpLevel; error: string }> = [];
+  const dryRunReservations = new Map<string, number>();
 
   const { data: inquiries, error: inquiriesError } = await db.from("inquiries").select("*").order("created_at", { ascending: true }).limit(50);
   if (inquiriesError) return adminError("Gagal memuat antrean inquiry.", 500, "FOLLOW_UP_QUEUE_FAILED");
@@ -590,8 +661,21 @@ export async function GET(req: NextRequest) {
     if (!level) continue;
     if (sent.length + candidates.length >= 10) break;
 
+    try {
+      const targetId = String(inquiry.id || "");
+      const control = await loadFollowUpControl(db, "inquiry", targetId, inquiry.lead_id);
+      const reservationKey = followUpOpportunityKey("inquiry", targetId, inquiry.lead_id);
+      const reserved = dryRunReservations.get(reservationKey) || 0;
+      if (followUpStopReason({ ...control, sentCount: control.sentCount + reserved })) continue;
+    } catch (error) {
+      failures.push({ target: "inquiry", id: inquiry.id, level, error: error instanceof Error ? error.message : String(error) });
+      continue;
+    }
+
     if (dryRun) {
       candidates.push({ target: "inquiry", id: inquiry.id, level });
+      const reservationKey = followUpOpportunityKey("inquiry", String(inquiry.id || ""), inquiry.lead_id);
+      dryRunReservations.set(reservationKey, (dryRunReservations.get(reservationKey) || 0) + 1);
       continue;
     }
 
@@ -613,8 +697,21 @@ export async function GET(req: NextRequest) {
       if (!level) continue;
       if (sent.length + candidates.length >= 20) break;
 
+      try {
+        const targetId = String(assessment.id || "");
+        const control = await loadFollowUpControl(db, "assessment", targetId, assessment.lead_id);
+        const reservationKey = followUpOpportunityKey("assessment", targetId, assessment.lead_id);
+        const reserved = dryRunReservations.get(reservationKey) || 0;
+        if (followUpStopReason({ ...control, sentCount: control.sentCount + reserved })) continue;
+      } catch (error) {
+        failures.push({ target: "assessment", id: assessment.id, channel, level, error: error instanceof Error ? error.message : String(error) });
+        continue;
+      }
+
       if (dryRun) {
         candidates.push({ target: "assessment", id: assessment.id, channel, level });
+        const reservationKey = followUpOpportunityKey("assessment", String(assessment.id || ""), assessment.lead_id);
+        dryRunReservations.set(reservationKey, (dryRunReservations.get(reservationKey) || 0) + 1);
         continue;
       }
 

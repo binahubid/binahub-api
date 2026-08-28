@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateFollowUpWindow, followUpWindowFromEnvironment } from "./follow-up-policy";
+import { evaluateFollowUpWindow, followUpStopReason, followUpWindowFromEnvironment } from "./follow-up-policy";
 
 describe("follow-up business window", () => {
   it("allows a weekday during Jakarta working hours", () => {
@@ -21,5 +21,21 @@ describe("follow-up business window", () => {
       FOLLOW_UP_HOLIDAYS: "2026-08-17,invalid",
     });
     expect(policy).toMatchObject({ timeZone: "Asia/Makassar", startHour: 8, endHour: 17, weekdays: [1, 2, 3, 4, 5, 6], holidays: ["2026-08-17"] });
+  });
+
+  it("uses the approved 08:00-17:00 WIB default", () => {
+    expect(followUpWindowFromEnvironment({})).toMatchObject({
+      timeZone: "Asia/Jakarta",
+      startHour: 8,
+      endHour: 17,
+      weekdays: [1, 2, 3, 4, 5],
+    });
+  });
+
+  it("stops after three messages, an active booking, or an active opportunity", () => {
+    expect(followUpStopReason({ sentCount: 3 })).toBe("MAX_MESSAGES_REACHED");
+    expect(followUpStopReason({ sentCount: 0, bookingStatus: "confirmed" })).toBe("MEETING_BOOKED");
+    expect(followUpStopReason({ sentCount: 0, opportunityStage: "consultation" })).toBe("OPPORTUNITY_ACTIVE_OR_CLOSED");
+    expect(followUpStopReason({ sentCount: 2, opportunityStage: "identified" })).toBeNull();
   });
 });

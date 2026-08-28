@@ -4,9 +4,12 @@ import { adminError, logAdminEvent, parseValidatedBody } from "@/lib/admin-api";
 import { proposalDraftSchema } from "@/lib/admin-mutation-schemas";
 import { generateAssessmentProposal } from "@/lib/ai-service";
 import {
+  addBusinessDays,
   calculateProposalCommercials,
+  evaluateRequiredProposalData,
   evaluateProposalGate,
   normalizeProposalRules,
+  proposalReviewSlaBusinessDays,
   type ProposalModuleInput,
 } from "@/lib/proposal-policy";
 import { createServerSupabase } from "@/lib/supabase";
@@ -102,8 +105,11 @@ export async function POST(req: NextRequest) {
   });
   const commercials = calculateProposalCommercials(modules, input.discountPercent);
   const form = objectValue((assessment as AssessmentRow).form_data);
-  const requiredDataComplete = [form.name, form.email, form.company, form.challenge || form.target]
-    .every((value) => typeof value === "string" && value.trim().length > 0);
+  const requiredProposalData = evaluateRequiredProposalData({
+    form,
+    modules,
+    provided: input.proposalContext,
+  });
   const gate = evaluateProposalGate({
     rules,
     modules,
@@ -112,8 +118,10 @@ export async function POST(req: NextRequest) {
     scopeType: input.scopeType,
     aiConfidence: input.aiConfidence,
     riskFlags: input.riskFlags,
-    requiredDataComplete,
+    requiredDataComplete: requiredProposalData.complete,
+    requiredDataMissing: requiredProposalData.missingFields,
   });
+  const reviewSlaBusinessDays = proposalReviewSlaBusinessDays(gate.reasons);
   const isSimulation = rules.isMock || modules.some((module) => module.isMock);
 
   const generatedProposal = await generateAssessmentProposal({
@@ -156,7 +164,10 @@ export async function POST(req: NextRequest) {
     notes: input.notes,
     riskFlags: input.riskFlags,
     aiConfidence: input.aiConfidence ?? null,
-    requiredDataComplete,
+    requiredData: requiredProposalData.data,
+    requiredDataComplete: requiredProposalData.complete,
+    requiredDataMissing: requiredProposalData.missingFields,
+    reviewSlaBusinessDays,
     isSimulation,
     rulesVersion: rules.version,
     generatedAt,
@@ -176,7 +187,7 @@ export async function POST(req: NextRequest) {
 
   await db.from("proposal_approvals").update({ status: "cancelled" }).eq("assessment_id", input.assessmentId).eq("status", "pending");
   if (gate.status === "pending_approval") {
-    const dueAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const dueAt = addBusinessDays(new Date(), reviewSlaBusinessDays).toISOString();
     const { error: approvalError } = await db.from("proposal_approvals").insert({
       assessment_id: input.assessmentId,
       status: "pending",

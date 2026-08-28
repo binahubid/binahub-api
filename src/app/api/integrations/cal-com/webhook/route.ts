@@ -115,6 +115,27 @@ export async function POST(req: NextRequest) {
       .upsert(bookingPayload, { onConflict: "provider,provider_uid" });
     if (bookingError) throw bookingError;
 
+    // A booked or rescheduled consultation is an explicit stop condition for
+    // queued outreach. Cancellation does not auto-resume; an authorized human
+    // must decide whether and where the sequence should continue.
+    if (["requested", "confirmed", "rescheduled"].includes(event.status)) {
+      if (leadId) {
+        const [{ error: assessmentPauseError }, { error: inquiryPauseError }] = await Promise.all([
+          db.from("assessments").update({ follow_up_paused: true }).eq("lead_id", leadId),
+          db.from("inquiries").update({ follow_up_paused: true }).eq("lead_id", leadId),
+        ]);
+        if (assessmentPauseError) throw assessmentPauseError;
+        if (inquiryPauseError) throw inquiryPauseError;
+      }
+      if (event.assessmentId && UUID_PATTERN.test(event.assessmentId)) {
+        const { error: assessmentPauseError } = await db
+          .from("assessments")
+          .update({ follow_up_paused: true })
+          .eq("id", event.assessmentId);
+        if (assessmentPauseError) throw assessmentPauseError;
+      }
+    }
+
     await db.from("calendar_webhook_events").update({
       processing_status: "processed",
       processed_at: new Date().toISOString(),

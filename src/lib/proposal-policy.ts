@@ -34,6 +34,24 @@ export type ProposalModuleInput = {
   catalogVersion: string;
 };
 
+export const REQUIRED_PROPOSAL_FIELDS = [
+  "organizationName",
+  "problemOrNeed",
+  "objective",
+  "participantEstimate",
+  "targetAudience",
+  "scope",
+  "timeline",
+  "decisionMakerOrSponsor",
+  "budgetIndication",
+  "deliveryLocationOrMode",
+  "expectedOutcome",
+  "nextStep",
+] as const;
+
+export type RequiredProposalField = typeof REQUIRED_PROPOSAL_FIELDS[number];
+export type RequiredProposalData = Record<RequiredProposalField, string>;
+
 export const DEFAULT_MOCK_PROPOSAL_RULES: ProposalRules = {
   version: "v0.1-mock",
   isMock: true,
@@ -100,6 +118,56 @@ export function calculateProposalCommercials(modules: ProposalModuleInput[], dis
   };
 }
 
+function cleanText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export function evaluateRequiredProposalData(input: {
+  form: Record<string, unknown>;
+  modules: ProposalModuleInput[];
+  provided?: Partial<Record<RequiredProposalField, unknown>>;
+}) {
+  const provided = input.provided || {};
+  const standardScope = input.modules
+    .map((module) => cleanText(module.standardScope))
+    .filter(Boolean)
+    .join("; ");
+  const data: RequiredProposalData = {
+    organizationName: cleanText(provided.organizationName) || cleanText(input.form.company),
+    problemOrNeed: cleanText(provided.problemOrNeed) || cleanText(input.form.challenge),
+    objective: cleanText(provided.objective) || cleanText(input.form.target),
+    participantEstimate: cleanText(provided.participantEstimate),
+    targetAudience: cleanText(provided.targetAudience),
+    scope: cleanText(provided.scope) || standardScope,
+    timeline: cleanText(provided.timeline),
+    decisionMakerOrSponsor: cleanText(provided.decisionMakerOrSponsor),
+    budgetIndication: cleanText(provided.budgetIndication),
+    deliveryLocationOrMode: cleanText(provided.deliveryLocationOrMode),
+    expectedOutcome: cleanText(provided.expectedOutcome),
+    nextStep: cleanText(provided.nextStep),
+  };
+  const missingFields = REQUIRED_PROPOSAL_FIELDS.filter((field) => !data[field]);
+  return { data, missingFields, complete: missingFields.length === 0 };
+}
+
+export function addBusinessDays(date: Date, days: number) {
+  const result = new Date(date);
+  let remaining = Math.max(0, Math.floor(days));
+  while (remaining > 0) {
+    result.setUTCDate(result.getUTCDate() + 1);
+    const weekday = result.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) remaining -= 1;
+  }
+  return result;
+}
+
+export function proposalReviewSlaBusinessDays(reasons: ProposalGateReason[]) {
+  const codes = new Set(reasons.map((reason) => reason.code));
+  if (codes.has("CUSTOM_SCOPE")) return 3;
+  if (codes.has("HIGH_DEAL_VALUE") || codes.has("DISCOUNT_APPROVAL")) return 2;
+  return 1;
+}
+
 export function evaluateProposalGate(input: {
   rules: ProposalRules;
   modules: ProposalModuleInput[];
@@ -109,6 +177,7 @@ export function evaluateProposalGate(input: {
   aiConfidence?: number;
   riskFlags?: string[];
   requiredDataComplete: boolean;
+  requiredDataMissing?: string[];
 }) {
   const reasons: ProposalGateReason[] = [];
   const add = (code: string, message: string, severity: ProposalGateReason["severity"] = "blocking") => {
@@ -125,6 +194,9 @@ export function evaluateProposalGate(input: {
     add("MODULE_NOT_READY", "Satu atau lebih modul belum berstatus siap dijual.");
   }
   if (input.scopeType === "custom") add("CUSTOM_SCOPE", "Scope custom wajib ditinjau manusia.");
+  if (input.totalBeforeTax < input.rules.minimumTransaction) {
+    add("BELOW_MINIMUM_TRANSACTION", "Nilai proposal berada di bawah minimum transaksi dan memerlukan keputusan manusia.");
+  }
   if (input.totalBeforeTax > input.rules.humanGate.highDealThreshold) {
     add("HIGH_DEAL_VALUE", "Nilai proposal melewati batas review manusia.");
   }
@@ -137,7 +209,12 @@ export function evaluateProposalGate(input: {
   if (typeof input.aiConfidence === "number" && input.aiConfidence < input.rules.humanGate.lowConfidenceThreshold) {
     add("LOW_AI_CONFIDENCE", "Confidence AI berada di bawah threshold review.");
   }
-  if (!input.requiredDataComplete) add("INCOMPLETE_DATA", "Data minimum proposal belum lengkap.");
+  if (!input.requiredDataComplete) {
+    const suffix = input.requiredDataMissing?.length
+      ? ` Data belum tersedia: ${input.requiredDataMissing.join(", ")}.`
+      : "";
+    add("INCOMPLETE_DATA", `Data wajib proposal belum lengkap.${suffix}`);
+  }
   if ((input.riskFlags || []).length > 0) add("RISK_FLAG", "Terdapat risiko yang harus ditinjau manusia.");
   if (!input.rules.humanGate.allowStandardAutoSend) {
     add("AUTO_SEND_DISABLED", "Pengiriman otomatis belum diizinkan oleh Business Rules.", "warning");

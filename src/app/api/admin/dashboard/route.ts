@@ -74,6 +74,10 @@ type LeadRow = {
   lead_score: number | null;
   lead_status: string | null;
   lead_temperature?: string | null;
+  lead_score_confidence?: number | null;
+  lead_score_reason?: string | null;
+  lead_score_evidence?: unknown;
+  lead_score_rule_version?: string | null;
   lifecycle_stage?: string | null;
   opportunity_stage?: string | null;
   source_metadata?: unknown;
@@ -346,7 +350,7 @@ export async function GET(req: NextRequest) {
   const [leadQuery, inquiryQuery] = await Promise.all([
       db
         .from("leads")
-        .select("id, name, email, company, phone, source, lead_score, lead_status, lead_temperature, lifecycle_stage, opportunity_stage, source_metadata, notes, created_at")
+        .select("id, name, email, company, phone, source, lead_score, lead_status, lead_temperature, lead_score_confidence, lead_score_reason, lead_score_evidence, lead_score_rule_version, lifecycle_stage, opportunity_stage, source_metadata, notes, created_at")
         .order("created_at", { ascending: false }),
       db
         .from("inquiries")
@@ -525,6 +529,10 @@ export async function GET(req: NextRequest) {
       leadScore: lead?.lead_score || null,
       leadStatus: lead?.lead_status || null,
       leadTemperature: lead?.lead_temperature || lead?.lead_status || null,
+      leadScoreConfidence: lead?.lead_score_confidence ?? null,
+      leadScoreReason: lead?.lead_score_reason || null,
+      leadScoreEvidence: lead?.lead_score_evidence || null,
+      leadScoreRuleVersion: lead?.lead_score_rule_version || null,
       lifecycleStage: lead?.lifecycle_stage || "prospect",
       opportunityStage: lead?.opportunity_stage || "identified",
       attribution: form.attribution || (lead?.source_metadata as Record<string, string> | undefined) || {},

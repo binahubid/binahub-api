@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MOCK_PROPOSAL_RULES,
+  addBusinessDays,
   calculateProposalCommercials,
+  evaluateRequiredProposalData,
   evaluateProposalGate,
   normalizeProposalRules,
+  proposalReviewSlaBusinessDays,
   type ProposalModuleInput,
 } from "./proposal-policy";
 
@@ -49,6 +52,26 @@ describe("proposal policy", () => {
     ]));
   });
 
+  it("routes deals below the minimum transaction to human review", () => {
+    const rules = normalizeProposalRules({
+      version: "v1",
+      is_mock: false,
+      rules: { minimumTransaction: 15_000_000, humanGate: { allowStandardAutoSend: true } },
+    });
+    const gate = evaluateProposalGate({
+      rules,
+      modules: [{ ...readyModule, basePrice: 10_000_000, quantity: 1 }],
+      totalBeforeTax: 10_000_000,
+      discountPercent: 0,
+      scopeType: "standard",
+      aiConfidence: 0.9,
+      riskFlags: [],
+      requiredDataComplete: true,
+    });
+    expect(gate.reasons.map((reason) => reason.code)).toContain("BELOW_MINIMUM_TRANSACTION");
+    expect(gate.canAutoSend).toBe(false);
+  });
+
   it("allows a real standard proposal when active rules explicitly permit it", () => {
     const rules = normalizeProposalRules({
       version: "v1",
@@ -66,5 +89,37 @@ describe("proposal policy", () => {
       requiredDataComplete: true,
     });
     expect(gate).toMatchObject({ status: "clear", canAutoSend: true, reasons: [] });
+  });
+
+  it("lists every missing Business Rules proposal field without guessing", () => {
+    const result = evaluateRequiredProposalData({
+      form: {
+        company: "PT Contoh",
+        challenge: "Kinerja lintas fungsi belum konsisten.",
+        target: "Meningkatkan eksekusi strategi.",
+      },
+      modules: [readyModule],
+      provided: { timeline: "Q4 2026" },
+    });
+
+    expect(result.complete).toBe(false);
+    expect(result.data.scope).toBe("Scope");
+    expect(result.missingFields).toEqual(expect.arrayContaining([
+      "participantEstimate",
+      "targetAudience",
+      "decisionMakerOrSponsor",
+      "budgetIndication",
+      "deliveryLocationOrMode",
+      "expectedOutcome",
+      "nextStep",
+    ]));
+  });
+
+  it("uses business-day SLAs for standard, commercial approval, and custom review", () => {
+    const friday = new Date("2026-08-28T03:00:00.000Z");
+    expect(addBusinessDays(friday, 1).toISOString()).toBe("2026-08-31T03:00:00.000Z");
+    expect(proposalReviewSlaBusinessDays([])).toBe(1);
+    expect(proposalReviewSlaBusinessDays([{ code: "HIGH_DEAL_VALUE", message: "", severity: "blocking" }])).toBe(2);
+    expect(proposalReviewSlaBusinessDays([{ code: "CUSTOM_SCOPE", message: "", severity: "blocking" }])).toBe(3);
   });
 });

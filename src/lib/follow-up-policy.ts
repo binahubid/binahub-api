@@ -8,11 +8,30 @@ export type FollowUpWindowPolicy = {
 
 export const DEFAULT_FOLLOW_UP_WINDOW: FollowUpWindowPolicy = {
   timeZone: "Asia/Jakarta",
-  startHour: 9,
-  endHour: 16,
+  startHour: 8,
+  endHour: 17,
   weekdays: [1, 2, 3, 4, 5],
   holidays: [],
 };
+
+export const MAX_FOLLOW_UP_MESSAGES_PER_OPPORTUNITY = 3;
+export const FOLLOW_UP_ACTIVE_BOOKING_STATUSES = new Set(["requested", "confirmed", "rescheduled"]);
+export const FOLLOW_UP_STOP_OPPORTUNITY_STAGES = new Set(["consultation", "negotiation", "won", "lost"]);
+
+export function followUpStopReason(input: {
+  sentCount: number;
+  bookingStatus?: string | null;
+  opportunityStage?: string | null;
+}) {
+  if (input.sentCount >= MAX_FOLLOW_UP_MESSAGES_PER_OPPORTUNITY) return "MAX_MESSAGES_REACHED" as const;
+  if (FOLLOW_UP_ACTIVE_BOOKING_STATUSES.has(String(input.bookingStatus || "").toLowerCase())) {
+    return "MEETING_BOOKED" as const;
+  }
+  if (FOLLOW_UP_STOP_OPPORTUNITY_STAGES.has(String(input.opportunityStage || "").toLowerCase())) {
+    return "OPPORTUNITY_ACTIVE_OR_CLOSED" as const;
+  }
+  return null;
+}
 
 function integerInRange(value: string | undefined, fallback: number, min: number, max: number) {
   const parsed = Number(value);

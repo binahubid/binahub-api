@@ -95,6 +95,20 @@ export const proposalDraftSchema = z.object({
   aiConfidence: z.number().min(0).max(1).optional(),
   riskFlags: z.array(z.string().trim().min(1).max(100)).max(10).default([]),
   notes: z.string().trim().max(4000).default(""),
+  proposalContext: z.object({
+    organizationName: z.string().trim().max(300).optional(),
+    problemOrNeed: z.string().trim().max(4000).optional(),
+    objective: z.string().trim().max(4000).optional(),
+    participantEstimate: z.string().trim().max(500).optional(),
+    targetAudience: z.string().trim().max(1000).optional(),
+    scope: z.string().trim().max(6000).optional(),
+    timeline: z.string().trim().max(1000).optional(),
+    decisionMakerOrSponsor: z.string().trim().max(500).optional(),
+    budgetIndication: z.string().trim().max(500).optional(),
+    deliveryLocationOrMode: z.string().trim().max(1000).optional(),
+    expectedOutcome: z.string().trim().max(4000).optional(),
+    nextStep: z.string().trim().max(2000).optional(),
+  }).strict().default({}),
 }).strict();
 
 export const proposalApprovalSchema = z.object({

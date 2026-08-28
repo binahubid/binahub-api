@@ -12,7 +12,7 @@ Kedua repositori memiliki migration historis bernomor `0005`–`0017`. Supabase 
 2. Jalankan `npx supabase migration list` dari direktori yang sebelumnya menjadi sumber migration production. Jangan melakukan `migration repair` otomatis.
 3. Jalankan `production_readiness.sql` secara read-only melalui SQL Editor.
 4. Jika object dari migration API `0005`–`0014` sudah ada, jangan replay file tersebut.
-5. Terapkan `0015_ceo_revision_hardening.sql` sampai `0025_catalog_requests_and_calcom.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0021` mengunci idempotensi assessment, `0022` menambahkan BinaInsight sebagai modul program dan claim follow-up, `0023` menambahkan lifecycle lead, atribusi kampanye, suppression email, dan atomic claim untuk worker event, `0024` menambahkan katalog modul, Business Rules berversi, snapshot proposal, serta human gate, dan `0025` menambahkan request modul serta sinkronisasi booking Cal.com.
+5. Terapkan `0015_ceo_revision_hardening.sql` sampai `0026_business_rules_v1_confirmed.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0021` mengunci idempotensi assessment, `0022` menambahkan BinaInsight sebagai modul program dan claim follow-up, `0023` menambahkan lifecycle lead, atribusi kampanye, suppression email, dan atomic claim untuk worker event, `0024` menambahkan katalog modul, Business Rules berversi, snapshot proposal, serta human gate, `0025` menambahkan request modul serta sinkronisasi booking Cal.com, dan `0026` menyimpan keputusan Business Rules v1 serta guardrail qualification/follow-up tanpa mengaktifkan proposal otomatis.
 6. Jalankan kembali `production_readiness.sql`. Semua kolom `*_ready` harus `true` dan seluruh counter `*_issues` harus `0`.
 7. Deploy API lebih dahulu, lalu frontend. Lakukan smoke test role admin, fasilitator, dan peserta.
 
@@ -21,7 +21,7 @@ Jangan menandai migration sebagai applied hanya untuk melewati error. Error dupl
 ## Fresh Database
 
 1. Terapkan migration `app-binahub/supabase/migrations/0001` sampai migration terakhir secara leksikografis.
-2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0025` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
+2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0026` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
 3. Jalankan seed T-BOS yang disediakan frontend bila data mission/dimensi belum terbentuk.
 4. Jalankan `production_readiness.sql` dan health check T-BOS frontend.
 
@@ -45,3 +45,6 @@ Untuk jangka panjang, buat satu baseline schema bertimestamp setelah release pro
 - Proposal mock menampilkan watermark simulasi; modul belum siap dan diskon di atas batas absolut tidak dapat di-approve.
 - Katalog publik tidak pernah mengembalikan modul mock atau modul yang belum berstatus `ready`.
 - Webhook Cal.com dengan signature salah ditolak; event yang sama idempotent; create/reschedule/cancel/no-show tersimpan tanpa menggandakan booking.
+- Business Rules `v1.0-approved-partial` tersedia sebagai `draft`, tidak menggantikan rules aktif, dan daftar activation blockers tetap terisi.
+- Lead qualification menyimpan score, temperature, confidence, evidence, dan rule version; data yang belum tersedia tidak ditebak.
+- Maksimum tiga follow-up dihitung per lead/opportunity lintas inquiry, assessment result, dan proposal.

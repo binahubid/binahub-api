@@ -13,6 +13,7 @@ const decisionMap = {
 const NON_OVERRIDABLE_GATE_REASONS = new Set([
   "DISCOUNT_LIMIT_EXCEEDED",
   "MODULE_NOT_READY",
+  "INCOMPLETE_DATA",
 ]);
 
 export async function POST(req: NextRequest) {
@@ -22,19 +23,22 @@ export async function POST(req: NextRequest) {
   if (parsed.error || !parsed.data) return adminError(parsed.error, 400, "INVALID_APPROVAL_DECISION");
 
   const input = parsed.data;
+  if (input.decision === "approve" && input.note.trim().length < 5) {
+    return adminError("Alasan approval wajib diisi untuk audit override.", 400, "APPROVAL_REASON_REQUIRED");
+  }
   const decision = decisionMap[input.decision];
   const db = createServerSupabase();
+  const { data: assessmentSnapshot, error: gateError } = await db
+    .from("assessments")
+    .select("proposal_gate_status, proposal_gate_reasons")
+    .eq("id", input.assessmentId)
+    .single();
+  if (gateError || !assessmentSnapshot) {
+    return adminError(gateError?.message || "Assessment tidak ditemukan.", 404, "ASSESSMENT_NOT_FOUND");
+  }
   if (input.decision === "approve") {
-    const { data: assessment, error: gateError } = await db
-      .from("assessments")
-      .select("proposal_gate_reasons")
-      .eq("id", input.assessmentId)
-      .single();
-    if (gateError || !assessment) {
-      return adminError(gateError?.message || "Assessment tidak ditemukan.", 404, "ASSESSMENT_NOT_FOUND");
-    }
-    const reasons = Array.isArray(assessment.proposal_gate_reasons)
-      ? assessment.proposal_gate_reasons as Array<{ code?: unknown }>
+    const reasons = Array.isArray(assessmentSnapshot.proposal_gate_reasons)
+      ? assessmentSnapshot.proposal_gate_reasons as Array<{ code?: unknown }>
       : [];
     const hardBlocks = reasons
       .map((reason) => typeof reason.code === "string" ? reason.code : "")
@@ -76,7 +80,18 @@ export async function POST(req: NextRequest) {
     targetType: "assessment",
     targetId: input.assessmentId,
     actor: admin.email,
-    payload: { decision: input.decision, note: input.note },
+    payload: {
+      decision: input.decision,
+      reason: input.note,
+      before: {
+        gateStatus: assessmentSnapshot.proposal_gate_status,
+        gateReasons: assessmentSnapshot.proposal_gate_reasons,
+      },
+      after: {
+        gateStatus: decision.gate,
+        proposalStatus: decision.proposal,
+      },
+    },
     status: decision.approval,
     message: `Proposal ${decision.approval} oleh ${admin.email}.`,
   });

@@ -124,6 +124,28 @@ select
       where table_schema = 'public' and table_name = 'inquiries' and column_name = 'role_title'
     )
   ) as calendar_and_catalog_request_ready,
+  (
+    exists (
+      select 1 from public.business_rule_sets
+      where version = 'v1.0-approved-partial'
+        and status = 'draft'
+        and is_mock = false
+        and jsonb_array_length(coalesce(rules #> '{activation,blockers}', '[]'::jsonb)) > 0
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'lead_score_evidence'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'follow_up_events' and column_name = 'lead_id'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'follow_up_claims' and column_name = 'lead_id'
+    )
+    and to_regprocedure('public.claim_follow_up_delivery(text,uuid,text,integer,text,uuid)') is not null
+  ) as business_rules_v1_guardrails_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

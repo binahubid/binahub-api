@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { createServerSupabase } from '@/lib/supabase';
-import { analyzeAssessment, scoreLeadWithAI } from '@/lib/ai-service';
+import { analyzeAssessment } from '@/lib/ai-service';
 import { sendAssessmentEmail } from '@/lib/email-service';
 import { generatePDFBuffer, AssessmentResult } from '@/lib/pdf-service';
 import { AssessmentSchema } from '@/lib/validations';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireTransformationActor } from '@/lib/transformation/auth';
 import { isProgramModuleEnabled } from '@/lib/program-access';
+import { qualifyLead } from '@/lib/lead-qualification';
 
 const MAX_ASSESSMENT_BODY_BYTES = 64 * 1024;
 const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9._:-]{16,128}$/;
@@ -221,23 +222,28 @@ export async function POST(req: NextRequest) {
       .eq('id', assessment.id);
     if (resultUpdateError) throw resultUpdateError;
 
-    // 6. Complete lead scoring before the serverless request ends.
+    // 6. Apply the confirmed deterministic qualification rules. AI analysis may
+    // enrich the assessment, but it cannot bypass commercial thresholds.
     try {
-      const leadScore = await scoreLeadWithAI({
-        source: body.source || 'insight_assessment',
+      const leadQualification = qualifyLead({
         assessmentCompleted: true,
-        name: body.name,
-        company: body.company,
+        employees: body.employees,
+        role: body.role,
         challenge: body.challenge,
+        target: body.target,
       });
       const { error: leadScoreUpdateError } = await supabase
         .from('leads')
         .update({
-          lead_score: leadScore.score,
-          lead_status: leadScore.status,
-          lead_temperature: leadScore.status,
+          lead_score: leadQualification.score,
+          lead_status: leadQualification.temperature,
+          lead_temperature: leadQualification.temperature,
+          lead_score_confidence: leadQualification.confidence,
+          lead_score_reason: leadQualification.reasoning,
+          lead_score_evidence: leadQualification,
+          lead_score_rule_version: leadQualification.ruleVersion,
           lifecycle_stage: 'lead',
-          opportunity_stage: leadScore.status === 'hot' ? 'qualified' : 'identified',
+          opportunity_stage: leadQualification.temperature === 'hot' ? 'qualified' : 'identified',
           last_meaningful_activity_at: new Date().toISOString(),
         })
         .eq('id', lead.id);

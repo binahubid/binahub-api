@@ -15,6 +15,26 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
 
+## [0.7.0] - 2026-08-28
+
+### Added — Business Rules v1 dan Qualification Guardrails
+
+- Menambahkan migration `0026_business_rules_v1_confirmed.sql` yang menyimpan keputusan Business Rules terkonfirmasi sebagai draft non-mock, lengkap dengan activation blockers untuk data katalog, ownership, approver, SLA risiko, template, dan wording pajak yang masih terbuka.
+- Menambahkan lead qualification deterministik dengan threshold Cold/Warm/Hot, syarat wajib Hot, minimum tiga buying signals, ICP minimum 20 orang, exclusion list industri, confidence, evidence, serta versi rule yang dapat diaudit.
+- Menambahkan 12 field wajib proposal, daftar data yang belum lengkap, dan SLA review berbasis hari kerja.
+- Menambahkan atomic claim follow-up per opportunity untuk mencegah lebih dari tiga pesan walaupun worker berjalan bersamaan.
+
+### Changed
+
+- Mengubah jam follow-up default menjadi Senin–Jumat pukul 08.00–17.00 WIB.
+- Menghentikan follow-up ketika booking Cal.com aktif atau opportunity masuk tahap konsultasi, negosiasi, won, atau lost; booking baru juga otomatis menjeda antrean terkait.
+- Menjadikan data proposal yang belum lengkap sebagai hard block yang tidak dapat dilewati melalui approval biasa.
+- Mencatat snapshot sebelum/sesudah dan alasan pada audit approval proposal.
+
+### Safety
+
+- Proposal otomatis dan outbound tetap nonaktif karena katalog modul serta ownership belum lengkap; rule set v1 tidak diaktifkan oleh migration.
+
 ## [0.6.0] - 2026-08-28
 
 ### Added — BinaHub AI Business Process, Catalog, Proposal & Scheduling
