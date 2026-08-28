@@ -26,6 +26,7 @@ type FormData = {
   challenge?: string;
   target?: string;
   answers?: Record<string, number>;
+  attribution?: Record<string, string>;
 };
 
 type AssessmentRow = {
@@ -53,6 +54,13 @@ type AssessmentRow = {
   follow_up_history?: unknown;
   follow_up_paused?: boolean | null;
   proposal_data?: unknown;
+  proposal_draft_data?: unknown;
+  proposal_gate_status?: string | null;
+  proposal_gate_reasons?: unknown;
+  proposal_catalog_version?: string | null;
+  proposal_generated_at?: string | null;
+  proposal_approved_at?: string | null;
+  proposal_approved_by?: string | null;
   created_at: string;
 };
 
@@ -65,6 +73,10 @@ type LeadRow = {
   source: string | null;
   lead_score: number | null;
   lead_status: string | null;
+  lead_temperature?: string | null;
+  lifecycle_stage?: string | null;
+  opportunity_stage?: string | null;
+  source_metadata?: unknown;
   notes: string | null;
   created_at: string | null;
 };
@@ -79,10 +91,30 @@ type InquiryRow = {
   source?: string | null;
   status?: string | null;
   admin_notes?: string | null;
+  module_request_data?: unknown;
   follow_up_level?: number | null;
   follow_up_last_sent_at?: string | null;
   follow_up_paused?: boolean | null;
   created_at: string | null;
+};
+
+type CalendarBookingRow = {
+  id: string;
+  provider_uid: string;
+  lead_id?: string | null;
+  assessment_id?: string | null;
+  event_type_slug?: string | null;
+  title?: string | null;
+  status: string;
+  attendee_name?: string | null;
+  attendee_email?: string | null;
+  organizer_email?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  time_zone?: string | null;
+  meeting_url?: string | null;
+  cancellation_reason?: string | null;
+  updated_at?: string | null;
 };
 
 type CoachRow = {
@@ -287,7 +319,7 @@ export async function GET(req: NextRequest) {
   const db = createServerSupabase();
 
   const assessmentSelect =
-    "id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, assessment_status, result_email_sent_at, result_email_id, proposal_status, proposal_sent_at, proposal_email_id, proposal_requested_at, result_follow_up_level, result_follow_up_sent_at, result_follow_up_email_id, proposal_follow_up_level, proposal_follow_up_sent_at, proposal_follow_up_email_id, follow_up_history, follow_up_paused, proposal_data, created_at";
+    "id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, assessment_status, result_email_sent_at, result_email_id, proposal_status, proposal_sent_at, proposal_email_id, proposal_requested_at, result_follow_up_level, result_follow_up_sent_at, result_follow_up_email_id, proposal_follow_up_level, proposal_follow_up_sent_at, proposal_follow_up_email_id, follow_up_history, follow_up_paused, proposal_data, proposal_draft_data, proposal_gate_status, proposal_gate_reasons, proposal_catalog_version, proposal_generated_at, proposal_approved_at, proposal_approved_by, created_at";
 
   const assessmentSelectWithoutEmailIds =
     "id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, assessment_status, result_email_sent_at, proposal_status, proposal_sent_at, proposal_requested_at, proposal_data, created_at";
@@ -311,18 +343,33 @@ export async function GET(req: NextRequest) {
         .order("created_at", { ascending: false })
     : fallbackAssessmentQuery;
 
-  const [{ data: leadRows }, { data: inquiryRows }] =
-    await Promise.all([
+  const [leadQuery, inquiryQuery] = await Promise.all([
       db
         .from("leads")
-        .select("id, name, email, company, phone, source, lead_score, lead_status, notes, created_at")
+        .select("id, name, email, company, phone, source, lead_score, lead_status, lead_temperature, lifecycle_stage, opportunity_stage, source_metadata, notes, created_at")
         .order("created_at", { ascending: false }),
       db
         .from("inquiries")
-        .select("id, lead_id, name, email, whatsapp, message, source, status, admin_notes, created_at")
+        .select("id, lead_id, name, email, whatsapp, message, source, status, admin_notes, module_request_data, follow_up_level, follow_up_last_sent_at, follow_up_paused, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
     ]);
+
+  const fallbackLeadQuery = leadQuery.error
+    ? await db
+        .from("leads")
+        .select("id, name, email, company, phone, source, lead_score, lead_status, notes, created_at")
+        .order("created_at", { ascending: false })
+    : leadQuery;
+  const fallbackInquiryQuery = inquiryQuery.error
+    ? await db
+        .from("inquiries")
+        .select("id, lead_id, name, email, whatsapp, message, source, status, admin_notes, follow_up_level, follow_up_last_sent_at, follow_up_paused, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100)
+    : inquiryQuery;
+  const leadRows = fallbackLeadQuery.data;
+  const inquiryRows = fallbackInquiryQuery.data;
 
   const assessmentRows = finalAssessmentQuery.data;
   const assessmentError = finalAssessmentQuery.error;
@@ -418,6 +465,18 @@ export async function GET(req: NextRequest) {
     smartActionRows = [];
   }
 
+  let calendarBookingRows: CalendarBookingRow[] = [];
+  try {
+    const { data } = await db
+      .from("calendar_bookings")
+      .select("id, provider_uid, lead_id, assessment_id, event_type_slug, title, status, attendee_name, attendee_email, organizer_email, start_time, end_time, time_zone, meeting_url, cancellation_reason, updated_at")
+      .order("start_time", { ascending: true })
+      .limit(200);
+    calendarBookingRows = (data || []) as CalendarBookingRow[];
+  } catch {
+    calendarBookingRows = [];
+  }
+
   const leadsById = new Map((leadRows || []).map((lead) => [lead.id, lead as LeadRow]));
 
   const assessments = ((assessmentRows || []) as AssessmentRow[]).map((row) => {
@@ -451,6 +510,13 @@ export async function GET(req: NextRequest) {
       proposalRequestedAt: row.proposal_requested_at || null,
       proposalSentAt: row.proposal_sent_at || null,
       proposalEmailId: row.proposal_email_id || null,
+      proposalDraft: row.proposal_draft_data || null,
+      proposalGateStatus: row.proposal_gate_status || "not_evaluated",
+      proposalGateReasons: Array.isArray(row.proposal_gate_reasons) ? row.proposal_gate_reasons : [],
+      proposalCatalogVersion: row.proposal_catalog_version || null,
+      proposalGeneratedAt: row.proposal_generated_at || null,
+      proposalApprovedAt: row.proposal_approved_at || null,
+      proposalApprovedBy: row.proposal_approved_by || null,
       resultFollowUpLevel: row.result_follow_up_level || 0,
       resultFollowUpSentAt: row.result_follow_up_sent_at || null,
       proposalFollowUpLevel: row.proposal_follow_up_level || 0,
@@ -458,6 +524,10 @@ export async function GET(req: NextRequest) {
       followUpPaused: row.follow_up_paused === true,
       leadScore: lead?.lead_score || null,
       leadStatus: lead?.lead_status || null,
+      leadTemperature: lead?.lead_temperature || lead?.lead_status || null,
+      lifecycleStage: lead?.lifecycle_stage || "prospect",
+      opportunityStage: lead?.opportunity_stage || "identified",
+      attribution: form.attribution || (lead?.source_metadata as Record<string, string> | undefined) || {},
       createdAt: row.created_at,
     };
   });
@@ -654,6 +724,7 @@ export async function GET(req: NextRequest) {
       followUpLevel: item.follow_up_level || 0,
       followUpLastSentAt: item.follow_up_last_sent_at || null,
       followUpPaused: item.follow_up_paused === true,
+      moduleRequest: parseJson<Record<string, unknown>>(item.module_request_data, {}),
       createdAt: item.created_at,
     }))
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -671,6 +742,10 @@ export async function GET(req: NextRequest) {
       totalInquiries: inquiries.length,
       totalCoaches: normalizedCoaches.length,
       totalEmployees: employeeRows.length,
+      upcomingMeetings: calendarBookingRows.filter((item) =>
+        ["requested", "confirmed", "rescheduled"].includes(item.status)
+        && new Date(item.end_time || item.start_time || 0).getTime() >= Date.now()
+      ).length,
     },
     dimensionStats,
     categoryBreakdown,
@@ -689,5 +764,25 @@ export async function GET(req: NextRequest) {
     projects: projectRows,
     projectAssignments: projectAssignmentRows,
     smartActions: smartActionRows,
+    calendarBookings: calendarBookingRows.map((item) => ({
+      id: item.id,
+      providerUid: item.provider_uid,
+      leadId: item.lead_id || null,
+      assessmentId: item.assessment_id || null,
+      eventTypeSlug: item.event_type_slug || null,
+      title: item.title || "Konsultasi BinaHub",
+      status: item.status,
+      attendeeName: item.attendee_name || "-",
+      attendeeEmail: item.attendee_email || "-",
+      organizerEmail: item.organizer_email || null,
+      startTime: item.start_time || null,
+      endTime: item.end_time || null,
+      timeZone: item.time_zone || "Asia/Jakarta",
+      meetingUrl: item.meeting_url || null,
+      cancellationReason: item.cancellation_reason || null,
+      updatedAt: item.updated_at || null,
+      isUpcoming: ["requested", "confirmed", "rescheduled"].includes(item.status)
+        && new Date(item.end_time || item.start_time || 0).getTime() >= Date.now(),
+    })),
   });
 }

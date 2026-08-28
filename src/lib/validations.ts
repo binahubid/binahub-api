@@ -3,6 +3,19 @@ import { z } from 'zod';
 export const ASSESSMENT_QUESTION_IDS = Array.from({ length: 49 }, (_, index) => String(index + 1));
 const assessmentQuestionIdSet = new Set(ASSESSMENT_QUESTION_IDS);
 
+export const AttributionSchema = z.object({
+  utmSource: z.string().trim().max(200).optional(),
+  utmMedium: z.string().trim().max(200).optional(),
+  utmCampaign: z.string().trim().max(300).optional(),
+  utmContent: z.string().trim().max(300).optional(),
+  utmTerm: z.string().trim().max(300).optional(),
+  gclid: z.string().trim().max(500).optional(),
+  fbclid: z.string().trim().max(500).optional(),
+  msclkid: z.string().trim().max(500).optional(),
+  landingPage: z.string().trim().max(2048).optional(),
+  referrer: z.string().trim().max(2048).optional(),
+}).strict();
+
 export const AssessmentAnswersSchema = z
   .record(z.string(), z.number().int().min(1).max(5))
   .superRefine((answers, context) => {
@@ -36,6 +49,7 @@ export const AssessmentSchema = z.object({
   target: z.string().trim().max(4000).optional(),
   answers: AssessmentAnswersSchema,
   source: z.literal('insight_assessment').optional().default('insight_assessment'),
+  attribution: AttributionSchema.optional().default({}),
   locale: z.enum(['id', 'en']).optional().default('id'),
 }).strict();
 

@@ -3,9 +3,10 @@ import { z } from "zod";
 import { adminError, parseValidatedBody } from "@/lib/admin-api";
 import { createServerSupabase } from "@/lib/supabase";
 import { generateAssessmentFollowUp, generateInquiryFollowUp } from "@/lib/ai-service";
-import { sendOutreachEmail } from "@/lib/email-service";
+import { OutreachSuppressedError, sendOutreachEmail } from "@/lib/email-service";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getBearerToken } from "@/lib/auth-role";
+import { evaluateFollowUpWindow, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
 
 type FollowUpLevel = 1 | 2 | 3;
 type AssessmentFollowUpChannel = "result" | "proposal";
@@ -315,6 +316,18 @@ async function sendFollowUpForInquiry(
     await updateFollowUpClaim(db, "inquiry", inquiry.id, "inquiry", level, { status: "sent", email_id: emailId });
     return { status, emailId };
   } catch (error) {
+    if (error instanceof OutreachSuppressedError) {
+      const pausedAt = new Date().toISOString();
+      await db.from("inquiries").update({
+        follow_up_paused: true,
+        admin_notes: [
+          String(inquiry.admin_notes || ""),
+          `[${pausedAt}] Follow up otomatis dihentikan karena penerima unsubscribe.`,
+        ].filter(Boolean).join("\n"),
+      }).eq("id", inquiry.id);
+      await releaseFollowUpClaim(db, "inquiry", inquiry.id, "inquiry", level);
+      throw error;
+    }
     if (emailDelivered) {
       await updateFollowUpClaim(db, "inquiry", inquiry.id, "inquiry", level, {
         status: "delivery_unconfirmed",
@@ -409,6 +422,22 @@ async function sendFollowUpForAssessment(
     await updateFollowUpClaim(db, "assessment", assessment.id, channel, level, { status: "sent", email_id: emailId });
     return { status, emailId };
   } catch (error) {
+    if (error instanceof OutreachSuppressedError) {
+      const pausedAt = new Date().toISOString();
+      await db.from("assessments").update({
+        follow_up_paused: true,
+        follow_up_history: appendHistory(assessment.follow_up_history, {
+          type: "assessment",
+          channel,
+          level,
+          status: "Unsubscribed",
+          actor,
+          sentAt: pausedAt,
+        }),
+      }).eq("id", assessment.id);
+      await releaseFollowUpClaim(db, "assessment", assessment.id, channel, level);
+      throw error;
+    }
     if (emailDelivered) {
       await updateFollowUpClaim(db, "assessment", assessment.id, channel, level, {
         status: "delivery_unconfirmed",
@@ -533,8 +562,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Akses cron tidak valid." }, { status: 403 });
   }
 
+  const window = evaluateFollowUpWindow(new Date(), followUpWindowFromEnvironment());
+  if (!window.allowed && process.env.FOLLOW_UP_ENFORCE_BUSINESS_WINDOW !== "false") {
+    return NextResponse.json({
+      success: true,
+      deferred: true,
+      reason: window.isHoliday ? "HOLIDAY" : "OUTSIDE_BUSINESS_WINDOW",
+      localDate: window.localDate,
+      localHour: window.hour,
+      timeZone: window.policy.timeZone,
+      window: `${window.policy.startHour}:00-${window.policy.endHour}:00`,
+      sent: [],
+      failures: [],
+    }, { status: 202 });
+  }
+
   const db = createServerSupabase();
+  const dryRun = process.env.FOLLOW_UP_DRY_RUN === "true";
   const sent: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel; status: string; emailId: string | null }> = [];
+  const candidates: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel }> = [];
   const failures: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level?: FollowUpLevel; error: string }> = [];
 
   const { data: inquiries, error: inquiriesError } = await db.from("inquiries").select("*").order("created_at", { ascending: true }).limit(50);
@@ -542,7 +588,12 @@ export async function GET(req: NextRequest) {
   for (const inquiry of (inquiries || []) as InquiryForFollowUp[]) {
     const level = getDueInquiryLevel(inquiry);
     if (!level) continue;
-    if (sent.length >= 10) break;
+    if (sent.length + candidates.length >= 10) break;
+
+    if (dryRun) {
+      candidates.push({ target: "inquiry", id: inquiry.id, level });
+      continue;
+    }
 
     try {
       const result = await sendFollowUpForInquiry(db, inquiry, level, "follow-up-cron");
@@ -555,12 +606,17 @@ export async function GET(req: NextRequest) {
   const { data: assessments, error: assessmentsError } = await db.from("assessments").select("*").order("created_at", { ascending: true }).limit(100);
   if (assessmentsError) return adminError("Gagal memuat antrean assessment.", 500, "FOLLOW_UP_QUEUE_FAILED");
   for (const assessment of (assessments || []) as AssessmentForFollowUp[]) {
-    if (sent.length >= 20) break;
+    if (sent.length + candidates.length >= 20) break;
 
     for (const channel of ["result", "proposal"] as AssessmentFollowUpChannel[]) {
       const level = getDueAssessmentLevel(assessment, channel);
       if (!level) continue;
-      if (sent.length >= 20) break;
+      if (sent.length + candidates.length >= 20) break;
+
+      if (dryRun) {
+        candidates.push({ target: "assessment", id: assessment.id, channel, level });
+        continue;
+      }
 
       try {
         const result = await sendFollowUpForAssessment(db, assessment, channel, level, "follow-up-cron");
@@ -571,5 +627,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: failures.length === 0, sent, failures }, { status: failures.length ? 207 : 200 });
+  return NextResponse.json(
+    { success: failures.length === 0, dryRun, candidates, sent, failures },
+    { status: failures.length ? 207 : 200 },
+  );
 }

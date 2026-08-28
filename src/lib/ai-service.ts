@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { AssessmentData, DIMENSIONS } from './validations';
 import { calculateAssessmentScores, getAssessmentCategory } from './assessment-scoring';
+import { formatIdr } from './proposal-policy';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'arcee-ai/trinity-large-thinking:free';
@@ -50,6 +51,16 @@ const aiLeadScoreSchema = z.object({
 const aiFollowUpSchema = z.object({
   subject: z.string().trim().min(1).max(300),
   html: z.string().trim().min(1).max(20_000),
+}).strict();
+
+const aiProposalSchema = z.object({
+  subject: z.string().trim().min(1).max(300),
+  opening: z.string().trim().min(1).max(3000),
+  proposedProgram: z.string().trim().min(1).max(300),
+  scope: z.array(z.string().trim().min(1).max(500)).min(1).max(8),
+  timeline: z.string().trim().min(1).max(500),
+  investmentNote: z.string().trim().min(1).max(1000),
+  nextStep: z.string().trim().min(1).max(1000),
 }).strict();
 
 async function callAI(messages: AIMessage[], _jsonMode: boolean = false) {
@@ -326,7 +337,36 @@ export async function generateAssessmentProposal(input: {
   scores?: Record<string, number>;
   aiAnalysis?: string;
   recommendations?: Array<{ title?: string; diagnosis?: string; description?: string; service?: string; priority?: string }>;
+  commercialContext: {
+    items: Array<{
+      name: string;
+      standardScope?: string | null;
+      pricingUnit: string;
+      quantity: number;
+    }>;
+    totalBeforeTax: number;
+    currency: string;
+    isSimulation: boolean;
+  };
 }) {
+  const exactScope = input.commercialContext.items
+    .map((item) => item.standardScope || item.name)
+    .filter(Boolean)
+    .slice(0, 6);
+  const exactDeliverables = input.commercialContext.items
+    .map((item) => `${item.name} — ${item.quantity} × ${item.pricingUnit}`)
+    .slice(0, 6);
+  const fallbackNarrative = {
+    subject: `Rancangan Program BinaHub untuk ${input.company}`,
+    opening: `Terima kasih, ${input.name}. Berdasarkan hasil BinaInsight, kami menyiapkan rancangan awal yang berfokus pada kebutuhan utama ${input.company}.`,
+    proposedProgram: `Program Pengembangan ${input.company}`,
+    scope: exactScope.length ? exactScope : ['Validasi kebutuhan', 'Finalisasi ruang lingkup program'],
+    timeline: 'Dikonfirmasi setelah konsultasi dan finalisasi ruang lingkup',
+    investmentNote: input.commercialContext.isSimulation
+      ? 'SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI. Nilai investasi mengikuti snapshot katalog mock dan wajib dikonfirmasi manusia.'
+      : 'Nilai investasi mengikuti modul yang dipilih pada snapshot katalog dan belum termasuk penyesuaian ruang lingkup di luar standar.',
+    nextStep: 'Jadwalkan konsultasi untuk memvalidasi kebutuhan, ruang lingkup, jadwal, dan penanggung jawab program.',
+  };
   const prompt = `
 Kamu adalah konsultan senior PT BinaHub. Buat proposal penawaran ringkas berbasis hasil assessment berikut.
 Output harus Bahasa Indonesia, terasa personal, strategis, dan siap dikirim via email.
@@ -344,6 +384,14 @@ Skor keseluruhan: ${input.overallScore || '-'}
 Skor dimensi: ${JSON.stringify(input.scores || {})}
 Analisis: ${input.aiAnalysis || '-'}
 Rekomendasi: ${JSON.stringify(input.recommendations || [])}
+MODUL TERPILIH: ${JSON.stringify(input.commercialContext.items)}
+STATUS HARGA: ${input.commercialContext.isSimulation ? 'SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI' : 'KATALOG RESMI'}
+
+ATURAN KERAS:
+- Jangan membuat, menebak, atau mengubah angka harga.
+- Jangan membuat Paket A/B/C.
+- Narasi harus hanya menggunakan modul dan scope yang diberikan.
+- Jika status harga simulasi, nyatakan bahwa scope dan investasi perlu konfirmasi manusia.
 
 Berikan JSON PERSIS:
 {
@@ -352,50 +400,44 @@ Berikan JSON PERSIS:
   "proposedProgram": "<nama program penawaran yang direkomendasikan>",
   "scope": ["<scope 1>", "<scope 2>", "<scope 3>", "<scope 4>"],
   "timeline": "<estimasi timeline implementasi>",
-  "investmentNote": "<catatan investasi tanpa angka pasti, arahkan ke diskusi komersial>",
-  "packages": [
-    {
-      "name": "Paket A - Essential",
-      "price": "<harga rupiah spesifik, contoh Rp 45.000.000>",
-      "bestFor": "<cocok untuk kondisi apa>",
-      "duration": "<durasi>",
-      "scope": ["<cakupan 1>", "<cakupan 2>", "<cakupan 3>"],
-      "deliverables": ["<output 1>", "<output 2>", "<output 3>"]
-    },
-    {
-      "name": "Paket B - Growth",
-      "price": "<harga rupiah lebih tinggi dari Paket A>",
-      "bestFor": "<cocok untuk kondisi apa>",
-      "duration": "<durasi>",
-      "scope": ["<cakupan 1>", "<cakupan 2>", "<cakupan 3>", "<cakupan 4>"],
-      "deliverables": ["<output 1>", "<output 2>", "<output 3>", "<output 4>"]
-    },
-    {
-      "name": "Paket C - Transformation",
-      "price": "<harga rupiah paling tinggi>",
-      "bestFor": "<cocok untuk kondisi apa>",
-      "duration": "<durasi>",
-      "scope": ["<cakupan 1>", "<cakupan 2>", "<cakupan 3>", "<cakupan 4>", "<cakupan 5>"],
-      "deliverables": ["<output 1>", "<output 2>", "<output 3>", "<output 4>", "<output 5>"]
-    }
-  ],
+  "investmentNote": "<catatan investasi tanpa mengulang atau mengarang angka>",
   "nextStep": "<ajakan jadwalkan konsultasi untuk finalisasi scope dan paket>"
 }
 `;
 
-  const text = await callAI([
-    { role: 'system', content: 'Anda adalah konsultan senior PT BinaHub. Jawab hanya JSON Bahasa Indonesia.' },
-    { role: 'user', content: prompt },
-  ], true);
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Invalid proposal AI response format');
+  let narrative = fallbackNarrative;
+  try {
+    const text = await callAI([
+      { role: 'system', content: 'Anda adalah konsultan senior PT BinaHub. Jawab hanya JSON Bahasa Indonesia.' },
+      { role: 'user', content: prompt },
+    ], true);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = aiProposalSchema.safeParse(JSON.parse(jsonMatch[0]));
+      if (parsed.success) narrative = parsed.data;
+    }
+  } catch (error) {
+    console.warn('Proposal AI narrative unavailable; deterministic catalog fallback used.', error);
   }
 
-  const parsed = aiFollowUpSchema.safeParse(JSON.parse(jsonMatch[0]));
-  if (!parsed.success) throw new Error('Invalid inquiry follow up AI response');
-  return parsed.data;
+  return {
+    ...narrative,
+    investmentNote: input.commercialContext.isSimulation
+      ? narrative.investmentNote.startsWith('SIMULASI')
+        ? narrative.investmentNote
+        : `SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI. ${narrative.investmentNote}`
+      : narrative.investmentNote,
+    packages: [{
+      name: input.commercialContext.isSimulation ? 'Paket Modul Terpilih (Simulasi)' : 'Paket Modul Terpilih',
+      price: input.commercialContext.currency === 'IDR'
+        ? formatIdr(input.commercialContext.totalBeforeTax)
+        : `${input.commercialContext.currency} ${input.commercialContext.totalBeforeTax}`,
+      bestFor: 'Kebutuhan yang telah dikonfirmasi melalui assessment dan review tim BinaHub.',
+      duration: narrative.timeline,
+      scope: exactScope.length ? exactScope : narrative.scope,
+      deliverables: exactDeliverables,
+    }],
+  };
 }
 
 export async function generateInquiryFollowUp(input: {

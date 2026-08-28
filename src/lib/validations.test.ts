@@ -39,4 +39,16 @@ describe("AssessmentSchema", () => {
     expect(AssessmentSchema.safeParse({ ...validAssessment, source: "forged-campaign" }).success).toBe(false);
     expect(AssessmentSchema.safeParse({ ...validAssessment, isAdmin: true }).success).toBe(false);
   });
+
+  it("accepts bounded campaign attribution and rejects extra attribution fields", () => {
+    const parsed = AssessmentSchema.parse({
+      ...validAssessment,
+      attribution: { utmSource: "google", utmCampaign: "leadership-2026", gclid: "click-1" },
+    });
+    expect(parsed.attribution.utmSource).toBe("google");
+    expect(AssessmentSchema.safeParse({
+      ...validAssessment,
+      attribution: { utmSource: "google", privileged: true },
+    }).success).toBe(false);
+  });
 });

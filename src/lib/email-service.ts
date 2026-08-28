@@ -3,6 +3,8 @@ import { AssessmentData } from './validations';
 import { AssessmentResult } from './pdf-service';
 import type { Locale } from '@/i18n/config';
 import { createProposalToken } from '@/lib/secure-token';
+import { createServerSupabase } from '@/lib/supabase';
+import { createUnsubscribeToken, normalizeRecipientEmail } from '@/lib/unsubscribe-token';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -11,6 +13,15 @@ const FROM = process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@')
   : 'onboarding@resend.dev';
 const COMPANY_COPY = process.env.EMAIL_COMPANY_COPY || 'admin@binahub.id';
 const COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME || 'BinaHub';
+
+export class OutreachSuppressedError extends Error {
+  readonly code = 'OUTREACH_SUPPRESSED';
+
+  constructor() {
+    super('Penerima telah berhenti menerima email follow-up.');
+    this.name = 'OutreachSuppressedError';
+  }
+}
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -77,6 +88,19 @@ function getAppUrl() {
   }
 
   return vercelUrl || configuredUrl;
+}
+
+function getApiUrl() {
+  return normalizeUrl(process.env.NEXT_PUBLIC_BINAHUB_API_URL) || getAppUrl();
+}
+
+function appendUnsubscribeFooter(html: string, unsubscribeUrl: string) {
+  const footer = `
+  <div style="max-width:640px;margin:14px auto 0;padding:0 20px;text-align:center;color:#64748B;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;">
+    Email ini merupakan follow-up dari BinaHub. Jika Anda tidak ingin menerima follow-up berikutnya,
+    <a href="${escapeHtml(unsubscribeUrl)}" style="color:#0B2C6B;text-decoration:underline;">atur preferensi email</a>.
+  </div>`;
+  return html.includes('</body>') ? html.replace('</body>', `${footer}</body>`) : `${html}${footer}`;
 }
 
 export async function sendAssessmentEmail(
@@ -321,16 +345,38 @@ export async function sendOutreachEmail(
   htmlContent: string,
   company?: string
 ) {
-  const appUrl = getAppUrl();
+  const normalizedTo = normalizeRecipientEmail(to);
+  const db = createServerSupabase();
+  const { data: suppression, error: suppressionError } = await db
+    .from('email_suppressions')
+    .select('email')
+    .eq('email', normalizedTo)
+    .maybeSingle();
+  if (suppressionError) {
+    throw new Error(`Gagal memeriksa suppression email: ${suppressionError.message}`);
+  }
+  if (suppression) {
+    throw new OutreachSuppressedError();
+  }
+
+  const apiUrl = getApiUrl();
+  if (!apiUrl) throw new Error('NEXT_PUBLIC_BINAHUB_API_URL belum dikonfigurasi.');
+  const unsubscribeToken = createUnsubscribeToken(normalizedTo);
+  const unsubscribeUrl = `${apiUrl}/api/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
+  const renderedHtml = renderGeneratedEmailSafely(htmlContent, {
+    '{{name}}': name,
+    '{{company}}': company || 'Perusahaan Anda',
+  });
   const response = await resend.emails.send({
     from: `${COMPANY_NAME} <${FROM}>`,
-    to,
+    to: normalizedTo,
     subject: safeHeader(subject),
-    html: renderGeneratedEmailSafely(htmlContent, {
-      '{{name}}': name,
-      '{{company}}': company || 'Perusahaan Anda',
-    }),
-    headers: appUrl ? { 'List-Unsubscribe': `<${appUrl}/unsubscribe>` } : undefined,
+    html: appendUnsubscribeFooter(renderedHtml, unsubscribeUrl),
+    headers: {
+      'List-Unsubscribe': `<${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+    tags: [{ name: 'category', value: 'commercial_follow_up' }],
   });
   if (response.error) throw new Error(`Resend gagal mengirim follow up: ${response.error.message}`);
   return response;

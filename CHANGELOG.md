@@ -15,6 +15,27 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
 
+## [0.6.0] - 2026-08-28
+
+### Added — BinaHub AI Business Process, Catalog, Proposal & Scheduling
+
+- Menambahkan migration `0023_business_process_p0.sql`, `0024_business_rules_catalog_and_proposal_gate.sql`, dan `0025_catalog_requests_and_calcom.sql` untuk lifecycle lead, attribution, katalog modul, Business Rules berversi, proposal snapshot, human gate, request modul, serta booking kalender.
+- Menambahkan endpoint katalog publik, Business Rules admin, draft/preview/approval proposal, unsubscribe, dan webhook Cal.com tervalidasi HMAC.
+- Menambahkan lifecycle consumer → prospect → lead → client → retained, lead temperature, opportunity stage, source metadata, serta event worker dengan atomic claim, lease, retry, dan idempotensi.
+- Menambahkan follow-up H+2/H+7/H+14 dengan suppression, unsubscribe one-click, pause, stop condition, audit event, dan window jam kerja.
+- Menambahkan `FOLLOW_UP_DRY_RUN` serta `TRANSFORMATION_WORKER_DRY_RUN` untuk UAT tanpa pengiriman email, claim event, atau perubahan status data.
+- Mendesain ulang PDF BinaInsight dan proposal indikatif dengan label simulasi/human gate untuk data katalog mock.
+
+### Changed
+
+- Menguatkan validasi assessment, contact, CORS, email, dan mutation schema untuk alur prospecting publik.
+- Proposal tidak dapat dikirim sebelum human gate terpenuhi atau approval yang diwajibkan tersedia.
+
+### Verification
+
+- `npm test` lulus: 63 tes, 2 skipped.
+- `npm run build` lulus pada Next.js 16.3.1.
+
 ## [0.5.0] - 2026-08-13
 
 ### Added — Modul LEP, Batch Fleksibel, Penugasan Fasilitator & RLS Hardening (Prompt 0–8)

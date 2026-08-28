@@ -72,6 +72,58 @@ select
         and pg_get_constraintdef(constraint_record.oid) like '%binainsight%'
     )
   ) as binainsight_program_module_ready,
+  (
+    to_regclass('public.email_suppressions') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'lifecycle_stage'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'lead_temperature'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'opportunity_stage'
+    )
+  ) as business_funnel_ready,
+  (
+    to_regprocedure('public.claim_transformation_events(integer,text,integer)') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'event_queue' and column_name = 'locked_at'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'event_queue' and column_name = 'locked_by'
+    )
+  ) as atomic_event_worker_ready,
+  (
+    to_regclass('public.business_rule_sets') is not null
+    and to_regclass('public.catalog_products') is not null
+    and to_regclass('public.catalog_modules') is not null
+    and to_regclass('public.proposal_approvals') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'assessments' and column_name = 'proposal_gate_status'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'assessments' and column_name = 'proposal_draft_data'
+    )
+  ) as proposal_governance_ready,
+  (
+    to_regclass('public.calendar_bookings') is not null
+    and to_regclass('public.calendar_webhook_events') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'inquiries' and column_name = 'module_request_data'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'inquiries' and column_name = 'role_title'
+    )
+  ) as calendar_and_catalog_request_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

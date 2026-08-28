@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
-import { generateAssessmentProposal } from "@/lib/ai-service";
 import { sendAssessmentEmail, sendProposalEmail } from "@/lib/email-service";
 import { generatePDFBuffer, generateProposalPDFBuffer, AssessmentResult } from "@/lib/pdf-service";
 import { requireAdmin } from "@/lib/admin-auth";
-import { adminError, parseValidatedBody } from "@/lib/admin-api";
+import { adminError, logAdminEvent, parseValidatedBody } from "@/lib/admin-api";
 import { assessmentActionSchema, assessmentStatusUpdateSchema } from "@/lib/admin-mutation-schemas";
 
 type AssessmentRow = {
   id: string;
+  lead_id: string | null;
   form_data: unknown;
   scores: unknown;
   category: string | null;
   ai_analysis: string | null;
   recommendations: unknown;
   overall_score: number | null;
+  proposal_draft_data: unknown;
+  proposal_gate_status: string | null;
+  proposal_catalog_version: string | null;
 };
 
 function parseJson<T>(value: unknown, fallback: T): T {
@@ -33,7 +36,7 @@ async function getAssessment(id: string) {
   const db = createServerSupabase();
   const { data, error } = await db
     .from("assessments")
-    .select("id, form_data, scores, category, ai_analysis, recommendations, overall_score")
+    .select("id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_draft_data, proposal_gate_status, proposal_catalog_version")
     .eq("id", id)
     .single();
 
@@ -144,24 +147,29 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", id);
       if (requestError) throw requestError;
+      if (row.lead_id) {
+        await db.from("leads").update({
+          lifecycle_stage: "lead",
+          opportunity_stage: "proposal",
+          last_meaningful_activity_at: new Date().toISOString(),
+        }).eq("id", row.lead_id);
+      }
       return NextResponse.json({ success: true });
     }
 
     if (action === "send_proposal") {
-      const proposal = await generateAssessmentProposal({
-        name: formData.name,
-        email: formData.email,
-        company: formData.company,
-        role: formData.role,
-        employees: formData.employees,
-        challenge: formData.challenge,
-        target: formData.target,
-        category: row.category,
-        overallScore: row.overall_score,
-        scores: parseJson(row.scores, {}),
-        aiAnalysis: row.ai_analysis,
-        recommendations: parseJson(row.recommendations, []),
-      });
+      if (!['approved', 'clear'].includes(row.proposal_gate_status || '')) {
+        return adminError("Proposal belum lolos Human Gate. Buat draft dan selesaikan approval terlebih dahulu.", 409, "PROPOSAL_GATE_BLOCKED");
+      }
+      const draft = parseJson<Record<string, unknown>>(row.proposal_draft_data, {});
+      const proposal = draft.proposal as Parameters<typeof generateProposalPDFBuffer>[1] | undefined;
+      if (!proposal) {
+        return adminError("Snapshot draft proposal tidak ditemukan. Buat ulang draft dari katalog modul.", 409, "PROPOSAL_DRAFT_MISSING");
+      }
+      const isSimulation = draft.isSimulation === true;
+      if (isSimulation && process.env.ALLOW_MOCK_PROPOSAL_SEND !== "true") {
+        return adminError("Proposal simulasi tidak boleh dikirim. Ganti mock dengan katalog resmi atau aktifkan izin demo secara eksplisit.", 409, "MOCK_PROPOSAL_SEND_DISABLED");
+      }
 
       const proposalPdf = await generateProposalPDFBuffer(formData, proposal);
       const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, proposalPdf, id);
@@ -183,6 +191,23 @@ export async function POST(req: NextRequest) {
           proposal_data: proposal,
         }
       );
+
+      if (row.lead_id) {
+        await db.from("leads").update({
+          lifecycle_stage: "lead",
+          opportunity_stage: "proposal",
+          last_meaningful_activity_at: sentAt,
+        }).eq("id", row.lead_id);
+      }
+      await logAdminEvent(db, {
+        eventType: "proposal_sent",
+        targetType: "assessment",
+        targetId: id,
+        actor: admin.email,
+        payload: { catalogVersion: row.proposal_catalog_version, isSimulation },
+        status: "Sent",
+        message: `Proposal tervalidasi dikirim oleh ${admin.email}.`,
+      });
 
       return NextResponse.json({ success: true, proposal });
     }

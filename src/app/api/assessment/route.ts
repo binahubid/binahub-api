@@ -128,18 +128,18 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Upsert lead
+    const leadPayload = {
+      name: body.name,
+      email: body.email,
+      company: body.company,
+      phone: body.whatsapp || '',
+      source: body.source || 'insight_assessment',
+      last_meaningful_activity_at: new Date().toISOString(),
+      ...(Object.keys(body.attribution).length > 0 ? { source_metadata: body.attribution } : {}),
+    };
     const { data: lead, error: leadError } = await supabase
       .from('leads')
-      .upsert(
-        {
-          name: body.name,
-          email: body.email,
-          company: body.company,
-          phone: body.whatsapp || '',
-          source: body.source || 'insight_assessment',
-        },
-        { onConflict: 'email', ignoreDuplicates: false }
-      )
+      .upsert(leadPayload, { onConflict: 'email', ignoreDuplicates: false })
       .select()
       .single();
 
@@ -163,6 +163,7 @@ export async function POST(req: NextRequest) {
             assessment_status: 'Belum Dikirim',
             program_id: programContext?.programId || null,
             participant_id: programContext?.participantId || null,
+            attribution: body.attribution,
           })
           .eq('id', retryAssessmentId)
       : supabase
@@ -173,6 +174,7 @@ export async function POST(req: NextRequest) {
             submission_key_hash: submissionKeyHash,
             program_id: programContext?.programId || null,
             participant_id: programContext?.participantId || null,
+            attribution: body.attribution,
           });
 
     const { data: assessment, error: assessmentError } = await assessmentQuery.select().single();
@@ -230,7 +232,14 @@ export async function POST(req: NextRequest) {
       });
       const { error: leadScoreUpdateError } = await supabase
         .from('leads')
-        .update({ lead_score: leadScore.score, lead_status: leadScore.status })
+        .update({
+          lead_score: leadScore.score,
+          lead_status: leadScore.status,
+          lead_temperature: leadScore.status,
+          lifecycle_stage: 'lead',
+          opportunity_stage: leadScore.status === 'hot' ? 'qualified' : 'identified',
+          last_meaningful_activity_at: new Date().toISOString(),
+        })
         .eq('id', lead.id);
       if (leadScoreUpdateError) throw leadScoreUpdateError;
     } catch (leadScoreError: unknown) {

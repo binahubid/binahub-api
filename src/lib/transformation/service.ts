@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createServerSupabase } from "@/lib/supabase";
 import type { TransformationActor } from "@/lib/transformation/auth";
 
@@ -484,20 +485,17 @@ export async function generateInsightDraft(db: Db, engagementId: string, type: "
 }
 
 export async function processPendingEvents(db: Db, limit = 10) {
-  const { data: events, error } = await db
-    .from("event_queue")
-    .select("*")
-    .eq("status", "pending")
-    .lte("available_at", new Date().toISOString())
-    .order("created_at", { ascending: true })
-    .limit(limit);
+  const workerId = `transformation-${randomUUID()}`;
+  const { data: events, error } = await db.rpc("claim_transformation_events", {
+    p_limit: limit,
+    p_worker_id: workerId,
+    p_lease_seconds: 900,
+  });
 
   if (error) throw new Error(error.message);
 
   const processed = [];
   for (const event of events || []) {
-    await db.from("event_queue").update({ status: "processing", attempts: Number(event.attempts || 0) + 1 }).eq("id", event.id);
-
     try {
       if (["EvidenceCreated", "ReflectionSubmitted", "ObservationAdded"].includes(event.type) && event.participant_id) {
         await recalculateParticipantCapabilities(db, event.participant_id, event.id);
@@ -507,14 +505,50 @@ export async function processPendingEvents(db: Db, limit = 10) {
         await generateInsightDraft(db, event.engagement_id, "recommendation", event.id);
       }
 
-      await db.from("event_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", event.id);
+      const { data: completed, error: completionError } = await db
+        .from("event_queue")
+        .update({
+          status: "done",
+          processed_at: new Date().toISOString(),
+          locked_at: null,
+          locked_by: null,
+          error_message: null,
+        })
+        .eq("id", event.id)
+        .eq("locked_by", workerId)
+        .select("id")
+        .maybeSingle();
+      if (completionError) throw new Error(completionError.message);
+      if (!completed) throw new Error("Event processing lease was lost before completion.");
+
       processed.push({ id: event.id, type: event.type, status: "done" });
     } catch (err) {
-      await db
+      const attempts = Number(event.attempts || 1);
+      const permanentlyFailed = attempts >= 5;
+      const retryDelaySeconds = Math.min(3600, 30 * (2 ** Math.max(0, attempts - 1)));
+      const message = err instanceof Error ? err.message : "Unknown worker error";
+      const { error: retryError } = await db
         .from("event_queue")
-        .update({ status: "failed", error_message: err instanceof Error ? err.message : "Unknown worker error" })
-        .eq("id", event.id);
-      processed.push({ id: event.id, type: event.type, status: "failed" });
+        .update({
+          status: permanentlyFailed ? "failed" : "pending",
+          available_at: permanentlyFailed
+            ? event.available_at
+            : new Date(Date.now() + (retryDelaySeconds * 1000)).toISOString(),
+          error_message: message.slice(0, 4000),
+          locked_at: null,
+          locked_by: null,
+        })
+        .eq("id", event.id)
+        .eq("locked_by", workerId);
+      if (retryError) throw new Error(`Failed to release event ${event.id}: ${retryError.message}`);
+
+      processed.push({
+        id: event.id,
+        type: event.type,
+        status: permanentlyFailed ? "failed" : "retry_scheduled",
+        attempts,
+        retryAt: permanentlyFailed ? null : new Date(Date.now() + (retryDelaySeconds * 1000)).toISOString(),
+      });
     }
   }
 

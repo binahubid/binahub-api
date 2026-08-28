@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { AssessmentData } from './validations';
-import { generatePDFBuffer, type AssessmentResult } from './pdf-service';
+import { generatePDFBuffer, generateProposalPDFBuffer, type AssessmentResult } from './pdf-service';
 
 const renderPreview = process.env.GENERATE_PDF_PREVIEW === '1' ? it : it.skip;
 
@@ -23,6 +23,7 @@ describe('BinaInsight PDF visual preview', () => {
       target: 'Membangun organisasi yang adaptif, terukur, dan konsisten mengeksekusi prioritas.',
       answers,
       source: 'insight_assessment',
+      attribution: {},
       locale: 'id',
     };
     const result: AssessmentResult = {
@@ -93,5 +94,62 @@ describe('BinaInsight PDF visual preview', () => {
 
     expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
     expect(buffer.byteLength).toBeGreaterThan(30_000);
+  }, 30_000);
+
+  renderPreview('renders a simulation proposal with a visible governance warning', async () => {
+    const formData = {
+      name: 'Ayu Pratama',
+      email: 'ayu@example.com',
+      company: 'PT Tumbuh Bersama Nusantara',
+      employees: '51-100 karyawan',
+      role: 'Chief People Officer',
+      whatsapp: '+62 812 3456 7890',
+      challenge: 'Menyelaraskan strategi pertumbuhan dengan ritme eksekusi lintas fungsi.',
+      target: 'Membangun organisasi yang adaptif dan terukur.',
+      answers: {},
+      source: 'insight_assessment',
+      attribution: {},
+      locale: 'id' as const,
+    } satisfies AssessmentData;
+    const proposal = {
+      subject: 'Rancangan Program BinaHub untuk PT Tumbuh Bersama Nusantara',
+      opening: 'Berdasarkan hasil BinaInsight, rancangan awal ini memprioritaskan ritme eksekusi dan koordinasi lintas fungsi. Konfigurasi akan divalidasi bersama sebelum menjadi penawaran resmi.',
+      proposedProgram: 'Program Penguatan Eksekusi Organisasi',
+      scope: ['Workshop alignment sponsor', 'Pemetaan dua proses lintas fungsi', 'Rancangan ritme review 90 hari'],
+      timeline: '6-8 minggu setelah ruang lingkup disepakati',
+      investmentNote: 'SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI. Nilai mengikuti snapshot katalog mock dan wajib dikonfirmasi manusia.',
+      packages: [{
+        name: 'Modul Terpilih (Simulasi)',
+        price: 'Rp75.000.000',
+        bestFor: 'Organisasi yang membutuhkan penguatan ritme eksekusi lintas fungsi.',
+        duration: '6-8 minggu',
+        scope: ['Alignment sponsor', 'Workshop lintas fungsi', 'Roadmap 90 hari'],
+        deliverables: ['Executive brief', 'Process map', 'Roadmap dan governance cadence'],
+      }],
+      nextStep: 'Jadwalkan konsultasi untuk memvalidasi kebutuhan, ruang lingkup, dan penanggung jawab program.',
+      isSimulation: true,
+      rulesVersion: 'v0.1-mock',
+      commercialSnapshot: {
+        items: [
+          { name: 'BinaPlay Facilitation Sprint', quantity: 1, pricingUnit: 'program', basePrice: 45_000_000, lineTotal: 45_000_000 },
+          { name: 'BinaWorks Execution Cadence', quantity: 1, pricingUnit: 'program', basePrice: 35_000_000, lineTotal: 35_000_000 },
+        ],
+        subtotal: 80_000_000,
+        discountPercent: 6.25,
+        discountAmount: 5_000_000,
+        totalBeforeTax: 75_000_000,
+        currency: 'IDR',
+        validityDays: 14,
+      },
+    };
+
+    const outputDirectory = path.resolve(process.cwd(), 'output', 'pdf');
+    const outputPath = path.join(outputDirectory, 'BinaHub_Proposal_Simulation_Sample.pdf');
+    await mkdir(outputDirectory, { recursive: true });
+    const buffer = await generateProposalPDFBuffer(formData, proposal);
+    await writeFile(outputPath, buffer);
+
+    expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
+    expect(buffer.byteLength).toBeGreaterThan(20_000);
   }, 30_000);
 });

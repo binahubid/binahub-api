@@ -53,6 +53,23 @@ export interface ProposalResult {
   investmentNote?: string;
   packages?: ProposalPackage[];
   nextStep?: string;
+  isSimulation?: boolean;
+  rulesVersion?: string;
+  commercialSnapshot?: {
+    items: Array<{
+      name: string;
+      quantity: number;
+      pricingUnit: string;
+      basePrice: number;
+      lineTotal: number;
+    }>;
+    subtotal: number;
+    discountPercent: number;
+    discountAmount: number;
+    totalBeforeTax: number;
+    currency?: string;
+    validityDays?: number;
+  };
 }
 
 const NAVY = '#0B2C6B';
@@ -587,6 +604,12 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
       deliverables: ['Executive brief', 'Priority map', 'Rencana aksi awal'],
     },
   ];
+  const commercial = proposal.commercialSnapshot;
+  const money = (amount: number) => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: commercial?.currency || 'IDR',
+    maximumFractionDigits: 0,
+  }).format(amount);
 
   return (
     <Document title={`Proposal Penawaran - ${formData.company}`}>
@@ -611,6 +634,13 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
         </View>
 
         <View style={styles.content}>
+          {proposal.isSimulation && (
+            <View style={{ backgroundColor: '#FFF3CD', borderWidth: 1, borderColor: GOLD, padding: 10, marginBottom: 14 }} wrap={false}>
+              <Text style={{ color: '#7A5A00', fontSize: 9, fontWeight: 700, textAlign: 'center' }}>
+                SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI · {proposal.rulesVersion || 'BUSINESS RULES MOCK'}
+              </Text>
+            </View>
+          )}
           <View style={styles.profileCard} wrap={false}>
             <Text style={styles.profileLabel}>Pendahuluan</Text>
             <Text style={styles.profileTitle}>Arah Penawaran Awal</Text>
@@ -640,36 +670,69 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <CompactHeader title="Pilihan Paket Penawaran" subtitle="Paket A, B, dan C berdasarkan tingkat kedalaman program" />
+        <CompactHeader title="Rincian Modul Penawaran" subtitle={`Snapshot katalog · ${proposal.rulesVersion || 'versi belum ditetapkan'}`} />
         <View style={styles.content}>
+          {proposal.isSimulation && (
+            <View style={{ backgroundColor: '#FFF3CD', borderWidth: 1, borderColor: GOLD, padding: 10, marginBottom: 14 }} wrap={false}>
+              <Text style={{ color: '#7A5A00', fontSize: 9, fontWeight: 700, textAlign: 'center' }}>
+                DATA MOCK — WAJIB DIGANTI ATAU DISETUJUI MANUSIA SEBELUM DIGUNAKAN
+              </Text>
+            </View>
+          )}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionBar} />
             <View>
-              <Text style={styles.sectionTitle}>Opsi Paket Implementasi</Text>
-              <Text style={styles.sectionSubtitle}>Harga bersifat estimasi awal dan dapat disesuaikan setelah konsultasi lanjutan</Text>
+              <Text style={styles.sectionTitle}>Modul dan Nilai Berdasarkan Katalog</Text>
+              <Text style={styles.sectionSubtitle}>Angka berasal dari snapshot katalog, bukan hasil estimasi model AI</Text>
             </View>
           </View>
 
-          <View style={styles.packageGrid}>
-            {packages.map((pack, index) => (
-              <View key={pack.name} wrap={false} style={[styles.packageCard, { borderTopColor: index === 1 ? NAVY : GOLD }]}>
-                <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 6 }}>PAKET {String.fromCharCode(65 + index)}</Text>
-                <Text style={styles.recTitle}>{pack.name}</Text>
-                <Text style={[styles.kpiValue, { fontSize: 13, marginBottom: 8 }]}>{pack.price}</Text>
-                <Text style={styles.recDiagnosis}>{pack.bestFor}</Text>
-                <Text style={styles.miniLabel}>Durasi</Text>
-                <Text style={styles.recDesc}>{pack.duration}</Text>
-                <Text style={[styles.miniLabel, { marginTop: 8 }]}>Cakupan</Text>
-                {pack.scope.slice(0, 5).map((item, itemIndex) => (
-                  <Text key={itemIndex} style={styles.recDesc}>• {item}</Text>
-                ))}
-                <Text style={[styles.miniLabel, { marginTop: 8 }]}>Output</Text>
-                {pack.deliverables.slice(0, 5).map((item, itemIndex) => (
-                  <Text key={itemIndex} style={styles.recDesc}>• {item}</Text>
-                ))}
+          {commercial?.items?.length ? (
+            <View style={{ marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', backgroundColor: NAVY, paddingVertical: 7, paddingHorizontal: 9 }}>
+                <Text style={{ width: '49%', color: '#FFFFFF', fontSize: 7, fontWeight: 700 }}>MODUL</Text>
+                <Text style={{ width: '12%', color: '#FFFFFF', fontSize: 7, fontWeight: 700, textAlign: 'center' }}>QTY</Text>
+                <Text style={{ width: '18%', color: '#FFFFFF', fontSize: 7, fontWeight: 700 }}>SATUAN</Text>
+                <Text style={{ width: '21%', color: '#FFFFFF', fontSize: 7, fontWeight: 700, textAlign: 'right' }}>NILAI</Text>
               </View>
-            ))}
-          </View>
+              {commercial.items.map((item, index) => (
+                <View key={`${item.name}-${index}`} wrap={false} style={{ flexDirection: 'row', backgroundColor: index % 2 ? '#FFFFFF' : '#F8FAFC', borderBottomWidth: 0.5, borderBottomColor: '#DCE3EC', paddingVertical: 8, paddingHorizontal: 9 }}>
+                  <View style={{ width: '49%', paddingRight: 8 }}>
+                    <Text style={{ color: NAVY, fontSize: 8.5, fontWeight: 700 }}>{item.name}</Text>
+                    <Text style={{ color: SILVER, fontSize: 6.5, marginTop: 2 }}>{money(item.basePrice)} per {item.pricingUnit}</Text>
+                  </View>
+                  <Text style={{ width: '12%', color: '#475569', fontSize: 8, textAlign: 'center' }}>{item.quantity}</Text>
+                  <Text style={{ width: '18%', color: '#475569', fontSize: 8 }}>{item.pricingUnit}</Text>
+                  <Text style={{ width: '21%', color: NAVY, fontSize: 8, fontWeight: 700, textAlign: 'right' }}>{money(item.lineTotal)}</Text>
+                </View>
+              ))}
+              <View wrap={false} style={{ alignSelf: 'flex-end', width: '43%', marginTop: 8, padding: 10, backgroundColor: '#FFFFFF', borderWidth: 0.7, borderColor: '#DCE3EC' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}><Text style={{ color: '#64748B', fontSize: 7.5 }}>Subtotal</Text><Text style={{ color: NAVY, fontSize: 7.5, fontWeight: 700 }}>{money(commercial.subtotal)}</Text></View>
+                {commercial.discountAmount > 0 && <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}><Text style={{ color: '#64748B', fontSize: 7.5 }}>Diskon ({commercial.discountPercent}%)</Text><Text style={{ color: '#B9471D', fontSize: 7.5, fontWeight: 700 }}>- {money(commercial.discountAmount)}</Text></View>}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.7, borderTopColor: GOLD, paddingTop: 6 }}><Text style={{ color: NAVY, fontSize: 8, fontWeight: 700 }}>TOTAL SEBELUM PAJAK</Text><Text style={{ color: NAVY, fontSize: 9, fontWeight: 700 }}>{money(commercial.totalBeforeTax)}</Text></View>
+              </View>
+              <Text style={{ alignSelf: 'flex-end', width: '43%', marginTop: 5, color: SILVER, fontSize: 6.5, lineHeight: 1.35 }}>
+                Nilai belum termasuk pajak dan biaya di luar scope standar. Berlaku {commercial.validityDays || 14} hari sejak proposal diterbitkan.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.packageGrid}>
+              {packages.map((pack, index) => (
+                <View key={pack.name} wrap={false} style={[styles.packageCard, packages.length === 1 ? { width: '100%' } : {}, { borderTopColor: index === 1 ? NAVY : GOLD }]}>
+                  <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 6 }}>MODUL TERPILIH</Text>
+                  <Text style={styles.recTitle}>{pack.name}</Text>
+                  <Text style={[styles.kpiValue, { fontSize: 13, marginBottom: 8 }]}>{pack.price}</Text>
+                  <Text style={styles.recDiagnosis}>{pack.bestFor}</Text>
+                  <Text style={styles.miniLabel}>Durasi</Text>
+                  <Text style={styles.recDesc}>{pack.duration}</Text>
+                  <Text style={[styles.miniLabel, { marginTop: 8 }]}>Cakupan</Text>
+                  {pack.scope.slice(0, 5).map((item, itemIndex) => <Text key={itemIndex} style={styles.recDesc}>• {item}</Text>)}
+                  <Text style={[styles.miniLabel, { marginTop: 8 }]}>Output</Text>
+                  {pack.deliverables.slice(0, 5).map((item, itemIndex) => <Text key={itemIndex} style={styles.recDesc}>• {item}</Text>)}
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.callout} wrap={false}>
             <Text style={styles.summaryTitle}>{copy.nextSteps}</Text>
