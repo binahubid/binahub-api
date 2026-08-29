@@ -3,6 +3,15 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] - 2026-08-30
+
+### Added — Phase 8 Launch Control & Observability
+
+- Menambahkan endpoint admin read-only `/api/admin/launch-readiness` yang menggabungkan status environment tanpa mengekspos secret, Business Rules, katalog, template, acquisition governance, integration evidence, dan automation run terakhir.
+- Menilai empat workflow secara terpisah: konfigurasi, bukti dry-run, blocker bisnis, dan kelayakan untuk human review. Endpoint tidak menyediakan mutasi atau aktivasi workflow.
+- Menambahkan audit run database untuk Follow-up Scheduler dan Transformation Event Worker sehingga seluruh workflow inti mempunyai bukti eksekusi yang konsisten.
+- Menambahkan evaluasi pure-function dan test untuk memastikan Business Rules/template yang belum final tetap mengunci outbound serta mode live tidak pernah dianggap aman secara otomatis.
+
 ## [0.11.2] - 2026-08-29
 
 ### Fixed — Phase 7 Integrated UAT

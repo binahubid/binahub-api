@@ -333,6 +333,32 @@ export const operationalTaskUpdateSchema = z.object({
   }
 });
 
+export const uatScenarioUpdateSchema = z.object({
+  scenarioId: z.string().uuid("ID skenario UAT tidak valid."),
+  status: z.enum(["not_started", "in_progress", "passed", "failed", "blocked", "not_applicable"]),
+  owner: adminOwnerSchema.nullable().optional(),
+  environment: z.enum(["local", "staging", "production"]),
+  evidenceNote: z.string().trim().max(4000).nullable().optional(),
+  evidenceUrl: z.string().trim().url("URL bukti tidak valid.").max(2000).nullable().optional(),
+  actualResult: z.string().trim().max(4000).nullable().optional(),
+  blockerReason: z.string().trim().max(2000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (["in_progress", "passed", "failed", "blocked"].includes(value.status) && !value.owner) {
+    context.addIssue({ code: "custom", path: ["owner"], message: "Owner wajib untuk pengujian aktif." });
+  }
+  if (["passed", "failed"].includes(value.status)) {
+    if (!value.evidenceNote || value.evidenceNote.length < 5) {
+      context.addIssue({ code: "custom", path: ["evidenceNote"], message: "Catatan bukti minimal 5 karakter." });
+    }
+    if (!value.actualResult || value.actualResult.length < 5) {
+      context.addIssue({ code: "custom", path: ["actualResult"], message: "Hasil aktual minimal 5 karakter." });
+    }
+  }
+  if (value.status === "blocked" && (!value.blockerReason || value.blockerReason.length < 5)) {
+    context.addIssue({ code: "custom", path: ["blockerReason"], message: "Alasan blocker minimal 5 karakter." });
+  }
+});
+
 export const acquisitionSourceSchema = z.object({
   id: z.string().uuid().nullable().optional(),
   sourceKey: z.string().trim().min(3).max(64).regex(/^[a-z][a-z0-9_-]{2,63}$/),

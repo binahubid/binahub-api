@@ -45,6 +45,8 @@ Fase 6 menambahkan migration `0031_phase6_release_reconciliation.sql`. Migration
 
 Fase 7 menambahkan migration `0032_phase7_client_operations_union_fix.sql` dan `0033_phase7_calcom_booking_lineage.sql`. Migration ini memperbaiki tipe UUID nullable pada scheduler client operations, menyimpan lineage booking Cal.com lintas reschedule, serta menambahkan readiness gate Fase 7. API `0.11.2` juga dapat mengklaim ulang audit run harian yang berstatus `failed`; run yang sedang berjalan atau sudah berhasil tetap idempotent dan dikembalikan sebagai duplicate.
 
+Fase 8 tidak menambah migration. API `0.12.0` menyediakan Launch Control read-only untuk memisahkan configuration readiness, dry-run evidence, dan business activation gate. Follow-up Scheduler serta Transformation Event Worker juga menulis execution evidence ke `automation_runs`; tidak ada endpoint aktivasi workflow.
+
 Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 
 Gunakan `FOLLOW_UP_DRY_RUN=true` pada lokal/UAT. Scheduler tetap membaca jadwal dan mengembalikan `candidates`, tetapi tidak membuat claim, memanggil AI, mengirim email, atau mengubah status lead. Production baru boleh memakai `false` setelah sender domain, suppression, isi pesan, dan policy follow-up disetujui.

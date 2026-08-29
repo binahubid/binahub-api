@@ -671,6 +671,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const runStartedAt = new Date().toISOString();
   const secret = process.env.FOLLOW_UP_CRON_SECRET;
   const token = getBearerToken(req.headers.get("authorization"));
 
@@ -794,6 +795,30 @@ export async function GET(req: NextRequest) {
       }
     }
   }
+
+  const runStatus = failures.length ? (sent.length || candidates.length ? "partial" : "failed") : "succeeded";
+  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${window.localDate}:${dryRun ? "dry" : "live"}`).slice(0, 200);
+  const { error: auditError } = await db.from("automation_runs").upsert({
+    workflow_key: "follow_up_scheduler",
+    idempotency_key: idempotencyKey,
+    trigger_source: "n8n",
+    dry_run: dryRun,
+    status: runStatus,
+    reference_date: window.localDate,
+    candidate_count: candidates.length,
+    processed_count: sent.length,
+    failure_count: failures.length,
+    summary: {
+      candidateCount: candidates.length,
+      sentCount: sent.length,
+      failureCount: failures.length,
+      businessWindow: `${window.policy.startHour}:00-${window.policy.endHour}:00`,
+    },
+    error_message: failures.length ? `${failures.length} follow-up gagal diproses.` : null,
+    started_at: runStartedAt,
+    finished_at: new Date().toISOString(),
+  }, { onConflict: "workflow_key,idempotency_key" });
+  if (auditError) console.error("Follow-up automation audit gagal:", auditError.message);
 
   return NextResponse.json(
     { success: failures.length === 0, dryRun, candidates, sent, failures },
