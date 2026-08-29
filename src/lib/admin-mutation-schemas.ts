@@ -308,6 +308,31 @@ export const retentionOpportunitySchema = z.object({
   }
 });
 
+export const operationalTaskUpdateSchema = z.object({
+  taskId: z.string().uuid("ID operational task tidak valid."),
+  status: z.enum(["open", "in_progress", "waiting", "completed", "cancelled"]),
+  priority: z.enum(["low", "medium", "high", "critical"]),
+  assignedTo: adminOwnerSchema.nullable().optional(),
+  dueAt: z.string().datetime({ offset: true }).nullable().optional(),
+  resolutionNote: z.string().trim().max(2000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (["in_progress", "waiting"].includes(value.status) && !value.assignedTo) {
+    context.addIssue({
+      code: "custom",
+      path: ["assignedTo"],
+      message: "Owner wajib ditetapkan untuk task aktif atau menunggu.",
+    });
+  }
+  if (["completed", "cancelled"].includes(value.status)
+    && (!value.resolutionNote || value.resolutionNote.length < 5)) {
+    context.addIssue({
+      code: "custom",
+      path: ["resolutionNote"],
+      message: "Catatan penyelesaian minimal 5 karakter.",
+    });
+  }
+});
+
 export const outreachTemplateKeySchema = z.enum([
   "inquiry_follow_up_1",
   "inquiry_follow_up_2",

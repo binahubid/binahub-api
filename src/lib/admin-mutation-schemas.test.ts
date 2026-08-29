@@ -9,6 +9,7 @@ import {
   deliveryMilestoneSchema,
   deliveryProjectUpdateSchema,
   inquiryUpdateSchema,
+  operationalTaskUpdateSchema,
   proposalDraftSchema,
   retentionOpportunitySchema,
 } from "./admin-mutation-schemas";
@@ -118,6 +119,28 @@ describe("admin mutation schemas", () => {
       nextAction: "Review proposal",
       nextActionDueAt: "2026-09-10T09:00:00+07:00",
       humanApproved: false,
+    }).success).toBe(false);
+  });
+
+  it("keeps Phase 4 operational tasks human-owned and auditable", () => {
+    expect(operationalTaskUpdateSchema.safeParse({
+      taskId: id,
+      status: "in_progress",
+      priority: "high",
+      assignedTo: "operations@binahub.id",
+      dueAt: "2026-09-01T09:00:00+07:00",
+    }).success).toBe(true);
+    expect(operationalTaskUpdateSchema.safeParse({
+      taskId: id,
+      status: "in_progress",
+      priority: "high",
+      assignedTo: null,
+    }).success).toBe(false);
+    expect(operationalTaskUpdateSchema.safeParse({
+      taskId: id,
+      status: "completed",
+      priority: "medium",
+      resolutionNote: "ok",
     }).success).toBe(false);
   });
 });

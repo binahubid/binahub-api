@@ -15,6 +15,21 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
 
+## [0.10.0] - 2026-08-29
+
+### Added — Automation Control & Human Task Operations
+
+- Menambahkan migration `0029_automation_control_and_human_tasks.sql` untuk operational task, append-only task event, serta audit automation run yang idempotent.
+- Menambahkan scheduler deterministik untuk client review, renewal 90/60/30, account/delivery risk, milestone overdue, dan retention next action.
+- Menambahkan endpoint cron Fase 4 yang aman secara default melalui `OPERATIONS_DRY_RUN=true` serta endpoint admin untuk membaca dan menyelesaikan human task.
+- Menambahkan readiness gate `automation_control_phase4_ready`.
+
+### Safety
+
+- Scheduler tidak mengirim email, mengubah deal, menyetujui proposal, atau menyelesaikan task.
+- Task aktif wajib memiliki owner; task selesai/dibatalkan wajib memiliki catatan resolusi dan actor.
+- Task key dan automation run idempotency mencegah duplikasi saat n8n melakukan retry.
+
 ## [0.9.0] - 2026-08-29
 
 ### Added — Client Delivery dan Retention Operations

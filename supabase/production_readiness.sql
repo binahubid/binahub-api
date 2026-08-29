@@ -208,6 +208,13 @@ select
     and to_regprocedure('public.record_account_health_review(uuid,uuid,text,integer,integer,integer,integer,text,text[],text,text,date)') is not null
     and to_regprocedure('public.save_retention_opportunity(uuid,uuid,uuid,text,text,text,text,jsonb,numeric,date,text,timestamptz,text,boolean,text)') is not null
   ) as client_delivery_phase3_ready,
+  (
+    to_regclass('public.operational_tasks') is not null
+    and to_regclass('public.operational_task_events') is not null
+    and to_regclass('public.automation_runs') is not null
+    and to_regprocedure('public.sync_client_operations_tasks(text,boolean,date)') is not null
+    and to_regprocedure('public.update_operational_task(uuid,text,text,text,text,timestamptz,text)') is not null
+  ) as automation_control_phase4_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
