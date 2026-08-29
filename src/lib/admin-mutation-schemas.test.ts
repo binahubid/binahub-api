@@ -16,6 +16,7 @@ import {
   operationalTaskUpdateSchema,
   proposalDraftSchema,
   retentionOpportunitySchema,
+  uatScenarioUpdateSchema,
 } from "./admin-mutation-schemas";
 
 const id = "3b241101-e2bb-4255-8caf-4136c566a962";
@@ -38,6 +39,29 @@ describe("admin mutation schemas", () => {
     expect(assessmentActionSchema.safeParse({ id, action: "delete_everything" }).success).toBe(false);
     expect(contactUpdateSchema.safeParse({ id: "not-a-uuid", status: "Qualified", notes: "" }).success).toBe(false);
     expect(contactUpdateSchema.safeParse({ id, status: "Qualified", notes: "x".repeat(4001) }).success).toBe(false);
+  });
+
+  it("requires human-owned evidence for Phase 9 UAT outcomes", () => {
+    const base = {
+      scenarioId: id,
+      owner: "tester@binahub.id",
+      environment: "staging" as const,
+      evidenceNote: "Screenshot dan execution log tersimpan.",
+      evidenceUrl: "https://evidence.binahub.id/uat/1",
+      actualResult: "Hasil sesuai ekspektasi skenario.",
+      blockerReason: null,
+    };
+    expect(uatScenarioUpdateSchema.safeParse({ ...base, status: "passed" }).success).toBe(true);
+    expect(uatScenarioUpdateSchema.safeParse({ ...base, status: "passed", actualResult: "" }).success).toBe(false);
+    expect(uatScenarioUpdateSchema.safeParse({ ...base, status: "in_progress", owner: null }).success).toBe(false);
+    expect(uatScenarioUpdateSchema.safeParse({
+      ...base,
+      status: "blocked",
+      evidenceNote: null,
+      evidenceUrl: null,
+      actualResult: null,
+      blockerReason: "Menunggu keputusan pihak terkait.",
+    }).success).toBe(true);
   });
 
   it("accepts the explicit Business Rules proposal context and rejects unknown fields", () => {

@@ -339,7 +339,9 @@ export const uatScenarioUpdateSchema = z.object({
   owner: adminOwnerSchema.nullable().optional(),
   environment: z.enum(["local", "staging", "production"]),
   evidenceNote: z.string().trim().max(4000).nullable().optional(),
-  evidenceUrl: z.string().trim().url("URL bukti tidak valid.").max(2000).nullable().optional(),
+  evidenceUrl: z.string().trim().url("URL bukti tidak valid.").max(2000)
+    .refine((value) => value.startsWith("https://"), "URL bukti harus memakai HTTPS.")
+    .nullable().optional(),
   actualResult: z.string().trim().max(4000).nullable().optional(),
   blockerReason: z.string().trim().max(2000).nullable().optional(),
 }).strict().superRefine((value, context) => {

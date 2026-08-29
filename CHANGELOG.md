@@ -3,6 +3,16 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] - 2026-08-30
+
+### Added — Phase 9 Human UAT & Pilot Gate
+
+- Menambahkan migration `0034_phase9_human_uat_pilot_gate.sql` untuk 12 skenario UAT wajib, owner, environment, bukti, hasil aktual, blocker, dan audit event immutable.
+- Menambahkan RPC tervalidasi `update_uat_scenario` dengan RLS dan service-role boundary; skenario wajib tidak dapat dilewati dan hasil lulus/gagal wajib memiliki bukti.
+- Menambahkan endpoint admin `/api/admin/pilot-readiness` untuk membaca readiness serta menyimpan hasil UAT tanpa kemampuan mengaktifkan workflow.
+- Menambahkan evaluator dan unit test yang hanya menghasilkan `eligible_for_human_review` setelah seluruh skenario wajib lulus, sambil mempertahankan `activationLocked=true`.
+- Menambahkan readiness gate `human_uat_pilot_gate_phase9_ready`, pemeriksaan definisi, dan counter progres eksekusi manusia.
+
 ## [0.12.0] - 2026-08-30
 
 ### Added — Phase 8 Launch Control & Observability

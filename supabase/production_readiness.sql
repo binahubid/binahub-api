@@ -264,6 +264,12 @@ select
     )
     and to_regclass('public.calendar_bookings_series_idx') is not null
   ) as calendar_booking_lineage_phase7_ready,
+  (
+    to_regclass('public.uat_scenarios') is not null
+    and to_regclass('public.uat_scenario_events') is not null
+    and to_regprocedure('public.update_uat_scenario(uuid,text,text,text,text,text,text,text,text)') is not null
+    and (select count(*) from public.uat_scenarios where required) >= 12
+  ) as human_uat_pilot_gate_phase9_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
@@ -375,6 +381,28 @@ left join public.tbos_dimension_levels level
 where level.dimension_id is null
   or level.description is null
   or btrim(level.description) = '';
+
+select count(*) as uat_definition_issues
+from public.uat_scenarios scenario
+where scenario.title is null
+  or btrim(scenario.title) = ''
+  or scenario.objective is null
+  or btrim(scenario.objective) = ''
+  or scenario.expected_result is null
+  or btrim(scenario.expected_result) = ''
+  or (scenario.required and scenario.status = 'not_applicable')
+  or not exists (
+    select 1
+    from public.uat_scenario_events event
+    where event.scenario_id = scenario.id
+      and event.event_type = 'created'
+  );
+
+select
+  count(*) filter (where required) as uat_required_total,
+  count(*) filter (where required and status = 'passed') as uat_required_passed,
+  count(*) filter (where required and status <> 'passed') as uat_required_pending_for_human_execution
+from public.uat_scenarios;
 
 select
   cls.relname as table_name,
