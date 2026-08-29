@@ -22,6 +22,13 @@ type FormData = {
   role?: string;
   whatsapp?: string;
   employees?: string;
+  industry?: string;
+  location?: string;
+  timeline?: string;
+  budgetStatus?: string;
+  sponsorStatus?: string;
+  nextStepIntent?: string;
+  businessConsequence?: string;
   source?: string;
   challenge?: string;
   target?: string;
@@ -69,6 +76,9 @@ type LeadRow = {
   name: string | null;
   email: string | null;
   company: string | null;
+  industry?: string | null;
+  location?: string | null;
+  qualification_profile?: unknown;
   phone: string | null;
   source: string | null;
   lead_score: number | null;
@@ -80,6 +90,19 @@ type LeadRow = {
   lead_score_rule_version?: string | null;
   lifecycle_stage?: string | null;
   opportunity_stage?: string | null;
+  opportunity_owner?: string | null;
+  next_action?: string | null;
+  next_action_due_at?: string | null;
+  lead_time_zone?: string | null;
+  opportunity_value?: number | null;
+  lost_reason?: string | null;
+  won_at?: string | null;
+  lost_at?: string | null;
+  outreach_paused?: boolean | null;
+  outreach_pause_reason?: string | null;
+  outreach_paused_at?: string | null;
+  outreach_paused_by?: string | null;
+  pipeline_updated_at?: string | null;
   source_metadata?: unknown;
   notes: string | null;
   created_at: string | null;
@@ -100,6 +123,33 @@ type InquiryRow = {
   follow_up_last_sent_at?: string | null;
   follow_up_paused?: boolean | null;
   created_at: string | null;
+};
+
+type OpportunityActivityRow = {
+  id: string;
+  lead_id: string;
+  assessment_id?: string | null;
+  inquiry_id?: string | null;
+  event_type: string;
+  from_stage?: string | null;
+  to_stage?: string | null;
+  actor: string;
+  note?: string | null;
+  metadata?: unknown;
+  created_at: string;
+};
+
+type EmailDeliveryEventRow = {
+  id: string;
+  email_id?: string | null;
+  event_type: string;
+  recipient_email?: string | null;
+  sender_email?: string | null;
+  subject?: string | null;
+  processing_status: string;
+  error_message?: string | null;
+  provider_created_at?: string | null;
+  received_at: string;
 };
 
 type CalendarBookingRow = {
@@ -350,7 +400,7 @@ export async function GET(req: NextRequest) {
   const [leadQuery, inquiryQuery] = await Promise.all([
       db
         .from("leads")
-        .select("id, name, email, company, phone, source, lead_score, lead_status, lead_temperature, lead_score_confidence, lead_score_reason, lead_score_evidence, lead_score_rule_version, lifecycle_stage, opportunity_stage, source_metadata, notes, created_at")
+        .select("id, name, email, company, industry, location, qualification_profile, phone, source, lead_score, lead_status, lead_temperature, lead_score_confidence, lead_score_reason, lead_score_evidence, lead_score_rule_version, lifecycle_stage, opportunity_stage, opportunity_owner, next_action, next_action_due_at, lead_time_zone, opportunity_value, lost_reason, won_at, lost_at, outreach_paused, outreach_pause_reason, outreach_paused_at, outreach_paused_by, pipeline_updated_at, source_metadata, notes, created_at")
         .order("created_at", { ascending: false }),
       db
         .from("inquiries")
@@ -481,6 +531,26 @@ export async function GET(req: NextRequest) {
     calendarBookingRows = [];
   }
 
+  let opportunityActivityRows: OpportunityActivityRow[] = [];
+  let emailDeliveryEventRows: EmailDeliveryEventRow[] = [];
+  try {
+    const [{ data: activities }, { data: emailEvents }] = await Promise.all([
+      db.from("opportunity_activities")
+        .select("id, lead_id, assessment_id, inquiry_id, event_type, from_stage, to_stage, actor, note, metadata, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      db.from("email_delivery_events")
+        .select("id, email_id, event_type, recipient_email, sender_email, subject, processing_status, error_message, provider_created_at, received_at")
+        .order("received_at", { ascending: false })
+        .limit(500),
+    ]);
+    opportunityActivityRows = (activities || []) as OpportunityActivityRow[];
+    emailDeliveryEventRows = (emailEvents || []) as EmailDeliveryEventRow[];
+  } catch {
+    opportunityActivityRows = [];
+    emailDeliveryEventRows = [];
+  }
+
   const leadsById = new Map((leadRows || []).map((lead) => [lead.id, lead as LeadRow]));
 
   const assessments = ((assessmentRows || []) as AssessmentRow[]).map((row) => {
@@ -498,6 +568,13 @@ export async function GET(req: NextRequest) {
       role: form.role || "-",
       whatsapp: form.whatsapp || lead?.phone || "",
       employees: form.employees || "Tidak diketahui",
+      industry: form.industry || lead?.industry || "",
+      location: form.location || lead?.location || "",
+      timeline: form.timeline || "unknown",
+      budgetStatus: form.budgetStatus || "unknown",
+      sponsorStatus: form.sponsorStatus || "unknown",
+      nextStepIntent: form.nextStepIntent || "explore",
+      businessConsequence: form.businessConsequence || "",
       source: form.source || lead?.source || "insight_assessment",
       challenge: form.challenge || "",
       target: form.target || "",
@@ -737,6 +814,50 @@ export async function GET(req: NextRequest) {
     }))
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+  const pipelineLeads = ((leadRows || []) as LeadRow[]).map((lead) => ({
+    id: lead.id,
+    name: lead.name || "-",
+    email: lead.email || "-",
+    company: lead.company || "-",
+    industry: lead.industry || null,
+    location: lead.location || null,
+    qualificationProfile: parseJson<Record<string, unknown>>(lead.qualification_profile, {}),
+    phone: lead.phone || "",
+    source: lead.source || "lead",
+    leadScore: lead.lead_score ?? null,
+    leadTemperature: lead.lead_temperature || lead.lead_status || "unclassified",
+    leadScoreConfidence: lead.lead_score_confidence ?? null,
+    lifecycleStage: lead.lifecycle_stage || "prospect",
+    opportunityStage: lead.opportunity_stage || "identified",
+    opportunityOwner: lead.opportunity_owner || null,
+    nextAction: lead.next_action || null,
+    nextActionDueAt: lead.next_action_due_at || null,
+    leadTimeZone: lead.lead_time_zone || "Asia/Jakarta",
+    opportunityValue: lead.opportunity_value ?? null,
+    lostReason: lead.lost_reason || null,
+    wonAt: lead.won_at || null,
+    lostAt: lead.lost_at || null,
+    outreachPaused: lead.outreach_paused === true,
+    outreachPauseReason: lead.outreach_pause_reason || null,
+    outreachPausedAt: lead.outreach_paused_at || null,
+    outreachPausedBy: lead.outreach_paused_by || null,
+    pipelineUpdatedAt: lead.pipeline_updated_at || lead.created_at,
+    createdAt: lead.created_at,
+  }));
+  const activePipelineLeads = pipelineLeads.filter((lead) => !["won", "lost"].includes(lead.opportunityStage));
+  const now = Date.now();
+  const deliverabilityEvents = new Set(["email.bounced", "email.complained", "email.failed", "email.suppressed"]);
+  const emailDeliverySummary = emailDeliveryEventRows.reduce((summary, item) => {
+    summary.total += 1;
+    if (item.event_type === "email.delivered") summary.delivered += 1;
+    if (item.event_type === "email.bounced") summary.bounced += 1;
+    if (item.event_type === "email.complained") summary.complained += 1;
+    if (item.event_type === "email.failed") summary.failed += 1;
+    if (item.event_type === "email.received") summary.received += 1;
+    if (item.processing_status === "failed") summary.processingFailed += 1;
+    return summary;
+  }, { total: 0, delivered: 0, bounced: 0, complained: 0, failed: 0, received: 0, processingFailed: 0 });
+
   return NextResponse.json({
     success: true,
     generatedAt: new Date().toISOString(),
@@ -754,6 +875,12 @@ export async function GET(req: NextRequest) {
         ["requested", "confirmed", "rescheduled"].includes(item.status)
         && new Date(item.end_time || item.start_time || 0).getTime() >= Date.now()
       ).length,
+      openOpportunities: activePipelineLeads.length,
+      overdueNextActions: activePipelineLeads.filter((lead) =>
+        lead.nextActionDueAt && new Date(lead.nextActionDueAt).getTime() < now
+      ).length,
+      unassignedOpportunities: activePipelineLeads.filter((lead) => !lead.opportunityOwner).length,
+      deliverabilityAlerts: emailDeliveryEventRows.filter((item) => deliverabilityEvents.has(item.event_type)).length,
     },
     dimensionStats,
     categoryBreakdown,
@@ -791,6 +918,33 @@ export async function GET(req: NextRequest) {
       updatedAt: item.updated_at || null,
       isUpcoming: ["requested", "confirmed", "rescheduled"].includes(item.status)
         && new Date(item.end_time || item.start_time || 0).getTime() >= Date.now(),
+    })),
+    pipelineLeads,
+    opportunityActivities: opportunityActivityRows.map((item) => ({
+      id: item.id,
+      leadId: item.lead_id,
+      assessmentId: item.assessment_id || null,
+      inquiryId: item.inquiry_id || null,
+      eventType: item.event_type,
+      fromStage: item.from_stage || null,
+      toStage: item.to_stage || null,
+      actor: item.actor,
+      note: item.note || null,
+      metadata: item.metadata || {},
+      createdAt: item.created_at,
+    })),
+    emailDeliverySummary,
+    emailDeliveryEvents: emailDeliveryEventRows.map((item) => ({
+      id: item.id,
+      emailId: item.email_id || null,
+      eventType: item.event_type,
+      recipientEmail: item.recipient_email || null,
+      senderEmail: item.sender_email || null,
+      subject: item.subject || null,
+      processingStatus: item.processing_status,
+      errorMessage: item.error_message || null,
+      providerCreatedAt: item.provider_created_at || null,
+      receivedAt: item.received_at,
     })),
   });
 }

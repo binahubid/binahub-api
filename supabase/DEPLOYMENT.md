@@ -12,7 +12,7 @@ Kedua repositori memiliki migration historis bernomor `0005`–`0017`. Supabase 
 2. Jalankan `npx supabase migration list` dari direktori yang sebelumnya menjadi sumber migration production. Jangan melakukan `migration repair` otomatis.
 3. Jalankan `production_readiness.sql` secara read-only melalui SQL Editor.
 4. Jika object dari migration API `0005`–`0014` sudah ada, jangan replay file tersebut.
-5. Terapkan `0015_ceo_revision_hardening.sql` sampai `0026_business_rules_v1_confirmed.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0021` mengunci idempotensi assessment, `0022` menambahkan BinaInsight sebagai modul program dan claim follow-up, `0023` menambahkan lifecycle lead, atribusi kampanye, suppression email, dan atomic claim untuk worker event, `0024` menambahkan katalog modul, Business Rules berversi, snapshot proposal, serta human gate, `0025` menambahkan request modul serta sinkronisasi booking Cal.com, dan `0026` menyimpan keputusan Business Rules v1 serta guardrail qualification/follow-up tanpa mengaktifkan proposal otomatis.
+5. Terapkan `0015_ceo_revision_hardening.sql` sampai `0027_sales_pipeline_and_deliverability.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0021` mengunci idempotensi assessment, `0022` menambahkan BinaInsight sebagai modul program dan claim follow-up, `0023` menambahkan lifecycle lead, atribusi kampanye, suppression email, dan atomic claim untuk worker event, `0024` menambahkan katalog modul, Business Rules berversi, snapshot proposal, serta human gate, `0025` menambahkan request modul serta sinkronisasi booking Cal.com, `0026` menyimpan keputusan Business Rules v1 serta guardrail qualification/follow-up tanpa mengaktifkan proposal otomatis, dan `0027` menambahkan pipeline Sales Operations, audit activity, template outreach terkontrol, serta event deliverability email.
 6. Jalankan kembali `production_readiness.sql`. Semua kolom `*_ready` harus `true` dan seluruh counter `*_issues` harus `0`.
 7. Deploy API lebih dahulu, lalu frontend. Lakukan smoke test role admin, fasilitator, dan peserta.
 
@@ -21,7 +21,7 @@ Jangan menandai migration sebagai applied hanya untuk melewati error. Error dupl
 ## Fresh Database
 
 1. Terapkan migration `app-binahub/supabase/migrations/0001` sampai migration terakhir secara leksikografis.
-2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0026` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
+2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0027` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
 3. Jalankan seed T-BOS yang disediakan frontend bila data mission/dimensi belum terbentuk.
 4. Jalankan `production_readiness.sql` dan health check T-BOS frontend.
 
@@ -48,3 +48,6 @@ Untuk jangka panjang, buat satu baseline schema bertimestamp setelah release pro
 - Business Rules `v1.0-approved-partial` tersedia sebagai `draft`, tidak menggantikan rules aktif, dan daftar activation blockers tetap terisi.
 - Lead qualification menyimpan score, temperature, confidence, evidence, dan rule version; data yang belum tersedia tidak ditebak.
 - Maksimum tiga follow-up dihitung per lead/opportunity lintas inquiry, assessment result, dan proposal.
+- Admin dapat menetapkan owner, next action, due date, nilai peluang, stage won/lost, alasan lost, serta pause outreach; setiap perubahan memiliki audit trail.
+- Template follow-up production wajib berstatus approved dan non-mock; activation outbound tetap menjadi pengunci kedua.
+- Webhook Resend dengan signature salah ditolak; event duplikat tidak diproses ulang; bounce/complaint/suppression menjeda outreach dan masuk suppression list.

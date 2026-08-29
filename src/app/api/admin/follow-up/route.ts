@@ -7,9 +7,16 @@ import { OutreachSuppressedError, sendOutreachEmail } from "@/lib/email-service"
 import { requireAdmin } from "@/lib/admin-auth";
 import { getBearerToken } from "@/lib/auth-role";
 import { evaluateFollowUpWindow, followUpStopReason, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
+import {
+  ApprovedOutreachTemplateRequiredError,
+  isOutboundAutomationActive,
+  loadApprovedOutreachTemplate,
+} from "@/lib/outreach-template";
 
 type FollowUpLevel = 1 | 2 | 3;
 type AssessmentFollowUpChannel = "result" | "proposal";
+type FollowUpContent = { subject: string; html: string; templateVersion: string | null };
+type FollowUpTemplateVariables = { name: string; company: string };
 
 const FOLLOW_UP_STATUS: Record<FollowUpLevel, string> = {
   1: "Follow Up 1 Terkirim",
@@ -135,6 +142,33 @@ function appendHistory(current: unknown, entry: Record<string, unknown>) {
   return [...(Array.isArray(history) ? history : []), entry];
 }
 
+function applyTemplate(value: string, variables: FollowUpTemplateVariables) {
+  return value.replace(/\{\{\s*(name|company)\s*\}\}/g, (_match, key: keyof FollowUpTemplateVariables) => {
+    const resolved = variables[key] || (key === "name" ? "Bapak/Ibu" : "organisasi Anda");
+    return resolved.replace(/[\r\n]+/g, " ");
+  });
+}
+
+async function resolveFollowUpContent(
+  db: ReturnType<typeof createServerSupabase>,
+  templateKey: string,
+  locale: "id" | "en",
+  variables: FollowUpTemplateVariables,
+  fallback: () => Promise<{ subject: string; html: string }>,
+): Promise<FollowUpContent> {
+  const template = await loadApprovedOutreachTemplate(db, templateKey, locale);
+  if (template) return {
+    subject: applyTemplate(template.subject, variables),
+    html: applyTemplate(template.html, variables),
+    templateVersion: template.version,
+  };
+  if (process.env.FOLLOW_UP_REQUIRE_APPROVED_TEMPLATE !== "false") {
+    throw new ApprovedOutreachTemplateRequiredError(templateKey);
+  }
+  const generated = await fallback();
+  return { ...generated, templateVersion: null };
+}
+
 async function loadFollowUpControl(
   db: ReturnType<typeof createServerSupabase>,
   targetType: "inquiry" | "assessment",
@@ -148,7 +182,7 @@ async function loadFollowUpControl(
     ? eventCountQuery.eq("lead_id", leadId)
     : eventCountQuery.eq("target_type", targetType).eq("target_id", targetId);
   const leadQuery = leadId
-    ? db.from("leads").select("opportunity_stage").eq("id", leadId).maybeSingle()
+    ? db.from("leads").select("opportunity_stage, outreach_paused").eq("id", leadId).maybeSingle()
     : Promise.resolve({ data: null, error: null });
   let bookingQuery = db
     .from("calendar_bookings")
@@ -172,6 +206,7 @@ async function loadFollowUpControl(
   return {
     sentCount: events.count || 0,
     opportunityStage: lead.data?.opportunity_stage || null,
+    outreachPaused: lead.data?.outreach_paused === true,
     bookingStatus: booking.data?.status || null,
   };
 }
@@ -312,13 +347,16 @@ async function sendFollowUpForInquiry(
   let emailId: string | null = null;
 
   try {
-    const generated = await generateInquiryFollowUp({
+    const generated = await resolveFollowUpContent(db, `inquiry_follow_up_${level}`, "id", {
+      name: String(inquiry.name || "Bapak/Ibu"),
+      company: String(inquiry.company || ""),
+    }, () => generateInquiryFollowUp({
       name: String(inquiry.name || "Bapak/Ibu"),
       email,
       company: String(inquiry.company || ""),
       message: String(inquiry.message || ""),
       level,
-    });
+    }));
 
     const response = await sendOutreachEmail(
       email,
@@ -332,7 +370,7 @@ async function sendFollowUpForInquiry(
 
     const sentAt = new Date().toISOString();
     const status = FOLLOW_UP_STATUS[level];
-    const entry = { type: "inquiry", level, status, actor, emailId, sentAt };
+    const entry = { type: "inquiry", level, status, actor, emailId, sentAt, templateVersion: generated.templateVersion };
     const { error: updateError } = await db
       .from("inquiries")
       .update({
@@ -409,7 +447,11 @@ async function sendFollowUpForAssessment(
   let emailId: string | null = null;
 
   try {
-    const generated = await generateAssessmentFollowUp({
+    const locale = form.locale === "en" ? "en" : "id";
+    const generated = await resolveFollowUpContent(db, `assessment_${channel}_follow_up_${level}`, locale, {
+      name: form.name || "Bapak/Ibu",
+      company: form.company || "",
+    }, () => generateAssessmentFollowUp({
       name: form.name || "Bapak/Ibu",
       email,
       company: form.company || "",
@@ -419,7 +461,7 @@ async function sendFollowUpForAssessment(
       overallScore: Number(assessment.overall_score || 0),
       aiAnalysis: assessment.ai_analysis || "",
       proposalStatus: assessment.proposal_status || "",
-    });
+    }));
 
     const response = await sendOutreachEmail(
       email,
@@ -434,7 +476,7 @@ async function sendFollowUpForAssessment(
     const sentAt = new Date().toISOString();
     const status = `${channel === "result" ? "Result" : "Proposal"} ${FOLLOW_UP_STATUS[level]}`;
     const prefix = getAssessmentFieldPrefix(channel);
-    const entry = { type: "assessment", channel, level, status, actor, emailId, sentAt };
+    const entry = { type: "assessment", channel, level, status, actor, emailId, sentAt, templateVersion: generated.templateVersion };
     const payload =
       channel === "result"
         ? {
@@ -543,6 +585,9 @@ function validateAssessmentFollowUp(
 }
 
 function followUpErrorResponse(error: unknown) {
+  if (error instanceof ApprovedOutreachTemplateRequiredError) {
+    return adminError(error.message, 409, "APPROVED_OUTREACH_TEMPLATE_REQUIRED");
+  }
   if (error instanceof FollowUpAlreadyClaimedError) {
     return adminError(error.message, 409, "FOLLOW_UP_ALREADY_CLAIMED");
   }
@@ -561,6 +606,7 @@ function followUpStopMessage(reason: ReturnType<typeof followUpStopReason>) {
   if (reason === "MAX_MESSAGES_REACHED") return "Maksimum tiga pesan follow up untuk opportunity ini sudah tercapai.";
   if (reason === "MEETING_BOOKED") return "Follow up dihentikan karena konsultasi sudah dijadwalkan.";
   if (reason === "OPPORTUNITY_ACTIVE_OR_CLOSED") return "Follow up dihentikan karena opportunity sedang ditangani atau sudah ditutup.";
+  if (reason === "HUMAN_OR_DELIVERABILITY_PAUSE") return "Follow up dijeda oleh manusia atau kontrol deliverability.";
   return null;
 }
 
@@ -649,6 +695,31 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
   const dryRun = process.env.FOLLOW_UP_DRY_RUN === "true";
+  if (!dryRun) {
+    try {
+      const activation = await isOutboundAutomationActive(db);
+      if (!activation.active) {
+        return NextResponse.json({
+          success: false,
+          locked: true,
+          code: "OUTBOUND_AUTOMATION_NOT_ACTIVE",
+          error: "Outbound otomatis terkunci sampai Business Rules non-mock aktif dan seluruh template follow-up disetujui.",
+          ruleVersion: activation.ruleVersion,
+          businessRulesActive: activation.businessRulesActive,
+          templatesReady: activation.templatesReady,
+          missingTemplateKeys: activation.missingTemplateKeys,
+          sent: [],
+          failures: [],
+        }, { status: 423 });
+      }
+    } catch (error) {
+      return adminError(
+        error instanceof Error ? error.message : "Activation gate gagal dibaca.",
+        503,
+        "OUTBOUND_ACTIVATION_CHECK_FAILED",
+      );
+    }
+  }
   const sent: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel; status: string; emailId: string | null }> = [];
   const candidates: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel }> = [];
   const failures: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level?: FollowUpLevel; error: string }> = [];

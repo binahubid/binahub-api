@@ -13,6 +13,9 @@ const FROM = process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@')
   : 'onboarding@resend.dev';
 const COMPANY_COPY = process.env.EMAIL_COMPANY_COPY || 'admin@binahub.id';
 const COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME || 'BinaHub';
+const REPLY_TO = process.env.EMAIL_REPLY_TO && process.env.EMAIL_REPLY_TO.includes('@')
+  ? process.env.EMAIL_REPLY_TO
+  : undefined;
 
 export class OutreachSuppressedError extends Error {
   readonly code = 'OUTREACH_SUPPRESSED';
@@ -92,6 +95,11 @@ function getAppUrl() {
 
 function getApiUrl() {
   return normalizeUrl(process.env.NEXT_PUBLIC_BINAHUB_API_URL) || getAppUrl();
+}
+
+function getConsultationUrl() {
+  return normalizeUrl(process.env.CALCOM_BOOKING_URL || process.env.NEXT_PUBLIC_CALCOM_BOOKING_URL)
+    || "https://cal.com/binahub/konsultasi";
 }
 
 function appendUnsubscribeFooter(html: string, unsubscribeUrl: string) {
@@ -370,6 +378,7 @@ export async function sendOutreachEmail(
   const response = await resend.emails.send({
     from: `${COMPANY_NAME} <${FROM}>`,
     to: normalizedTo,
+    replyTo: REPLY_TO,
     subject: safeHeader(subject),
     html: appendUnsubscribeFooter(renderedHtml, unsubscribeUrl),
     headers: {
@@ -431,6 +440,7 @@ export async function sendProposalEmail(
   const safeProgram = escapeHtml(proposal.proposedProgram || 'Program Transformasi Organisasi');
   const safeOpening = escapeHtml(proposal.opening || 'Berdasarkan hasil diagnostik yang telah Anda selesaikan, kami menyusun penawaran awal yang dapat menjadi bahan diskusi internal dan tindak lanjut bersama tim BinaHub.');
   const safeNextStep = escapeHtml(proposal.nextStep || 'Langkah berikutnya adalah menyelaraskan prioritas program, ruang lingkup, peserta, dan paket yang paling sesuai.');
+  const consultationUrl = escapeHtml(getConsultationUrl());
 
   const html = `
 <!DOCTYPE html>
@@ -449,7 +459,7 @@ export async function sendProposalEmail(
 
       <div style="border-top:1px solid #E2E8F0;padding-top:24px;text-align:center;">
         <p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.6;">${safeNextStep}</p>
-        <a href="https://calendly.com/binahub-diagnostic/consultation" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:700;font-size:14px;">Jadwalkan Diskusi Lanjutan</a>
+        <a href="${consultationUrl}" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:700;font-size:14px;">Jadwalkan Diskusi Lanjutan</a>
         <div style="margin-top:22px;">
           <a href="${appUrl || '#'}?chat=open&name=${encodeURIComponent(name)}&company=${encodeURIComponent(company)}"
              style="color:${navy};font-size:13px;font-weight:600;text-decoration:underline;">

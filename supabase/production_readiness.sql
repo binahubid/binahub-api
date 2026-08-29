@@ -146,6 +146,45 @@ select
     )
     and to_regprocedure('public.claim_follow_up_delivery(text,uuid,text,integer,text,uuid)') is not null
   ) as business_rules_v1_guardrails_ready,
+  (
+    to_regclass('public.opportunity_activities') is not null
+    and to_regclass('public.outreach_templates') is not null
+    and to_regclass('public.email_delivery_events') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'opportunity_owner'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'next_action_due_at'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'outreach_paused'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'industry'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'leads' and column_name = 'qualification_profile'
+    )
+    and to_regprocedure('public.update_sales_opportunity(uuid,text,text,text,text,timestamptz,text,text,numeric,text,boolean,text)') is not null
+    and to_regprocedure('public.save_outreach_template(uuid,text,text,text,text,text,text,text,boolean,text,text)') is not null
+  ) as sales_operations_phase2_ready,
+  (
+    to_regclass('public.email_delivery_events') is not null
+    and to_regclass('public.email_suppressions') is not null
+    and exists (
+      select 1 from pg_constraint constraint_record
+      join pg_class table_record on table_record.oid = constraint_record.conrelid
+      join pg_namespace schema_record on schema_record.oid = table_record.relnamespace
+      where schema_record.nspname = 'public'
+        and table_record.relname = 'email_delivery_events'
+        and constraint_record.conname = 'email_delivery_events_webhook_unique'
+    )
+  ) as email_deliverability_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

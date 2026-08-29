@@ -15,6 +15,26 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
 
+## [0.8.0] - 2026-08-29
+
+### Added — Sales Operations dan Deliverability
+
+- Menambahkan migration `0027_sales_pipeline_and_deliverability.sql` untuk owner peluang, next action, due date, nilai peluang, won/lost reason, human pause, dan audit trail atomik.
+- Menambahkan endpoint admin pipeline serta pengelolaan template follow-up draft/approved/archived dengan approval note dan versi yang dapat diaudit.
+- Menambahkan webhook Resend tervalidasi signature dan idempotent untuk delivered, reply, bounce, complaint, failed, dan suppression.
+- Menambahkan ringkasan pipeline, aktivitas peluang, serta kesehatan email pada payload dashboard admin.
+- Menambahkan qualification profile terstruktur pada lead dan memakainya untuk score, confidence, buying signals, serta ICP exclusion tanpa inferensi data kosong.
+
+### Changed
+
+- Follow-up production kini terkunci bila Business Rules outbound belum aktif atau template approved belum tersedia.
+- Booking, reschedule, cancel, dan no-show Cal.com masuk activity trail; no-show menjeda outreach untuk keputusan manusia.
+- Tautan konsultasi proposal memakai `CALCOM_BOOKING_URL`, bukan URL Calendly statis.
+
+### Safety
+
+- Bounce, complaint, suppression, failure, dan reply menjeda sequence terkait. Bounce/complaint/suppression juga menambahkan alamat ke suppression list.
+
 ## [0.7.0] - 2026-08-28
 
 ### Added — Business Rules v1 dan Qualification Guardrails

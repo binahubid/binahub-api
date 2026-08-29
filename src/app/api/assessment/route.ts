@@ -133,6 +133,17 @@ export async function POST(req: NextRequest) {
       name: body.name,
       email: body.email,
       company: body.company,
+      industry: body.industry || null,
+      location: body.location || null,
+      qualification_profile: {
+        employees: body.employees || null,
+        role: body.role || null,
+        timeline: body.timeline || 'unknown',
+        budgetStatus: body.budgetStatus || 'unknown',
+        sponsorStatus: body.sponsorStatus || 'unknown',
+        nextStepIntent: body.nextStepIntent || 'explore',
+        businessConsequence: body.businessConsequence || null,
+      },
       phone: body.whatsapp || '',
       source: body.source || 'insight_assessment',
       last_meaningful_activity_at: new Date().toISOString(),
@@ -231,6 +242,13 @@ export async function POST(req: NextRequest) {
         role: body.role,
         challenge: body.challenge,
         target: body.target,
+        industry: body.industry,
+        location: body.location,
+        timelineKnown: body.timeline !== 'unknown',
+        sponsorKnown: ['sponsor_confirmed', 'decision_maker'].includes(body.sponsorStatus || 'unknown'),
+        budgetKnown: ['range_known', 'allocated'].includes(body.budgetStatus || 'unknown'),
+        meetingIntent: ['consultation', 'proposal'].includes(body.nextStepIntent || 'explore'),
+        businessConsequenceKnown: Boolean(body.businessConsequence && body.businessConsequence.trim().length >= 20),
       });
       const { error: leadScoreUpdateError } = await supabase
         .from('leads')

@@ -60,20 +60,29 @@ export async function POST(req: NextRequest) {
 
   try {
     let leadId: string | null = null;
+    let leadOpportunityStage = "identified";
     if (event.attendeeEmail && EMAIL_PATTERN.test(event.attendeeEmail)) {
       const { data: existingLead, error: leadReadError } = await db
         .from("leads")
-        .select("id")
+        .select("id, opportunity_stage")
         .eq("email", event.attendeeEmail)
         .maybeSingle();
       if (leadReadError) throw leadReadError;
 
       if (existingLead) {
         leadId = existingLead.id;
+        leadOpportunityStage = existingLead.opportunity_stage || "identified";
         const leadUpdate: Record<string, unknown> = { last_meaningful_activity_at: new Date().toISOString() };
         if (["requested", "confirmed", "rescheduled"].includes(event.status)) {
           leadUpdate.lifecycle_stage = "lead";
           leadUpdate.opportunity_stage = "consultation";
+          leadOpportunityStage = "consultation";
+        }
+        if (event.status === "no_show") {
+          leadUpdate.outreach_paused = true;
+          leadUpdate.outreach_pause_reason = "calcom_no_show_requires_human_review";
+          leadUpdate.outreach_paused_at = new Date().toISOString();
+          leadUpdate.outreach_paused_by = "calcom-webhook";
         }
         const { error: updateError } = await db.from("leads").update(leadUpdate).eq("id", leadId);
         if (updateError) throw updateError;
@@ -89,6 +98,7 @@ export async function POST(req: NextRequest) {
         }).select("id").single();
         if (insertError) throw insertError;
         leadId = insertedLead.id;
+        leadOpportunityStage = "consultation";
       }
     }
 
@@ -118,7 +128,7 @@ export async function POST(req: NextRequest) {
     // A booked or rescheduled consultation is an explicit stop condition for
     // queued outreach. Cancellation does not auto-resume; an authorized human
     // must decide whether and where the sequence should continue.
-    if (["requested", "confirmed", "rescheduled"].includes(event.status)) {
+    if (["requested", "confirmed", "rescheduled", "no_show"].includes(event.status)) {
       if (leadId) {
         const [{ error: assessmentPauseError }, { error: inquiryPauseError }] = await Promise.all([
           db.from("assessments").update({ follow_up_paused: true }).eq("lead_id", leadId),
@@ -134,6 +144,26 @@ export async function POST(req: NextRequest) {
           .eq("id", event.assessmentId);
         if (assessmentPauseError) throw assessmentPauseError;
       }
+    }
+
+    if (leadId) {
+      const { error: activityError } = await db.from("opportunity_activities").insert({
+        lead_id: leadId,
+        assessment_id: event.assessmentId && UUID_PATTERN.test(event.assessmentId) ? event.assessmentId : null,
+        event_type: `calendar_booking_${event.status.replace(/[^a-z0-9_]/g, "_")}`,
+        from_stage: leadOpportunityStage,
+        to_stage: leadOpportunityStage,
+        actor: "calcom-webhook",
+        note: event.status === "no_show"
+          ? "Peserta tidak hadir. Outreach dijeda dan membutuhkan keputusan tindak lanjut manusia."
+          : `Status konsultasi berubah menjadi ${event.status}.`,
+        metadata: {
+          providerUid: event.providerUid,
+          triggerEvent: event.triggerEvent,
+          eventTypeSlug: event.eventTypeSlug,
+        },
+      });
+      if (activityError) throw activityError;
     }
 
     await db.from("calendar_webhook_events").update({

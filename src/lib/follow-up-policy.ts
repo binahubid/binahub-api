@@ -22,8 +22,10 @@ export function followUpStopReason(input: {
   sentCount: number;
   bookingStatus?: string | null;
   opportunityStage?: string | null;
+  outreachPaused?: boolean | null;
 }) {
   if (input.sentCount >= MAX_FOLLOW_UP_MESSAGES_PER_OPPORTUNITY) return "MAX_MESSAGES_REACHED" as const;
+  if (input.outreachPaused) return "HUMAN_OR_DELIVERABILITY_PAUSE" as const;
   if (FOLLOW_UP_ACTIVE_BOOKING_STATUSES.has(String(input.bookingStatus || "").toLowerCase())) {
     return "MEETING_BOOKED" as const;
   }

@@ -117,6 +117,91 @@ export const proposalApprovalSchema = z.object({
   note: z.string().trim().max(4000).default(""),
 }).strict();
 
+export const opportunityStageSchema = z.enum([
+  "identified",
+  "qualified",
+  "consultation",
+  "proposal",
+  "negotiation",
+  "won",
+  "lost",
+]);
+
+export const salesOpportunityUpdateSchema = z.object({
+  leadId: z.string().uuid("ID lead tidak valid."),
+  stage: opportunityStageSchema,
+  owner: z.string().trim().email("Email owner tidak valid.").max(320).nullable().optional(),
+  nextAction: z.string().trim().max(2000).nullable().optional(),
+  nextActionDueAt: z.string().datetime({ offset: true }).nullable().optional(),
+  note: z.string().trim().max(4000).nullable().optional(),
+  lostReason: z.string().trim().max(2000).nullable().optional(),
+  opportunityValue: z.number().min(0).max(999_999_999_999).nullable().optional(),
+  leadTimeZone: z.string().trim().min(3).max(80).nullable().optional(),
+  outreachPaused: z.boolean().nullable().optional(),
+  outreachPauseReason: z.string().trim().max(1000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  const activeStages = ["qualified", "consultation", "proposal", "negotiation"];
+  if (value.stage !== "identified" && !value.owner) {
+    context.addIssue({ code: "custom", path: ["owner"], message: "Owner wajib ditetapkan sebelum peluang diproses atau ditutup." });
+  }
+  if (activeStages.includes(value.stage) && !value.nextAction) {
+    context.addIssue({ code: "custom", path: ["nextAction"], message: "Next action wajib untuk peluang aktif." });
+  }
+  if (activeStages.includes(value.stage) && !value.nextActionDueAt) {
+    context.addIssue({ code: "custom", path: ["nextActionDueAt"], message: "Tenggat next action wajib untuk peluang aktif." });
+  }
+  if (value.stage === "lost" && (!value.lostReason || value.lostReason.length < 5)) {
+    context.addIssue({
+      code: "custom",
+      path: ["lostReason"],
+      message: "Alasan lost minimal 5 karakter.",
+    });
+  }
+  if (!["won", "lost"].includes(value.stage) && value.nextActionDueAt && !value.nextAction) {
+    context.addIssue({
+      code: "custom",
+      path: ["nextAction"],
+      message: "Next action wajib diisi ketika due date ditetapkan.",
+    });
+  }
+});
+
+export const outreachTemplateKeySchema = z.enum([
+  "inquiry_follow_up_1",
+  "inquiry_follow_up_2",
+  "inquiry_follow_up_3",
+  "assessment_result_follow_up_1",
+  "assessment_result_follow_up_2",
+  "assessment_result_follow_up_3",
+  "assessment_proposal_follow_up_1",
+  "assessment_proposal_follow_up_2",
+  "assessment_proposal_follow_up_3",
+]);
+
+export const outreachTemplateMutationSchema = z.object({
+  id: z.string().uuid().optional(),
+  templateKey: outreachTemplateKeySchema,
+  locale: z.enum(["id", "en"]).default("id"),
+  version: z.string().trim().min(1).max(40),
+  status: z.enum(["draft", "approved", "archived"]),
+  subjectTemplate: z.string().trim().min(1).max(300),
+  htmlTemplate: z.string().trim().min(10).max(30000),
+  owner: z.string().trim().email("Email owner template tidak valid.").max(320).nullable().optional(),
+  isMock: z.boolean().default(false),
+  approvalNote: z.string().trim().max(2000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.status === "approved" && value.isMock) {
+    context.addIssue({ code: "custom", path: ["isMock"], message: "Template mock tidak dapat disetujui." });
+  }
+  if (value.status === "approved" && (!value.approvalNote || value.approvalNote.length < 5)) {
+    context.addIssue({
+      code: "custom",
+      path: ["approvalNote"],
+      message: "Catatan approval minimal 5 karakter.",
+    });
+  }
+});
+
 export const catalogModuleMutationSchema = z.object({
   id: z.string().uuid().optional(),
   productId: z.string().uuid("Produk tidak valid."),
