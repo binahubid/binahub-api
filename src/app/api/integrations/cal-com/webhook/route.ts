@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
     const bookingPayload = {
       provider: "cal.com",
       provider_uid: event.providerUid,
+      provider_series_uid: event.seriesUid || event.providerUid,
       lead_id: leadId,
       assessment_id: event.assessmentId && UUID_PATTERN.test(event.assessmentId) ? event.assessmentId : null,
       event_type_slug: event.eventTypeSlug,
@@ -121,6 +122,20 @@ export async function POST(req: NextRequest) {
       provider_payload: event.payload,
       provider_created_at: event.createdAt,
     };
+
+    // Cal.com changes the booking UID when a meeting is rescheduled, while
+    // iCalUID remains stable for the series. Close previous active slots so a
+    // reschedule/cancellation cannot leave a phantom confirmed consultation.
+    if (event.seriesUid) {
+      const { error: lineageError } = await db.from("calendar_bookings")
+        .update({ status: "rescheduled" })
+        .eq("provider", "cal.com")
+        .eq("provider_series_uid", event.seriesUid)
+        .neq("provider_uid", event.providerUid)
+        .in("status", ["requested", "confirmed"]);
+      if (lineageError) throw lineageError;
+    }
+
     const { error: bookingError } = await db.from("calendar_bookings")
       .upsert(bookingPayload, { onConflict: "provider,provider_uid" });
     if (bookingError) throw bookingError;

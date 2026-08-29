@@ -227,6 +227,43 @@ select
     and to_regprocedure('public.review_acquisition_batch(uuid,text,text,text)') is not null
     and to_regprocedure('public.promote_acquisition_batch(uuid,text,boolean)') is not null
   ) as acquisition_governance_phase5_ready,
+  (
+    exists (
+      select 1
+      from public.catalog_modules module
+      join public.catalog_products product on product.id = module.product_id
+      where module.module_code = 'BI-PUBLIC'
+        and module.is_mock = false
+        and module.active
+        and module.readiness_status = 'ready'
+        and module.catalog_version = 'v1.0-public'
+        and product.product_key = 'binainsight'
+        and product.status = 'ready'
+    )
+    and not exists (
+      select 1
+      from public.catalog_modules
+      where active
+        and readiness_status = 'ready'
+        and not is_mock
+        and catalog_version ilike '%mock%'
+    )
+  ) as public_catalog_phase6_ready,
+  (
+    to_regprocedure('public.sync_client_operations_tasks(text,boolean,date)') is not null
+    and position(
+      'null::uuid' in lower(pg_get_functiondef(to_regprocedure('public.sync_client_operations_tasks(text,boolean,date)')))
+    ) > 0
+  ) as client_operations_phase7_ready,
+  (
+    exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'calendar_bookings'
+        and column_name = 'provider_series_uid'
+    )
+    and to_regclass('public.calendar_bookings_series_idx') is not null
+  ) as calendar_booking_lineage_phase7_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

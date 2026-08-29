@@ -3,6 +3,21 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.11.2] - 2026-08-29
+
+### Fixed — Phase 7 Integrated UAT
+
+- Memperbaiki `sync_client_operations_tasks` yang gagal dengan `UNION types text and uuid cannot be matched` melalui explicit UUID typing pada kandidat nullable.
+- Mengizinkan run Operations berstatus `failed` serta Acquisition berstatus `failed`/`partial` diklaim ulang secara race-safe tanpa membuat idempotency key atau audit run duplikat.
+- Menyimpan lineage `iCalUID` Cal.com agar reschedule/cancellation tidak meninggalkan booking lama berstatus `confirmed`.
+- Menambahkan readiness gate `client_operations_phase7_ready` dan `calendar_booking_lineage_phase7_ready`.
+- Menambahkan smoke-test repeatable `npm run test:phase7` untuk kontrak katalog, auth boundary, webhook signature, CORS, dan security headers.
+
+### Security & Verification
+
+- Endpoint admin, automation, worker, Cal.com webhook, dan Resend webhook menolak request tanpa credential/signature yang valid.
+- Lint, typecheck, 77 unit test, production build, audit dependency, serta migration dry-run/live pada PostgreSQL 16 disposable lulus.
+
 ## [Unreleased] - 2026-08-15
 
 ### Fixed — Audit revisi CEO dan production hardening
@@ -14,6 +29,15 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan export Transformation yang sebelumnya dipanggil UI tetapi belum tersedia, pagination eksplisit, proteksi formula CSV, dan validasi UUID/range/tanggal.
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
+
+## [0.11.1] - 2026-08-29
+
+### Fixed — Phase 6 Release Reconciliation
+
+- Menambahkan migration `0031_phase6_release_reconciliation.sql` untuk menetapkan BinaInsight public assessment sebagai katalog resmi `v1.0-public` tanpa mengubah modul komersial mock.
+- Membatasi katalog publik hanya pada produk `ready` dengan modul aktif, `ready`, dan non-mock.
+- Menghapus klaim pajak statis dari respons katalog selama wording Finance/Legal belum final.
+- Menambahkan readiness gate `public_catalog_phase6_ready`.
 
 ## [0.11.0] - 2026-08-29
 

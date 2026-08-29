@@ -31,23 +31,56 @@ export async function GET(req: NextRequest) {
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
 
-  if (existing) {
-    return NextResponse.json({ success: true, duplicate: true, run: existing, result: existing.summary });
-  }
+  let runId: string;
+  let retried = false;
 
-  const { data: run, error: runError } = await db.from("automation_runs").insert({
-    workflow_key: WORKFLOW_KEY,
-    idempotency_key: idempotencyKey,
-    trigger_source: "n8n",
-    dry_run: dryRun,
-    status: "running",
-    reference_date: requestedDate,
-  }).select("id").single();
-  if (runError || !run) {
-    if (runError?.code === "23505") {
-      return NextResponse.json({ success: true, duplicate: true, message: "Run dengan idempotency key yang sama sudah diproses." });
+  if (existing) {
+    if (existing.status !== "failed") {
+      return NextResponse.json({ success: true, duplicate: true, run: existing, result: existing.summary });
     }
-    return NextResponse.json({ success: false, error: runError?.message || "Gagal mencatat automation run." }, { status: 500 });
+
+    const { data: claimedRetry, error: retryError } = await db.from("automation_runs")
+      .update({
+        status: "running",
+        candidate_count: 0,
+        processed_count: 0,
+        failure_count: 0,
+        summary: {},
+        error_message: null,
+        started_at: new Date().toISOString(),
+        finished_at: null,
+      })
+      .eq("id", existing.id)
+      .eq("status", "failed")
+      .select("id")
+      .maybeSingle();
+
+    if (retryError) {
+      return NextResponse.json({ success: false, error: retryError.message }, { status: 500 });
+    }
+
+    if (!claimedRetry) {
+      return NextResponse.json({ success: true, duplicate: true, message: "Run sedang diproses oleh worker lain." });
+    }
+
+    runId = claimedRetry.id;
+    retried = true;
+  } else {
+    const { data: run, error: runError } = await db.from("automation_runs").insert({
+      workflow_key: WORKFLOW_KEY,
+      idempotency_key: idempotencyKey,
+      trigger_source: "n8n",
+      dry_run: dryRun,
+      status: "running",
+      reference_date: requestedDate,
+    }).select("id").single();
+    if (runError || !run) {
+      if (runError?.code === "23505") {
+        return NextResponse.json({ success: true, duplicate: true, message: "Run dengan idempotency key yang sama sedang atau sudah diproses." });
+      }
+      return NextResponse.json({ success: false, error: runError?.message || "Gagal mencatat automation run." }, { status: 500 });
+    }
+    runId = run.id;
   }
 
   const { data, error } = await db.rpc("sync_client_operations_tasks", {
@@ -62,8 +95,8 @@ export async function GET(req: NextRequest) {
       failure_count: 1,
       error_message: error.message,
       finished_at: new Date().toISOString(),
-    }).eq("id", run.id);
-    return NextResponse.json({ success: false, dryRun, error: error.message, runId: run.id }, { status: 500 });
+    }).eq("id", runId);
+    return NextResponse.json({ success: false, dryRun, retried, error: error.message, runId }, { status: 500 });
   }
 
   const result = (data || {}) as { candidateCount?: number; createdCount?: number };
@@ -74,7 +107,7 @@ export async function GET(req: NextRequest) {
     failure_count: 0,
     summary: data || {},
     finished_at: new Date().toISOString(),
-  }).eq("id", run.id);
+  }).eq("id", runId);
 
-  return NextResponse.json({ success: true, dryRun, runId: run.id, result: data });
+  return NextResponse.json({ success: true, dryRun, retried, runId, result: data });
 }

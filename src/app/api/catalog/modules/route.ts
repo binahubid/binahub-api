@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const [{ data: products, error: productsError }, { data: modules, error: modulesError }] = await Promise.all([
     db.from("catalog_products")
       .select("id, product_key, name, objective")
-      .neq("status", "retired")
+      .eq("status", "ready")
       .order("name", { ascending: true }),
     db.from("catalog_modules")
       .select("id, product_id, module_code, name, description, standard_scope, pricing_unit, base_price, currency, catalog_version")
@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
       policy: {
         onlyPublishedModules: true,
         mockDataExcluded: true,
-        pricesExcludeTax: true,
+        pricesExcludeTax: null,
+        taxPolicyFinalized: false,
       },
     },
     { headers: { ...headers, "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },

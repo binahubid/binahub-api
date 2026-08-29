@@ -38,6 +38,7 @@ export type NormalizedCalComEvent = {
   triggerEvent: string;
   supported: boolean;
   providerUid: string | null;
+  seriesUid: string | null;
   status: "requested" | "confirmed" | "rescheduled" | "cancelled" | "rejected" | "completed" | "no_show";
   eventTypeSlug: string | null;
   title: string | null;
@@ -87,6 +88,7 @@ export function normalizeCalComWebhook(input: unknown): NormalizedCalComEvent {
     triggerEvent,
     supported: SUPPORTED_TRIGGERS.has(triggerEvent),
     providerUid: stringValue(payload.uid) || stringValue(payload.bookingUid),
+    seriesUid: stringValue(payload.iCalUID) || stringValue(payload.uid) || stringValue(payload.bookingUid),
     status,
     eventTypeSlug: stringValue(payload.type) || nestedString(payload, "eventType", "slug"),
     title: stringValue(payload.title),

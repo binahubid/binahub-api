@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.11.0",
+  "version": "0.11.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "lint": "eslint src/app/api src/lib",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:phase7": "node scripts/phase7-smoke.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

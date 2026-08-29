@@ -15,16 +15,43 @@ export async function GET(req: NextRequest) {
   if (key.length > 200) return NextResponse.json({ success: false, error: "Idempotency key terlalu panjang." }, { status: 400 });
   const db = createServerSupabase();
   const { data: existing } = await db.from("automation_runs").select("*").eq("workflow_key", WORKFLOW_KEY).eq("idempotency_key", key).maybeSingle();
-  if (existing) return NextResponse.json({ success: true, duplicate: true, run: existing });
-  const { data: run, error: runError } = await db.from("automation_runs").insert({ workflow_key: WORKFLOW_KEY, idempotency_key: key, trigger_source: "n8n", dry_run: dryRun, status: "running", reference_date: today }).select("id").single();
-  if (runError || !run) {
-    if (runError?.code === "23505") return NextResponse.json({ success: true, duplicate: true });
-    return NextResponse.json({ success: false, error: runError?.message || "Gagal mencatat acquisition run." }, { status: 500 });
+  let runId: string;
+  let retried = false;
+  if (existing) {
+    if (!["failed", "partial"].includes(existing.status)) {
+      return NextResponse.json({ success: true, duplicate: true, run: existing });
+    }
+    const { data: claimedRetry, error: retryError } = await db.from("automation_runs")
+      .update({
+        status: "running",
+        candidate_count: 0,
+        processed_count: 0,
+        failure_count: 0,
+        summary: {},
+        error_message: null,
+        started_at: new Date().toISOString(),
+        finished_at: null,
+      })
+      .eq("id", existing.id)
+      .in("status", ["failed", "partial"])
+      .select("id")
+      .maybeSingle();
+    if (retryError) return NextResponse.json({ success: false, error: retryError.message }, { status: 500 });
+    if (!claimedRetry) return NextResponse.json({ success: true, duplicate: true, message: "Run sedang diproses oleh worker lain." });
+    runId = claimedRetry.id;
+    retried = true;
+  } else {
+    const { data: run, error: runError } = await db.from("automation_runs").insert({ workflow_key: WORKFLOW_KEY, idempotency_key: key, trigger_source: "n8n", dry_run: dryRun, status: "running", reference_date: today }).select("id").single();
+    if (runError || !run) {
+      if (runError?.code === "23505") return NextResponse.json({ success: true, duplicate: true });
+      return NextResponse.json({ success: false, error: runError?.message || "Gagal mencatat acquisition run." }, { status: 500 });
+    }
+    runId = run.id;
   }
   const { data: batches, error: batchError } = await db.from("prospect_import_batches").select("id").eq("status", "approved").order("created_at").limit(25);
   if (batchError) {
-    await db.from("automation_runs").update({ status: "failed", failure_count: 1, error_message: batchError.message, finished_at: new Date().toISOString() }).eq("id", run.id);
-    return NextResponse.json({ success: false, error: batchError.message, runId: run.id }, { status: 500 });
+    await db.from("automation_runs").update({ status: "failed", failure_count: 1, error_message: batchError.message, finished_at: new Date().toISOString() }).eq("id", runId);
+    return NextResponse.json({ success: false, retried, error: batchError.message, runId }, { status: 500 });
   }
   const results: unknown[] = [];
   const failures: Array<{ batchId: string; error: string }> = [];
@@ -42,6 +69,6 @@ export async function GET(req: NextRequest) {
   }
   const status = failures.length ? (results.length ? "partial" : "failed") : "succeeded";
   const summary = { success: failures.length === 0, dryRun, batchCount: (batches || []).length, candidateCount: candidates, promotedCount: promoted, results, failures };
-  await db.from("automation_runs").update({ status, candidate_count: candidates, processed_count: promoted, failure_count: failures.length, summary, error_message: failures[0]?.error || null, finished_at: new Date().toISOString() }).eq("id", run.id);
-  return NextResponse.json({ ...summary, runId: run.id }, { status: failures.length && !results.length ? 500 : 200 });
+  await db.from("automation_runs").update({ status, candidate_count: candidates, processed_count: promoted, failure_count: failures.length, summary, error_message: failures[0]?.error || null, finished_at: new Date().toISOString() }).eq("id", runId);
+  return NextResponse.json({ ...summary, retried, runId }, { status: failures.length && !results.length ? 500 : 200 });
 }

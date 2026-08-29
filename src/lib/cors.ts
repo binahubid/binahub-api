@@ -13,16 +13,19 @@ const allowedOrigins = new Set([
 ]);
 
 export function getCorsHeaders(origin: string | null) {
-  const allowedOrigin = origin && allowedOrigins.has(origin) ? origin : "https://binahub.id";
-
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Credentials": "true",
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Idempotency-Key, X-Requested-With",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Idempotency-Key, X-Idempotency-Key, X-Requested-With",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
+
+  if (origin && allowedOrigins.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Access-Control-Allow-Credentials"] = "true";
+  }
+
+  return headers;
 }
 
 export function corsHeadersFromRequest(request: NextRequest) {

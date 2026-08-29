@@ -19,6 +19,7 @@ describe("Cal.com webhook", () => {
       createdAt: "2026-08-27T02:00:00.000Z",
       payload: {
         uid: "booking-1",
+        iCalUID: "series-1@Cal.com",
         type: "consultation",
         title: "BinaHub Consultation",
         startTime: "2026-08-28T02:00:00.000Z",
@@ -30,6 +31,7 @@ describe("Cal.com webhook", () => {
 
     expect(event.supported).toBe(true);
     expect(event.status).toBe("confirmed");
+    expect(event.seriesUid).toBe("series-1@Cal.com");
     expect(event.attendeeEmail).toBe("dewi@example.com");
     expect(event.meetingUrl).toBe("https://meet.example");
   });
@@ -42,6 +44,21 @@ describe("Cal.com webhook", () => {
     });
 
     expect(event.providerUid).toBe("booking-2");
+    expect(event.seriesUid).toBe("booking-2");
     expect(event.status).toBe("completed");
+  });
+
+  it("keeps the iCal UID as stable lineage when a reschedule changes booking UID", () => {
+    const event = normalizeCalComWebhook({
+      triggerEvent: "BOOKING_RESCHEDULED",
+      payload: {
+        uid: "new-booking-uid",
+        iCalUID: "original-booking-uid@Cal.com",
+      },
+    });
+
+    expect(event.providerUid).toBe("new-booking-uid");
+    expect(event.seriesUid).toBe("original-booking-uid@Cal.com");
+    expect(event.status).toBe("rescheduled");
   });
 });
