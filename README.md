@@ -20,7 +20,6 @@ OPENROUTER_MODEL
 RESEND_API_KEY
 RESEND_WEBHOOK_SECRET
 EMAIL_FROM
-EMAIL_REPLY_TO
 EMAIL_COMPANY_COPY
 NEXT_PUBLIC_APP_URL
 NEXT_PUBLIC_BINAHUB_API_URL
@@ -36,7 +35,7 @@ Follow-up otomatis tersedia melalui `GET /api/admin/follow-up` dengan header `Au
 
 Worker memakai header `x-worker-secret: <TRANSFORMATION_WORKER_SECRET>`. Gunakan `TRANSFORMATION_WORKER_DRY_RUN=true` pada lokal/UAT agar endpoint hanya menghitung `pendingDue` tanpa mengklaim atau memproses event.
 
-Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 09.00-16.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
+Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 
 Gunakan `FOLLOW_UP_DRY_RUN=true` pada lokal/UAT. Scheduler tetap membaca jadwal dan mengembalikan `candidates`, tetapi tidak membuat claim, memanggil AI, mengirim email, atau mengubah status lead. Production baru boleh memakai `false` setelah sender domain, suppression, isi pesan, dan policy follow-up disetujui.
 
@@ -48,7 +47,7 @@ Katalog publik tersedia melalui `GET /api/catalog/modules`; endpoint hanya menge
 
 Webhook Resend tersedia pada `POST /api/integrations/resend/webhook`. Signature Svix diverifikasi dari raw body; event id disimpan secara idempotent. Bounce, complaint, dan provider suppression menambah alamat ke `email_suppressions`, sedangkan reply/failure/deliverability risk menjeda outreach untuk review manusia.
 
-Untuk deteksi reply otomatis, siapkan alamat inbound Resend pada domain penerimaan dan isi `EMAIL_REPLY_TO` dengan alamat tersebut. Tanpa inbound receiving, bounce/complaint tetap tercatat tetapi balasan manusia masuk ke inbox biasa dan perlu diperbarui manual dari Sales Pipeline.
+`EMAIL_REPLY_TO` bersifat opsional. Strategi awal BinaHub memakai no-reply dan mengarahkan penerima ke tombol Cal.com, assessment/result, pemilihan modul, atau unsubscribe; karena itu variable ini boleh dikosongkan. Jika inbound reply otomatis diputuskan pada fase berikutnya, siapkan receiving subdomain Resend terlebih dahulu, isi `EMAIL_REPLY_TO`, lalu aktifkan event `email.received`.
 
 Daftar origin yang diizinkan berada di `src/lib/cors.ts` dan harus ditinjau setiap kali domain production/preview berubah.
 

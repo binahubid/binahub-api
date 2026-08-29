@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountHealthReviewSchema,
   assessmentActionSchema,
   assessmentStatusUpdateSchema,
+  clientAccountUpdateSchema,
+  clientHandoffSchema,
   contactUpdateSchema,
+  deliveryMilestoneSchema,
+  deliveryProjectUpdateSchema,
   inquiryUpdateSchema,
   proposalDraftSchema,
+  retentionOpportunitySchema,
 } from "./admin-mutation-schemas";
 
 const id = "3b241101-e2bb-4255-8caf-4136c566a962";
@@ -51,5 +57,67 @@ describe("admin mutation schemas", () => {
     };
     expect(proposalDraftSchema.safeParse(base).success).toBe(true);
     expect(proposalDraftSchema.safeParse({ ...base, proposalContext: { ...base.proposalContext, invented: "no" } }).success).toBe(false);
+  });
+
+  it("enforces ownership and risk context for Phase 3 handoff and delivery", () => {
+    expect(clientHandoffSchema.safeParse({
+      leadId: id,
+      commercialOwner: "sales@binahub.id",
+      deliveryOwner: "delivery@binahub.id",
+      projectTitle: "Initial Delivery",
+    }).success).toBe(true);
+    expect(clientHandoffSchema.safeParse({
+      leadId: id,
+      commercialOwner: "",
+      deliveryOwner: "delivery@binahub.id",
+      projectTitle: "Initial Delivery",
+    }).success).toBe(false);
+    expect(deliveryProjectUpdateSchema.safeParse({
+      projectId: id,
+      deliveryStage: "at_risk",
+      deliveryOwner: "delivery@binahub.id",
+      successMetrics: [],
+      riskLevel: "high",
+      riskSummary: "",
+    }).success).toBe(false);
+    expect(deliveryMilestoneSchema.safeParse({
+      projectId: id,
+      title: "Kickoff",
+      owner: "delivery@binahub.id",
+      status: "blocked",
+      progress: 20,
+      weight: 10,
+      blockerReason: "",
+    }).success).toBe(false);
+  });
+
+  it("requires reasons, next actions, and human approval at Phase 3 gates", () => {
+    expect(clientAccountUpdateSchema.safeParse({
+      clientAccountId: id,
+      status: "churned",
+      commercialOwner: "sales@binahub.id",
+      deliveryOwner: "delivery@binahub.id",
+      retainStatus: "churned",
+      changeReason: "",
+    }).success).toBe(false);
+    expect(accountHealthReviewSchema.safeParse({
+      clientAccountId: id,
+      deliveryScore: 2,
+      engagementScore: 2,
+      sentimentScore: 1,
+      commercialScore: 2,
+      riskLevel: "critical",
+      riskReasons: ["Sponsor tidak aktif"],
+    }).success).toBe(false);
+    expect(retentionOpportunitySchema.safeParse({
+      clientAccountId: id,
+      opportunityType: "repeat",
+      status: "proposal",
+      owner: "sales@binahub.id",
+      moduleRequestData: {},
+      nextAction: "Review proposal",
+      nextActionDueAt: "2026-09-10T09:00:00+07:00",
+      humanApproved: false,
+    }).success).toBe(false);
   });
 });

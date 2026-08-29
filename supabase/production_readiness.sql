@@ -185,6 +185,29 @@ select
         and constraint_record.conname = 'email_delivery_events_webhook_unique'
     )
   ) as email_deliverability_ready,
+  (
+    to_regclass('public.client_accounts') is not null
+    and to_regclass('public.client_stakeholders') is not null
+    and to_regclass('public.project_milestones') is not null
+    and to_regclass('public.account_health_reviews') is not null
+    and to_regclass('public.retention_opportunities') is not null
+    and to_regclass('public.client_activities') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'projects' and column_name = 'client_account_id'
+    )
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'projects' and column_name = 'delivery_stage'
+    )
+    and to_regprocedure('public.convert_won_lead_to_client(uuid,text,text,text,text,date)') is not null
+    and to_regprocedure('public.update_client_account(uuid,text,text,text,text,date,date,text,text,text)') is not null
+    and to_regprocedure('public.save_client_stakeholder(uuid,uuid,text,text,text,text,text,text,text,boolean,boolean,text)') is not null
+    and to_regprocedure('public.update_delivery_project(uuid,text,text,text,date,date,text,jsonb,text,text,text)') is not null
+    and to_regprocedure('public.save_delivery_milestone(uuid,uuid,text,text,text,text,date,text,integer,numeric,text)') is not null
+    and to_regprocedure('public.record_account_health_review(uuid,uuid,text,integer,integer,integer,integer,text,text[],text,text,date)') is not null
+    and to_regprocedure('public.save_retention_opportunity(uuid,uuid,uuid,text,text,text,text,jsonb,numeric,date,text,timestamptz,text,boolean,text)') is not null
+  ) as client_delivery_phase3_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

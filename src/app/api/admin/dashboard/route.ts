@@ -152,6 +152,116 @@ type EmailDeliveryEventRow = {
   received_at: string;
 };
 
+type OrganizationRow = {
+  id: string;
+  name: string;
+  industry?: string | null;
+  size?: string | null;
+  location?: string | null;
+};
+
+type ClientAccountRow = {
+  id: string;
+  organization_id: string;
+  source_lead_id?: string | null;
+  commercial_owner: string;
+  delivery_owner: string;
+  status: string;
+  health_score?: number | null;
+  health_status: string;
+  next_review_at?: string | null;
+  renewal_date?: string | null;
+  retain_status: string;
+  churn_reason?: string | null;
+  notes?: string | null;
+  client_since: string;
+  updated_at: string;
+};
+
+type ClientStakeholderRow = {
+  id: string;
+  client_account_id: string;
+  source_lead_id?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  role_title?: string | null;
+  department?: string | null;
+  relationship_role: string;
+  is_primary: boolean;
+  active: boolean;
+  last_verified_at?: string | null;
+  notes?: string | null;
+  updated_at: string;
+};
+
+type ProjectMilestoneRow = {
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string | null;
+  owner: string;
+  due_date?: string | null;
+  status: string;
+  progress: number;
+  weight: number;
+  blocker_reason?: string | null;
+  completed_at?: string | null;
+  updated_at: string;
+};
+
+type AccountHealthReviewRow = {
+  id: string;
+  client_account_id: string;
+  project_id?: string | null;
+  review_date: string;
+  delivery_score: number;
+  engagement_score: number;
+  sentiment_score: number;
+  commercial_score: number;
+  overall_score: number;
+  risk_level: string;
+  risk_reasons: string[];
+  notes?: string | null;
+  next_action?: string | null;
+  next_action_due_at?: string | null;
+  reviewed_by: string;
+  created_at: string;
+};
+
+type RetentionOpportunityRow = {
+  id: string;
+  client_account_id: string;
+  source_project_id?: string | null;
+  opportunity_type: string;
+  status: string;
+  owner: string;
+  module_request_data?: unknown;
+  estimated_value?: number | null;
+  expected_close_date?: string | null;
+  next_action?: string | null;
+  next_action_due_at?: string | null;
+  lost_reason?: string | null;
+  human_gate_status: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  approval_note?: string | null;
+  updated_at: string;
+};
+
+type ClientActivityRow = {
+  id: string;
+  client_account_id: string;
+  project_id?: string | null;
+  milestone_id?: string | null;
+  retention_opportunity_id?: string | null;
+  event_type: string;
+  actor: string;
+  note?: string | null;
+  metadata?: unknown;
+  created_at: string;
+};
+
 type CalendarBookingRow = {
   id: string;
   provider_uid: string;
@@ -266,6 +376,20 @@ type ProjectRow = {
   status?: string;
   ai_summary?: string;
   automation_mode?: string;
+  client_account_id?: string | null;
+  source_lead_id?: string | null;
+  engagement_id?: string | null;
+  delivery_stage?: string | null;
+  delivery_owner?: string | null;
+  kickoff_at?: string | null;
+  delivery_goal?: string | null;
+  success_metrics?: unknown;
+  risk_level?: string | null;
+  risk_summary?: string | null;
+  initial_handoff?: boolean | null;
+  handoff_approved_by?: string | null;
+  handoff_approved_at?: string | null;
+  updated_at?: string | null;
   created_at?: string;
 };
 
@@ -549,6 +673,54 @@ export async function GET(req: NextRequest) {
   } catch {
     opportunityActivityRows = [];
     emailDeliveryEventRows = [];
+  }
+
+  let organizationRows: OrganizationRow[] = [];
+  let clientAccountRows: ClientAccountRow[] = [];
+  let clientStakeholderRows: ClientStakeholderRow[] = [];
+  let projectMilestoneRows: ProjectMilestoneRow[] = [];
+  let accountHealthReviewRows: AccountHealthReviewRow[] = [];
+  let retentionOpportunityRows: RetentionOpportunityRow[] = [];
+  let clientActivityRows: ClientActivityRow[] = [];
+  try {
+    const [
+      { data: organizations },
+      { data: accounts },
+      { data: stakeholders },
+      { data: milestones },
+      { data: healthReviews },
+      { data: retentionOpportunities },
+      { data: clientActivities },
+    ] = await Promise.all([
+      db.from("organizations").select("id, name, industry, size, location").order("name").limit(500),
+      db.from("client_accounts")
+        .select("id, organization_id, source_lead_id, commercial_owner, delivery_owner, status, health_score, health_status, next_review_at, renewal_date, retain_status, churn_reason, notes, client_since, updated_at")
+        .order("updated_at", { ascending: false }).limit(500),
+      db.from("client_stakeholders")
+        .select("id, client_account_id, source_lead_id, name, email, phone, role_title, department, relationship_role, is_primary, active, last_verified_at, notes, updated_at")
+        .order("updated_at", { ascending: false }).limit(1000),
+      db.from("project_milestones")
+        .select("id, project_id, title, description, owner, due_date, status, progress, weight, blocker_reason, completed_at, updated_at")
+        .order("due_date", { ascending: true }).limit(1000),
+      db.from("account_health_reviews")
+        .select("id, client_account_id, project_id, review_date, delivery_score, engagement_score, sentiment_score, commercial_score, overall_score, risk_level, risk_reasons, notes, next_action, next_action_due_at, reviewed_by, created_at")
+        .order("created_at", { ascending: false }).limit(1000),
+      db.from("retention_opportunities")
+        .select("id, client_account_id, source_project_id, opportunity_type, status, owner, module_request_data, estimated_value, expected_close_date, next_action, next_action_due_at, lost_reason, human_gate_status, approved_by, approved_at, approval_note, updated_at")
+        .order("updated_at", { ascending: false }).limit(1000),
+      db.from("client_activities")
+        .select("id, client_account_id, project_id, milestone_id, retention_opportunity_id, event_type, actor, note, metadata, created_at")
+        .order("created_at", { ascending: false }).limit(1000),
+    ]);
+    organizationRows = (organizations || []) as OrganizationRow[];
+    clientAccountRows = (accounts || []) as ClientAccountRow[];
+    clientStakeholderRows = (stakeholders || []) as ClientStakeholderRow[];
+    projectMilestoneRows = (milestones || []) as ProjectMilestoneRow[];
+    accountHealthReviewRows = (healthReviews || []) as AccountHealthReviewRow[];
+    retentionOpportunityRows = (retentionOpportunities || []) as RetentionOpportunityRow[];
+    clientActivityRows = (clientActivities || []) as ClientActivityRow[];
+  } catch {
+    // Phase 3 payload stays backward-compatible until migration 0028 is deployed.
   }
 
   const leadsById = new Map((leadRows || []).map((lead) => [lead.id, lead as LeadRow]));
@@ -858,6 +1030,65 @@ export async function GET(req: NextRequest) {
     return summary;
   }, { total: 0, delivered: 0, bounced: 0, complained: 0, failed: 0, received: 0, processingFailed: 0 });
 
+  const organizationsById = new Map(organizationRows.map((organization) => [organization.id, organization]));
+  const clientAccounts = clientAccountRows.map((account) => {
+    const organization = organizationsById.get(account.organization_id);
+    return {
+      id: account.id,
+      organizationId: account.organization_id,
+      organizationName: organization?.name || "-",
+      industry: organization?.industry || null,
+      organizationSize: organization?.size || null,
+      location: organization?.location || null,
+      sourceLeadId: account.source_lead_id || null,
+      commercialOwner: account.commercial_owner,
+      deliveryOwner: account.delivery_owner,
+      status: account.status,
+      healthScore: account.health_score ?? null,
+      healthStatus: account.health_status,
+      nextReviewAt: account.next_review_at || null,
+      renewalDate: account.renewal_date || null,
+      retainStatus: account.retain_status,
+      churnReason: account.churn_reason || null,
+      notes: account.notes || null,
+      clientSince: account.client_since,
+      updatedAt: account.updated_at,
+    };
+  });
+  const deliveryProjects = projectRows
+    .filter((project) => project.id && project.client_account_id)
+    .map((project) => ({
+      id: project.id as string,
+      clientAccountId: project.client_account_id as string,
+      sourceLeadId: project.source_lead_id || null,
+      engagementId: project.engagement_id || null,
+      clientName: project.client_name || "-",
+      contactName: project.contact_name || null,
+      contactEmail: project.contact_email || null,
+      programName: project.program_name || "Delivery Project",
+      service: project.service || null,
+      projectType: project.project_type || null,
+      scope: project.scope || null,
+      startDate: project.start_date || null,
+      endDate: project.end_date || null,
+      status: project.status || null,
+      deliveryStage: project.delivery_stage || "handoff",
+      deliveryOwner: project.delivery_owner || null,
+      kickoffAt: project.kickoff_at || null,
+      deliveryGoal: project.delivery_goal || null,
+      successMetrics: parseJson<string[]>(project.success_metrics, []),
+      riskLevel: project.risk_level || "low",
+      riskSummary: project.risk_summary || null,
+      initialHandoff: project.initial_handoff === true,
+      handoffApprovedBy: project.handoff_approved_by || null,
+      handoffApprovedAt: project.handoff_approved_at || null,
+      updatedAt: project.updated_at || project.created_at || null,
+      createdAt: project.created_at || null,
+    }));
+  const openDeliveryStages = new Set(["handoff", "kickoff", "planning", "in_progress", "at_risk", "on_hold"]);
+  const openRetentionStatuses = new Set(["identified", "qualified", "proposal", "on_hold"]);
+  const today = new Date().toISOString().slice(0, 10);
+
   return NextResponse.json({
     success: true,
     generatedAt: new Date().toISOString(),
@@ -881,6 +1112,15 @@ export async function GET(req: NextRequest) {
       ).length,
       unassignedOpportunities: activePipelineLeads.filter((lead) => !lead.opportunityOwner).length,
       deliverabilityAlerts: emailDeliveryEventRows.filter((item) => deliverabilityEvents.has(item.event_type)).length,
+      activeClients: clientAccounts.filter((account) => ["onboarding", "active", "at_risk"].includes(account.status)).length,
+      atRiskClients: clientAccounts.filter((account) => ["at_risk", "critical"].includes(account.healthStatus) || account.status === "at_risk").length,
+      openDeliveryProjects: deliveryProjects.filter((project) => openDeliveryStages.has(project.deliveryStage)).length,
+      overdueMilestones: projectMilestoneRows.filter((milestone) =>
+        milestone.due_date && milestone.due_date < today && !["completed", "cancelled"].includes(milestone.status)
+      ).length,
+      retentionPipelineValue: retentionOpportunityRows
+        .filter((opportunity) => openRetentionStatuses.has(opportunity.status))
+        .reduce((total, opportunity) => total + Number(opportunity.estimated_value || 0), 0),
     },
     dimensionStats,
     categoryBreakdown,
@@ -945,6 +1185,87 @@ export async function GET(req: NextRequest) {
       errorMessage: item.error_message || null,
       providerCreatedAt: item.provider_created_at || null,
       receivedAt: item.received_at,
+    })),
+    clientAccounts,
+    clientStakeholders: clientStakeholderRows.map((item) => ({
+      id: item.id,
+      clientAccountId: item.client_account_id,
+      sourceLeadId: item.source_lead_id || null,
+      name: item.name,
+      email: item.email || null,
+      phone: item.phone || null,
+      roleTitle: item.role_title || null,
+      department: item.department || null,
+      relationshipRole: item.relationship_role,
+      isPrimary: item.is_primary,
+      active: item.active,
+      lastVerifiedAt: item.last_verified_at || null,
+      notes: item.notes || null,
+      updatedAt: item.updated_at,
+    })),
+    deliveryProjects,
+    projectMilestones: projectMilestoneRows.map((item) => ({
+      id: item.id,
+      projectId: item.project_id,
+      title: item.title,
+      description: item.description || null,
+      owner: item.owner,
+      dueDate: item.due_date || null,
+      status: item.status,
+      progress: item.progress,
+      weight: Number(item.weight || 0),
+      blockerReason: item.blocker_reason || null,
+      completedAt: item.completed_at || null,
+      updatedAt: item.updated_at,
+    })),
+    accountHealthReviews: accountHealthReviewRows.map((item) => ({
+      id: item.id,
+      clientAccountId: item.client_account_id,
+      projectId: item.project_id || null,
+      reviewDate: item.review_date,
+      deliveryScore: item.delivery_score,
+      engagementScore: item.engagement_score,
+      sentimentScore: item.sentiment_score,
+      commercialScore: item.commercial_score,
+      overallScore: Number(item.overall_score),
+      riskLevel: item.risk_level,
+      riskReasons: item.risk_reasons || [],
+      notes: item.notes || null,
+      nextAction: item.next_action || null,
+      nextActionDueAt: item.next_action_due_at || null,
+      reviewedBy: item.reviewed_by,
+      createdAt: item.created_at,
+    })),
+    retentionOpportunities: retentionOpportunityRows.map((item) => ({
+      id: item.id,
+      clientAccountId: item.client_account_id,
+      sourceProjectId: item.source_project_id || null,
+      opportunityType: item.opportunity_type,
+      status: item.status,
+      owner: item.owner,
+      moduleRequestData: parseJson<Record<string, unknown>>(item.module_request_data, {}),
+      estimatedValue: item.estimated_value ?? null,
+      expectedCloseDate: item.expected_close_date || null,
+      nextAction: item.next_action || null,
+      nextActionDueAt: item.next_action_due_at || null,
+      lostReason: item.lost_reason || null,
+      humanGateStatus: item.human_gate_status,
+      approvedBy: item.approved_by || null,
+      approvedAt: item.approved_at || null,
+      approvalNote: item.approval_note || null,
+      updatedAt: item.updated_at,
+    })),
+    clientActivities: clientActivityRows.map((item) => ({
+      id: item.id,
+      clientAccountId: item.client_account_id,
+      projectId: item.project_id || null,
+      milestoneId: item.milestone_id || null,
+      retentionOpportunityId: item.retention_opportunity_id || null,
+      eventType: item.event_type,
+      actor: item.actor,
+      note: item.note || null,
+      metadata: parseJson<Record<string, unknown>>(item.metadata, {}),
+      createdAt: item.created_at,
     })),
   });
 }

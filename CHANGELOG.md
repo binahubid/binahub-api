@@ -15,6 +15,22 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
 
+## [0.9.0] - 2026-08-29
+
+### Added — Client Delivery dan Retention Operations
+
+- Menambahkan migration `0028_client_delivery_and_retention.sql` untuk client account, stakeholder, delivery project, milestone, account health, retention opportunity, dan activity trail.
+- Menambahkan konversi atomik serta idempotent dari opportunity `won` menjadi organisasi, client account, primary stakeholder, dan initial delivery project.
+- Menambahkan endpoint admin untuk handoff, perubahan account/project, stakeholder, milestone, health review, serta retention opportunity.
+- Menambahkan readiness gate `client_delivery_phase3_ready` untuk memastikan tabel, kolom, dan seluruh RPC Fase 3 tersedia.
+
+### Safety
+
+- Handoff ditolak jika lead belum `won`, perusahaan belum tersedia, atau commercial/delivery owner belum ditetapkan.
+- Account berisiko membutuhkan alasan; milestone blocked membutuhkan blocker reason; health berisiko membutuhkan next action dan tenggat.
+- Retention pada tahap proposal atau won membutuhkan human approval dan catatan approval.
+- Activity client disimpan sebagai append-only audit trail dan retry handoff tidak membuat account/project ganda.
+
 ## [0.8.0] - 2026-08-29
 
 ### Added — Sales Operations dan Deliverability
