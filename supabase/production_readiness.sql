@@ -215,6 +215,18 @@ select
     and to_regprocedure('public.sync_client_operations_tasks(text,boolean,date)') is not null
     and to_regprocedure('public.update_operational_task(uuid,text,text,text,text,timestamptz,text)') is not null
   ) as automation_control_phase4_ready,
+  (
+    to_regclass('public.acquisition_sources') is not null
+    and to_regclass('public.acquisition_campaigns') is not null
+    and to_regclass('public.prospect_import_batches') is not null
+    and to_regclass('public.acquisition_prospects') is not null
+    and to_regclass('public.acquisition_events') is not null
+    and to_regprocedure('public.save_acquisition_source(uuid,text,text,text,text,text,text,text,text,integer,text,text,text,boolean,jsonb,boolean,text)') is not null
+    and to_regprocedure('public.save_acquisition_campaign(uuid,text,uuid,text,text,text,text,text,text,numeric,text,date,date,jsonb,jsonb,boolean,text)') is not null
+    and to_regprocedure('public.stage_acquisition_batch(uuid,uuid,text,text,text,jsonb,text)') is not null
+    and to_regprocedure('public.review_acquisition_batch(uuid,text,text,text)') is not null
+    and to_regprocedure('public.promote_acquisition_batch(uuid,text,boolean)') is not null
+  ) as acquisition_governance_phase5_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,

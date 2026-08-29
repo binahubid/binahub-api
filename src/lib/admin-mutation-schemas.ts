@@ -333,6 +333,99 @@ export const operationalTaskUpdateSchema = z.object({
   }
 });
 
+export const acquisitionSourceSchema = z.object({
+  id: z.string().uuid().nullable().optional(),
+  sourceKey: z.string().trim().min(3).max(64).regex(/^[a-z][a-z0-9_-]{2,63}$/),
+  name: z.string().trim().min(2).max(200),
+  providerType: z.enum(["manual_upload", "website", "google_ads", "meta_ads", "microsoft_ads", "apollo", "linkedin", "google_maps", "referral", "partner", "other"]),
+  channel: z.enum(["inbound", "outbound", "partner", "offline"]),
+  acquisitionMethod: z.string().trim().min(3).max(500),
+  lawfulBasis: z.enum(["consent", "legitimate_interest", "contract", "legal_obligation", "public_task", "not_applicable"]).nullable().optional(),
+  privacyNoticeUrl: z.string().url().max(2000).nullable().optional(),
+  retentionDays: z.number().int().min(1).max(3650).nullable().optional(),
+  dataOwner: adminOwnerSchema.nullable().optional(),
+  legalOwner: adminOwnerSchema.nullable().optional(),
+  status: z.enum(["draft", "approved", "paused", "rejected"]),
+  active: z.boolean().default(false),
+  config: z.record(z.string(), z.unknown()).default({}),
+  humanApproved: z.boolean().default(false),
+  approvalNote: z.string().trim().max(2000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.active && value.status !== "approved") {
+    context.addIssue({ code: "custom", path: ["active"], message: "Hanya source approved yang dapat diaktifkan." });
+  }
+  if (value.status === "approved") {
+    if (!value.humanApproved) context.addIssue({ code: "custom", path: ["humanApproved"], message: "Persetujuan manusia wajib." });
+    if (!value.lawfulBasis) context.addIssue({ code: "custom", path: ["lawfulBasis"], message: "Lawful basis wajib." });
+    if (!value.retentionDays) context.addIssue({ code: "custom", path: ["retentionDays"], message: "Retention period wajib." });
+    if (!value.dataOwner) context.addIssue({ code: "custom", path: ["dataOwner"], message: "Data owner wajib." });
+    if (!value.legalOwner) context.addIssue({ code: "custom", path: ["legalOwner"], message: "Legal owner wajib." });
+    if (!value.approvalNote || value.approvalNote.length < 5) context.addIssue({ code: "custom", path: ["approvalNote"], message: "Catatan approval minimal 5 karakter." });
+    if (value.channel === "outbound" && !value.privacyNoticeUrl) context.addIssue({ code: "custom", path: ["privacyNoticeUrl"], message: "Privacy notice wajib untuk source outbound." });
+  }
+});
+
+export const acquisitionCampaignSchema = z.object({
+  id: z.string().uuid().nullable().optional(),
+  sourceId: z.string().uuid("Source acquisition tidak valid."),
+  campaignCode: z.string().trim().min(3).max(64).regex(/^[A-Z0-9][A-Z0-9_-]{2,63}$/),
+  name: z.string().trim().min(2).max(200),
+  objective: z.enum(["awareness", "traffic", "assessment", "consultation", "lead_generation"]),
+  channel: z.enum(["email", "google_ads", "meta_ads", "microsoft_ads", "linkedin", "referral", "organic", "other"]),
+  status: z.enum(["draft", "approved", "active", "paused", "completed", "cancelled"]),
+  owner: adminOwnerSchema,
+  budgetAmount: z.number().min(0).max(999_999_999_999).nullable().optional(),
+  currency: z.string().trim().length(3).regex(/^[A-Z]{3}$/).default("IDR"),
+  startsOn: isoDateSchema.nullable().optional(),
+  endsOn: isoDateSchema.nullable().optional(),
+  utmConfig: z.record(z.string(), z.unknown()).default({}),
+  targetDefinition: z.record(z.string(), z.unknown()).default({}),
+  humanApproved: z.boolean().default(false),
+  approvalNote: z.string().trim().max(2000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (["approved", "active"].includes(value.status)
+    && (!value.humanApproved || !value.approvalNote || value.approvalNote.length < 5)) {
+    context.addIssue({ code: "custom", path: ["approvalNote"], message: "Campaign approved/active membutuhkan human approval dan catatan." });
+  }
+  if (value.status === "active" && (!value.startsOn || !value.endsOn)) {
+    context.addIssue({ code: "custom", path: ["startsOn"], message: "Campaign aktif membutuhkan tanggal mulai dan selesai." });
+  }
+  if (value.startsOn && value.endsOn && value.endsOn < value.startsOn) {
+    context.addIssue({ code: "custom", path: ["endsOn"], message: "Tanggal selesai tidak boleh sebelum tanggal mulai." });
+  }
+});
+
+const acquisitionProspectSchema = z.object({
+  externalId: z.string().trim().max(300).nullable().optional(),
+  name: z.string().trim().max(300).default(""),
+  email: z.string().trim().max(320).default(""),
+  company: z.string().trim().max(300).nullable().optional(),
+  phone: z.string().trim().max(80).nullable().optional(),
+  roleTitle: z.string().trim().max(200).nullable().optional(),
+  industry: z.string().trim().max(200).nullable().optional(),
+  location: z.string().trim().max(300).nullable().optional(),
+  employeeRange: z.string().trim().max(100).nullable().optional(),
+  websiteUrl: z.string().url().max(2000).nullable().optional(),
+  linkedinUrl: z.string().url().max(2000).nullable().optional(),
+  sourceUrl: z.string().url().max(2000).nullable().optional(),
+  consentStatus: z.enum(["unknown", "opted_in", "not_required", "opted_out"]).default("unknown"),
+}).strict();
+
+export const acquisitionBatchSchema = z.object({
+  sourceId: z.string().uuid("Source acquisition tidak valid."),
+  campaignId: z.string().uuid().nullable().optional(),
+  importKey: z.string().trim().min(8).max(200),
+  fileName: z.string().trim().max(300).nullable().optional(),
+  fileChecksum: z.string().trim().max(256).nullable().optional(),
+  prospects: z.array(acquisitionProspectSchema).min(1).max(500),
+}).strict();
+
+export const acquisitionBatchReviewSchema = z.object({
+  batchId: z.string().uuid("Batch acquisition tidak valid."),
+  decision: z.enum(["approved", "rejected"]),
+  note: z.string().trim().min(5).max(2000),
+}).strict();
+
 export const outreachTemplateKeySchema = z.enum([
   "inquiry_follow_up_1",
   "inquiry_follow_up_2",

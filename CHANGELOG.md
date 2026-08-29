@@ -15,6 +15,21 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan migration hardening `0015`/`0016`, readiness SQL, serta runbook aman untuk dua riwayat migration lama yang memiliki prefix bertumpang tindih.
 - Memperbarui Next.js ke patch aman; audit dependency frontend dan API bersih.
 
+## [0.11.0] - 2026-08-29
+
+### Added — Acquisition Governance & Growth Operations
+
+- Menambahkan migration `0030_acquisition_governance_and_growth_ops.sql` untuk governed source, campaign, import batch, prospect staging, dan acquisition audit trail.
+- Menambahkan validasi batch terhadap legal source, approved campaign, email suppression, duplicate existing lead, duplicate dalam batch, dan opt-out.
+- Menambahkan human review batch serta processor dry-run/idempotent yang hanya mempromosikan record valid ke existing leads sebagai lifecycle `consumer`.
+- Menambahkan endpoint admin acquisition, endpoint processor n8n, dan readiness gate `acquisition_governance_phase5_ready`.
+
+### Safety
+
+- Source outbound approved membutuhkan lawful basis, retention period, data owner, legal owner, privacy notice, dan human approval.
+- Processor tidak melakukan scraping, enrichment, email blast, atau keputusan komersial.
+- Data invalid, suppressed, opted-out, dan duplicate tidak pernah dipromosikan menjadi lead baru.
+
 ## [0.10.0] - 2026-08-29
 
 ### Added — Automation Control & Human Task Operations

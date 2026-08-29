@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   accountHealthReviewSchema,
+  acquisitionBatchReviewSchema,
+  acquisitionBatchSchema,
+  acquisitionCampaignSchema,
+  acquisitionSourceSchema,
   assessmentActionSchema,
   assessmentStatusUpdateSchema,
   clientAccountUpdateSchema,
@@ -142,5 +146,40 @@ describe("admin mutation schemas", () => {
       priority: "medium",
       resolutionNote: "ok",
     }).success).toBe(false);
+  });
+
+  it("blocks Phase 5 acquisition until source and campaign gates are complete", () => {
+    expect(acquisitionSourceSchema.safeParse({
+      sourceKey: "apollo_id",
+      name: "Apollo Indonesia",
+      providerType: "apollo",
+      channel: "outbound",
+      acquisitionMethod: "Licensed CSV export",
+      status: "approved",
+      active: true,
+      config: {},
+      humanApproved: true,
+      approvalNote: "Disetujui legal",
+    }).success).toBe(false);
+    expect(acquisitionCampaignSchema.safeParse({
+      sourceId: id,
+      campaignCode: "AWARENESS_2026",
+      name: "Awareness 2026",
+      objective: "awareness",
+      channel: "linkedin",
+      status: "active",
+      owner: "growth@binahub.id",
+      currency: "IDR",
+      utmConfig: {},
+      targetDefinition: {},
+      humanApproved: true,
+      approvalNote: "Disetujui untuk berjalan",
+    }).success).toBe(false);
+    expect(acquisitionBatchSchema.safeParse({
+      sourceId: id,
+      importKey: "batch-2026-08-29",
+      prospects: [{ name: "Contoh", email: "prospect@example.com", consentStatus: "unknown" }],
+    }).success).toBe(true);
+    expect(acquisitionBatchReviewSchema.safeParse({ batchId: id, decision: "approved", note: "ok" }).success).toBe(false);
   });
 });

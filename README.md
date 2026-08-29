@@ -13,6 +13,7 @@ PROPOSAL_LINK_SECRET
 TRANSFORMATION_WORKER_SECRET
 FOLLOW_UP_CRON_SECRET
 OPERATIONS_CRON_SECRET
+ACQUISITION_CRON_SECRET
 UNSUBSCRIBE_SECRET
 CALCOM_WEBHOOK_SECRET
 CALCOM_BOOKING_URL
@@ -30,13 +31,15 @@ ADMIN_EMAILS
 FACILITATOR_EMAILS
 ```
 
-`PROPOSAL_LINK_SECRET`, `TRANSFORMATION_WORKER_SECRET`, `FOLLOW_UP_CRON_SECRET`, `OPERATIONS_CRON_SECRET`, `UNSUBSCRIBE_SECRET`, `CALCOM_WEBHOOK_SECRET`, dan `RESEND_WEBHOOK_SECRET` wajib berupa secret acak yang berbeda khusus production. `UNSUBSCRIBE_SECRET` minimal 32 karakter. Jangan memakai nilai yang diekspos ke browser atau menyimpan service-role key dalam variable berprefix `NEXT_PUBLIC_`.
+`PROPOSAL_LINK_SECRET`, `TRANSFORMATION_WORKER_SECRET`, `FOLLOW_UP_CRON_SECRET`, `OPERATIONS_CRON_SECRET`, `ACQUISITION_CRON_SECRET`, `UNSUBSCRIBE_SECRET`, `CALCOM_WEBHOOK_SECRET`, dan `RESEND_WEBHOOK_SECRET` wajib berupa secret acak yang berbeda khusus production. `UNSUBSCRIBE_SECRET` minimal 32 karakter. Jangan memakai nilai yang diekspos ke browser atau menyimpan service-role key dalam variable berprefix `NEXT_PUBLIC_`.
 
 Follow-up otomatis tersedia melalui `GET /api/admin/follow-up` dengan header `Authorization: Bearer <FOLLOW_UP_CRON_SECRET>`. Endpoint ini tetap memerlukan scheduler eksternal (misalnya n8n) dan tidak akan berjalan periodik hanya karena API sudah di-deploy. Worker event tersedia melalui `POST /api/events/process` dengan `TRANSFORMATION_WORKER_SECRET`.
 
 Worker memakai header `x-worker-secret: <TRANSFORMATION_WORKER_SECRET>`. Gunakan `TRANSFORMATION_WORKER_DRY_RUN=true` pada lokal/UAT agar endpoint hanya menghitung `pendingDue` tanpa mengklaim atau memproses event.
 
 Fase 4 menyediakan `GET /api/automation/client-operations` dengan header `Authorization: Bearer <OPERATIONS_CRON_SECRET>`. Endpoint memindai review client, renewal 90/60/30, account/project berisiko, milestone terlambat, dan next action retention. Default aman adalah `OPERATIONS_DRY_RUN=true`: kandidat dan audit run tercatat tanpa membuat human task. Nilai `false` hanya boleh dipakai setelah migration `0029`, deployment, dan UAT disetujui.
+
+Fase 5 menyediakan `GET /api/automation/acquisition` dengan `Authorization: Bearer <ACQUISITION_CRON_SECRET>`. Default `ACQUISITION_DRY_RUN=true` hanya menghitung prospect valid pada batch approved. Mode live dapat mempromosikannya menjadi lifecycle `consumer` pada existing `leads`, tetapi tidak pernah melakukan scraping, enrichment, atau outreach. Source, campaign, dan batch tetap membutuhkan human/legal approval.
 
 Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 

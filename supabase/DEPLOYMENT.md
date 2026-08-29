@@ -12,7 +12,7 @@ Kedua repositori memiliki migration historis bernomor `0005`–`0017`. Supabase 
 2. Jalankan `npx supabase migration list` dari direktori yang sebelumnya menjadi sumber migration production. Jangan melakukan `migration repair` otomatis.
 3. Jalankan `production_readiness.sql` secara read-only melalui SQL Editor.
 4. Jika object dari migration API `0005`–`0014` sudah ada, jangan replay file tersebut.
-5. Terapkan `0015_ceo_revision_hardening.sql` sampai `0029_automation_control_and_human_tasks.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0021` mengunci idempotensi assessment, `0022` menambahkan BinaInsight sebagai modul program dan claim follow-up, `0023` menambahkan lifecycle lead, atribusi kampanye, suppression email, dan atomic claim untuk worker event, `0024` menambahkan katalog modul, Business Rules berversi, snapshot proposal, serta human gate, `0025` menambahkan request modul serta sinkronisasi booking Cal.com, `0026` menyimpan keputusan Business Rules v1 serta guardrail qualification/follow-up tanpa mengaktifkan proposal otomatis, `0027` menambahkan pipeline Sales Operations, audit activity, template outreach terkontrol, serta event deliverability email, `0028` menambahkan won-to-client handoff, delivery governance, account health, stakeholder, serta retention opportunity, dan `0029` menambahkan operational task, automation run audit, scheduler deterministik, SLA, serta human ownership.
+5. Terapkan `0015_ceo_revision_hardening.sql` sampai `0030_acquisition_governance_and_growth_ops.sql`, masing-masing sebagai satu file penuh dan sesuai urutan. File `0021` mengunci idempotensi assessment, `0022` menambahkan BinaInsight sebagai modul program dan claim follow-up, `0023` menambahkan lifecycle lead, atribusi kampanye, suppression email, dan atomic claim untuk worker event, `0024` menambahkan katalog modul, Business Rules berversi, snapshot proposal, serta human gate, `0025` menambahkan request modul serta sinkronisasi booking Cal.com, `0026` menyimpan keputusan Business Rules v1 serta guardrail qualification/follow-up tanpa mengaktifkan proposal otomatis, `0027` menambahkan pipeline Sales Operations, audit activity, template outreach terkontrol, serta event deliverability email, `0028` menambahkan won-to-client handoff, delivery governance, account health, stakeholder, serta retention opportunity, `0029` menambahkan operational task, automation run audit, scheduler deterministik, SLA, serta human ownership, dan `0030` menambahkan source/campaign governance, prospect staging, dedupe, suppression, batch approval, dan promotion aman ke existing leads.
 6. Jalankan kembali `production_readiness.sql`. Semua kolom `*_ready` harus `true` dan seluruh counter `*_issues` harus `0`.
 7. Deploy API lebih dahulu, lalu frontend. Lakukan smoke test role admin, fasilitator, dan peserta.
 
@@ -21,7 +21,7 @@ Jangan menandai migration sebagai applied hanya untuk melewati error. Error dupl
 ## Fresh Database
 
 1. Terapkan migration `app-binahub/supabase/migrations/0001` sampai migration terakhir secara leksikografis.
-2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0029` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
+2. Terapkan migration `binahub-api/supabase/migrations/0005` sampai `0030` sebagai raw SQL secara leksikografis, bukan sebagai riwayat kedua `db push`.
 3. Jalankan seed T-BOS yang disediakan frontend bila data mission/dimensi belum terbentuk.
 4. Jalankan `production_readiness.sql` dan health check T-BOS frontend.
 
@@ -57,3 +57,6 @@ Untuk jangka panjang, buat satu baseline schema bertimestamp setelah release pro
 - Retention opportunity pada tahap proposal/won ditolak tanpa human approval dan catatan approval.
 - Operations scheduler dalam dry-run menampilkan kandidat tanpa membuat task; mode live memakai task key unik agar retry tidak menggandakan pekerjaan.
 - Operational task aktif/menunggu memiliki owner; completed/cancelled memiliki catatan penyelesaian dan event audit.
+- Source outbound tidak dapat approved tanpa lawful basis, retention period, data/legal owner, privacy notice, dan human approval.
+- Batch prospect memisahkan valid, invalid, duplicate, suppressed, dan excluded; hanya batch approved yang dapat diproses.
+- Acquisition processor dry-run tidak membuat lead dan live retry tidak menduplikasi email pada existing leads.
