@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:phase7": "node scripts/phase7-smoke.mjs",
-    "test:phase10": "node scripts/phase10-smoke.mjs"
+    "test:phase10": "node scripts/phase10-smoke.mjs",
+    "test:phase11": "node scripts/phase11-smoke.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

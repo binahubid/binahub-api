@@ -14,6 +14,7 @@ TRANSFORMATION_WORKER_SECRET
 FOLLOW_UP_CRON_SECRET
 OPERATIONS_CRON_SECRET
 ACQUISITION_CRON_SECRET
+PILOT_MONITOR_SECRET
 UNSUBSCRIBE_SECRET
 CALCOM_WEBHOOK_SECRET
 CALCOM_BOOKING_URL
@@ -31,7 +32,7 @@ ADMIN_EMAILS
 FACILITATOR_EMAILS
 ```
 
-`PROPOSAL_LINK_SECRET`, `TRANSFORMATION_WORKER_SECRET`, `FOLLOW_UP_CRON_SECRET`, `OPERATIONS_CRON_SECRET`, `ACQUISITION_CRON_SECRET`, `UNSUBSCRIBE_SECRET`, `CALCOM_WEBHOOK_SECRET`, dan `RESEND_WEBHOOK_SECRET` wajib berupa secret acak yang berbeda khusus production. `UNSUBSCRIBE_SECRET` minimal 32 karakter. Jangan memakai nilai yang diekspos ke browser atau menyimpan service-role key dalam variable berprefix `NEXT_PUBLIC_`.
+`PROPOSAL_LINK_SECRET`, `TRANSFORMATION_WORKER_SECRET`, `FOLLOW_UP_CRON_SECRET`, `OPERATIONS_CRON_SECRET`, `ACQUISITION_CRON_SECRET`, `PILOT_MONITOR_SECRET`, `UNSUBSCRIBE_SECRET`, `CALCOM_WEBHOOK_SECRET`, dan `RESEND_WEBHOOK_SECRET` wajib berupa secret acak yang berbeda khusus production. `UNSUBSCRIBE_SECRET` minimal 32 karakter. Jangan memakai nilai yang diekspos ke browser atau menyimpan service-role key dalam variable berprefix `NEXT_PUBLIC_`.
 
 Follow-up otomatis tersedia melalui `GET /api/admin/follow-up` dengan header `Authorization: Bearer <FOLLOW_UP_CRON_SECRET>`. Endpoint ini tetap memerlukan scheduler eksternal (misalnya n8n) dan tidak akan berjalan periodik hanya karena API sudah di-deploy. Worker event tersedia melalui `POST /api/events/process` dengan `TRANSFORMATION_WORKER_SECRET`.
 
@@ -50,6 +51,8 @@ Fase 8 tidak menambah migration. API `0.12.0` menyediakan Launch Control read-on
 Fase 9 menambahkan migration `0034_phase9_human_uat_pilot_gate.sql` dan API `0.13.0`. Dua belas skenario UAT wajib mempunyai owner, hasil, bukti, blocker, serta audit trail. Endpoint `/api/admin/pilot-readiness` hanya dapat menyatakan layak untuk review manusia dan tidak mempunyai kemampuan mengaktifkan workflow.
 
 Fase 10 menambahkan migration `0035_phase10_pilot_operations_control_plane.sql` dan API `0.14.0`. Endpoint `/api/admin/pilot-operations` menyimpan release plan, approval manusia, requested mode, batas item per run, rollback plan, dan kill switch. Keempat worker memakai mode efektif paling ketat antara database dan environment. Database tidak dapat menonaktifkan `*_DRY_RUN=true`, dan control plane tidak dapat mengaktifkan n8n.
+
+Fase 11 menambahkan migration `0036_phase11_operational_assurance.sql` dan API `0.15.0`. Endpoint `/api/admin/operational-assurance` mengelola threshold deterministik, snapshot, incident response, dan keputusan go/no-go. Watchdog `GET /api/automation/pilot-monitoring` memakai `Authorization: Bearer <PILOT_MONITOR_SECRET>`. Pertahankan `PILOT_MONITOR_DRY_RUN=true` selama konstruksi/UAT: snapshot tetap tercatat, tetapi finding tidak dimaterialisasi menjadi incident otomatis. Keputusan go/no-go tidak pernah mengaktifkan n8n atau mengubah environment.
 
 Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 
@@ -84,4 +87,4 @@ npm audit
 
 Jalankan juga `supabase/production_readiness.sql` sebelum release production.
 
-Setelah API `0.14.0` dideploy, jalankan `PHASE10_API_URL=https://api.binahub.id npm run test:phase10` (atau `$env:PHASE10_API_URL="https://api.binahub.id"; npm run test:phase10` di PowerShell). Smoke gate ini memastikan control plane dan worker tidak dapat diakses anonymous; verifikasi approval, kill switch, serta effective mode dilakukan dari dashboard admin dan execution log.
+Setelah API `0.15.0` dideploy, jalankan `PHASE11_API_URL=https://api.binahub.id npm run test:phase11` (atau `$env:PHASE11_API_URL="https://api.binahub.id"; npm run test:phase11` di PowerShell). Smoke gate ini memastikan Operational Assurance, control plane, watchdog, dan worker tidak dapat diakses anonymous; verifikasi policy, snapshot, incident, serta keputusan go/no-go dilakukan dari dashboard admin.

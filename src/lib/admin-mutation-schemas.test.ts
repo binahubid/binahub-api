@@ -15,6 +15,7 @@ import {
   inquiryUpdateSchema,
   operationalTaskUpdateSchema,
   pilotOperationsMutationSchema,
+  operationalAssuranceMutationSchema,
   proposalDraftSchema,
   retentionOpportunitySchema,
   uatScenarioUpdateSchema,
@@ -233,6 +234,41 @@ describe("admin mutation schemas", () => {
       maximumItemsPerRun: 5,
       humanApproved: false,
       killSwitchReason: "Stop darurat pilot.",
+    }).success).toBe(true);
+  });
+
+  it("keeps Phase 11 incidents and go/no-go evidence behind explicit human input", () => {
+    expect(operationalAssuranceMutationSchema.safeParse({
+      action: "save_policy",
+      workflowKey: "follow_up_scheduler",
+      lookbackHours: 24,
+      minimumRuns: 1,
+      maximumFailureRatePercent: 20,
+      staleRunningMinutes: 30,
+      maximumConsecutiveFailures: 2,
+      enabled: true,
+      isMock: false,
+    }).success).toBe(false);
+    expect(operationalAssuranceMutationSchema.safeParse({
+      action: "run_scan",
+      materializeIncidents: true,
+      humanApproved: false,
+    }).success).toBe(false);
+    expect(operationalAssuranceMutationSchema.safeParse({
+      action: "record_review",
+      releaseId: id,
+      snapshotId: id,
+      decision: "conditional_go",
+      conditions: [],
+      decisionNote: "Lanjut dengan pengawasan tambahan.",
+    }).success).toBe(false);
+    expect(operationalAssuranceMutationSchema.safeParse({
+      action: "update_incident",
+      incidentId: id,
+      status: "resolved",
+      severity: "high",
+      owner: "operations@binahub.id",
+      resolutionNote: "Akar masalah sudah diperbaiki dan diverifikasi.",
     }).success).toBe(true);
   });
 });

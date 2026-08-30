@@ -592,3 +592,91 @@ export const pilotOperationsMutationSchema = z.discriminatedUnion("action", [
   pilotReleaseTransitionSchema,
   automationRuntimeControlSchema,
 ]);
+
+const assuredWorkflowSchema = z.enum([
+  "follow_up_scheduler",
+  "transformation_event_worker",
+  "client_operations_daily",
+  "acquisition_batch_processor",
+]);
+
+export const monitoringPolicyMutationSchema = z.object({
+  action: z.literal("save_policy"),
+  workflowKey: assuredWorkflowSchema,
+  lookbackHours: z.number().int().min(1).max(168),
+  minimumRuns: z.number().int().min(1).max(1000),
+  maximumFailureRatePercent: z.number().min(0).max(100),
+  staleRunningMinutes: z.number().int().min(5).max(1440),
+  maximumConsecutiveFailures: z.number().int().min(1).max(20),
+  enabled: z.boolean(),
+  owner: pilotOwnerSchema.nullable().optional(),
+  isMock: z.boolean(),
+}).strict().superRefine((value, context) => {
+  if (!value.isMock && !value.owner) {
+    context.addIssue({
+      code: "custom",
+      path: ["owner"],
+      message: "Policy real wajib memiliki owner.",
+    });
+  }
+});
+
+export const operationalScanMutationSchema = z.object({
+  action: z.literal("run_scan"),
+  releaseId: z.string().uuid("ID release pilot tidak valid.").nullable().optional(),
+  materializeIncidents: z.boolean().default(false),
+  humanApproved: z.boolean().default(false),
+}).strict().superRefine((value, context) => {
+  if (value.materializeIncidents && !value.humanApproved) {
+    context.addIssue({
+      code: "custom",
+      path: ["humanApproved"],
+      message: "Konfirmasi manusia wajib untuk mencatat finding sebagai incident.",
+    });
+  }
+});
+
+export const automationIncidentMutationSchema = z.object({
+  action: z.literal("update_incident"),
+  incidentId: z.string().uuid("ID incident tidak valid."),
+  status: z.enum(["open", "investigating", "monitoring", "resolved", "dismissed"]),
+  severity: z.enum(["low", "medium", "high", "critical"]),
+  owner: pilotOwnerSchema.nullable().optional(),
+  resolutionNote: z.string().trim().max(4000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (["investigating", "monitoring", "resolved", "dismissed"].includes(value.status) && !value.owner) {
+    context.addIssue({ code: "custom", path: ["owner"], message: "Owner incident wajib ditetapkan." });
+  }
+  if (["resolved", "dismissed"].includes(value.status)
+    && (!value.resolutionNote || value.resolutionNote.length < 10)) {
+    context.addIssue({
+      code: "custom",
+      path: ["resolutionNote"],
+      message: "Catatan penyelesaian minimal 10 karakter.",
+    });
+  }
+});
+
+export const pilotGoNoGoMutationSchema = z.object({
+  action: z.literal("record_review"),
+  releaseId: z.string().uuid("ID release pilot tidak valid."),
+  snapshotId: z.string().uuid("ID snapshot monitoring tidak valid."),
+  decision: z.enum(["go", "conditional_go", "no_go"]),
+  conditions: z.array(z.string().trim().min(5).max(500)).max(30).default([]),
+  decisionNote: z.string().trim().min(10).max(4000),
+}).strict().superRefine((value, context) => {
+  if (value.decision === "conditional_go" && value.conditions.length === 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["conditions"],
+      message: "Conditional go wajib memiliki minimal satu kondisi.",
+    });
+  }
+});
+
+export const operationalAssuranceMutationSchema = z.discriminatedUnion("action", [
+  monitoringPolicyMutationSchema,
+  operationalScanMutationSchema,
+  automationIncidentMutationSchema,
+  pilotGoNoGoMutationSchema,
+]);

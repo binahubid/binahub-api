@@ -290,6 +290,20 @@ select
       )
     ) = 4
   ) as pilot_operations_phase10_ready,
+  (
+    to_regclass('public.automation_monitoring_policies') is not null
+    and to_regclass('public.automation_monitoring_policy_events') is not null
+    and to_regclass('public.pilot_monitoring_snapshots') is not null
+    and to_regclass('public.automation_incidents') is not null
+    and to_regclass('public.automation_incident_events') is not null
+    and to_regclass('public.pilot_go_no_go_reviews') is not null
+    and to_regprocedure('public.save_automation_monitoring_policy(text,text,integer,integer,numeric,integer,integer,boolean,text,boolean)') is not null
+    and to_regprocedure('public.record_pilot_monitoring_snapshot(uuid,text,text,timestamptz,timestamptz,text,jsonb,jsonb,jsonb,boolean,boolean)') is not null
+    and to_regprocedure('public.upsert_automation_incident(text,text,uuid,text,text,text,uuid,text,text)') is not null
+    and to_regprocedure('public.update_automation_incident(uuid,text,text,text,text,text)') is not null
+    and to_regprocedure('public.record_pilot_go_no_go_review(uuid,uuid,text,text,jsonb,text)') is not null
+    and (select count(*) from public.automation_monitoring_policies) = 4
+  ) as operational_assurance_phase11_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
@@ -469,6 +483,48 @@ select
   count(*) filter (where status in ('approved', 'scheduled') and is_mock = false) as pilot_release_approved_or_scheduled,
   count(*) filter (where status in ('approved', 'scheduled') and is_mock = true) as pilot_release_mock_approval_issues
 from public.pilot_release_plans;
+
+select
+  (4 - count(*))
+  + count(*) filter (
+    where not exists (
+      select 1 from public.automation_monitoring_policy_events event
+      where event.workflow_key = automation_monitoring_policies.workflow_key
+        and event.event_type = 'seeded'
+    )
+  ) as operational_assurance_definition_issues,
+  count(*) filter (where is_mock or owner is null or not enabled) as monitoring_policy_pending_for_human_approval
+from public.automation_monitoring_policies;
+
+select
+  count(*) as monitoring_snapshot_total,
+  count(*) filter (where not is_mock) as monitoring_snapshot_real_total,
+  count(*) filter (where overall_status = 'healthy' and not is_mock) as monitoring_snapshot_real_healthy_total
+from public.pilot_monitoring_snapshots;
+
+select
+  count(*) filter (where status not in ('resolved', 'dismissed')) as incident_open_total,
+  count(*) filter (where status not in ('resolved', 'dismissed') and severity = 'critical') as incident_open_critical_issues,
+  count(*) filter (
+    where status in ('investigating', 'monitoring') and owner is null
+  ) as incident_owner_issues
+from public.automation_incidents;
+
+select count(*) as active_go_no_go_review_issues
+from public.pilot_go_no_go_reviews review
+join public.pilot_monitoring_snapshots snapshot on snapshot.id = review.monitoring_snapshot_id
+where review.decision in ('go', 'conditional_go')
+  and (
+    snapshot.is_mock
+    or snapshot.evaluated_at < now() - interval '24 hours'
+    or snapshot.overall_status in ('critical', 'insufficient_data')
+    or exists (
+      select 1 from public.automation_incidents incident
+      where incident.status not in ('resolved', 'dismissed')
+        and incident.severity = 'critical'
+        and (incident.pilot_release_id is null or incident.pilot_release_id = review.pilot_release_id)
+    )
+  );
 
 select
   cls.relname as table_name,

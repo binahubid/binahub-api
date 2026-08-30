@@ -3,6 +3,21 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] - 2026-08-30
+
+### Added — Phase 11 Operational Assurance
+
+- Menambahkan migration `0036_phase11_operational_assurance.sql` untuk policy monitoring, snapshot kesehatan, incident register, audit event, dan keputusan go/no-go.
+- Menambahkan evaluator deterministik untuk minimum evidence, failure rate, consecutive failure, stale run, serta drift environment/runtime.
+- Menambahkan endpoint admin `/api/admin/operational-assurance` dan watchdog `/api/automation/pilot-monitoring` dengan secret terpisah.
+- Menambahkan smoke gate Fase 11 dan readiness counter untuk policy, snapshot, incident, review aktif, serta RLS seluruh tabel baru.
+
+### Safety
+
+- Policy awal tetap mock dan keputusan go ditolak sampai policy real memiliki owner, UAT lulus, snapshot real masih fresh, serta incident blocking selesai.
+- `PILOT_MONITOR_DRY_RUN=true` hanya mencatat snapshot; finding tidak dibuat menjadi incident otomatis.
+- Go/no-go tidak mengaktifkan n8n, tidak mengubah environment, dan tidak mengirim outbound. Mode pilot/live tetap memerlukan deployment terpisah.
+
 ## [0.14.0] - 2026-08-30
 
 ### Added — Phase 10 Controlled Pilot Operations
