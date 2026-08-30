@@ -680,3 +680,102 @@ export const operationalAssuranceMutationSchema = z.discriminatedUnion("action",
   automationIncidentMutationSchema,
   pilotGoNoGoMutationSchema,
 ]);
+
+export const pilotRehearsalPlanSchema = z.object({
+  action: z.literal("save_rehearsal"),
+  rehearsalId: z.string().uuid("ID rehearsal tidak valid.").nullable().optional(),
+  releaseId: z.string().uuid("ID release pilot tidak valid."),
+  rehearsalKey: z.string().trim().min(3).max(80).regex(
+    /^[a-z][a-z0-9_-]{2,79}$/,
+    "Rehearsal key harus memakai huruf kecil, angka, underscore, atau dash.",
+  ),
+  title: z.string().trim().min(5).max(200),
+  environment: z.enum(["local", "staging", "production"]),
+  owner: pilotOwnerSchema.nullable().optional(),
+  approver: pilotOwnerSchema.nullable().optional(),
+  isMock: z.boolean().default(true),
+}).strict().superRefine((value, context) => {
+  if (!value.isMock && (!value.owner || !value.approver)) {
+    context.addIssue({
+      code: "custom",
+      path: ["owner"],
+      message: "Rehearsal real wajib memiliki owner dan approver.",
+    });
+  }
+});
+
+export const pilotRehearsalStepSchema = z.object({
+  action: z.literal("update_step"),
+  stepId: z.string().uuid("ID langkah rehearsal tidak valid."),
+  status: z.enum(["pending", "running", "passed", "failed", "blocked"]),
+  owner: pilotOwnerSchema.nullable().optional(),
+  evidenceNote: z.string().trim().max(4000).nullable().optional(),
+  evidenceUrl: z.string().trim().url("URL bukti tidak valid.").max(2000).nullable().optional(),
+  actualResult: z.string().trim().max(4000).nullable().optional(),
+  blockerReason: z.string().trim().max(4000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.status !== "pending" && !value.owner) {
+    context.addIssue({ code: "custom", path: ["owner"], message: "Owner langkah wajib ditetapkan." });
+  }
+  if (["passed", "failed"].includes(value.status)
+    && ((!value.evidenceNote || value.evidenceNote.length < 5)
+      || (!value.actualResult || value.actualResult.length < 5))) {
+    context.addIssue({
+      code: "custom",
+      path: ["evidenceNote"],
+      message: "Catatan bukti dan hasil aktual minimal 5 karakter.",
+    });
+  }
+  if (value.status === "blocked" && (!value.blockerReason || value.blockerReason.length < 5)) {
+    context.addIssue({
+      code: "custom",
+      path: ["blockerReason"],
+      message: "Alasan blocker minimal 5 karakter.",
+    });
+  }
+});
+
+export const pilotRehearsalTransitionSchema = z.object({
+  action: z.literal("transition_rehearsal"),
+  rehearsalId: z.string().uuid("ID rehearsal tidak valid."),
+  nextStatus: z.enum(["in_progress", "passed", "failed", "aborted"]),
+  snapshotId: z.string().uuid("ID snapshot monitoring tidak valid.").nullable().optional(),
+  summary: z.string().trim().max(4000).nullable().optional(),
+  rollbackResult: z.string().trim().max(4000).nullable().optional(),
+  failureReason: z.string().trim().max(4000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.nextStatus === "passed") {
+    if (!value.snapshotId) context.addIssue({ code: "custom", path: ["snapshotId"], message: "Snapshot monitoring wajib dipilih." });
+    if (!value.summary || value.summary.length < 10) context.addIssue({ code: "custom", path: ["summary"], message: "Ringkasan minimal 10 karakter." });
+    if (!value.rollbackResult || value.rollbackResult.length < 10) context.addIssue({ code: "custom", path: ["rollbackResult"], message: "Hasil rollback drill minimal 10 karakter." });
+  }
+  if (["failed", "aborted"].includes(value.nextStatus)
+    && (!value.failureReason || value.failureReason.length < 10)) {
+    context.addIssue({ code: "custom", path: ["failureReason"], message: "Alasan kegagalan minimal 10 karakter." });
+  }
+});
+
+export const pilotAcceptanceCertificationSchema = z.object({
+  action: z.literal("record_certification"),
+  releaseId: z.string().uuid("ID release pilot tidak valid."),
+  rehearsalId: z.string().uuid("ID rehearsal tidak valid."),
+  snapshotId: z.string().uuid("ID snapshot monitoring tidak valid."),
+  decision: z.enum(["accepted", "accepted_with_conditions", "rejected"]),
+  conditions: z.array(z.string().trim().min(5).max(500)).max(30).default([]),
+  decisionNote: z.string().trim().min(10).max(4000),
+  isMock: z.boolean().default(true),
+}).strict().superRefine((value, context) => {
+  if (value.decision === "accepted_with_conditions" && value.conditions.length === 0) {
+    context.addIssue({ code: "custom", path: ["conditions"], message: "Penerimaan bersyarat wajib memiliki kondisi." });
+  }
+  if (["accepted", "accepted_with_conditions"].includes(value.decision) && value.isMock) {
+    context.addIssue({ code: "custom", path: ["isMock"], message: "Penerimaan hanya dapat memakai evidence real." });
+  }
+});
+
+export const pilotCertificationMutationSchema = z.discriminatedUnion("action", [
+  pilotRehearsalPlanSchema,
+  pilotRehearsalStepSchema,
+  pilotRehearsalTransitionSchema,
+  pilotAcceptanceCertificationSchema,
+]);

@@ -239,6 +239,7 @@ function knownMutationError(message: string) {
     ["PILOT_MONITORING_POLICY_NOT_READY", "Keempat policy monitoring wajib aktif, non-mock, dan memiliki owner sebelum penjadwalan.", 409],
     ["PILOT_CRITICAL_INCIDENT_OPEN", "Critical incident harus diselesaikan sebelum release dijadwalkan.", 409],
     ["PILOT_HIGH_INCIDENT_OPEN", "High incident harus diselesaikan atau keputusan diubah menjadi conditional go sebelum penjadwalan.", 409],
+    ["PILOT_ACCEPTANCE_CERTIFICATION_REQUIRED", "Release membutuhkan sertifikasi penerimaan Fase 12 sebelum dijadwalkan.", 409],
     ["RUNTIME_CONTROL_NOT_FOUND", "Runtime control tidak ditemukan.", 404],
     ["RUNTIME_HUMAN_APPROVAL_REQUIRED", "Mode pilot/live membutuhkan approval manusia, owner, release, catatan, dan rollback plan.", 409],
     ["RUNTIME_APPROVED_RELEASE_REQUIRED", "Mode pilot/live membutuhkan release non-mock yang approved atau scheduled.", 409],
@@ -250,6 +251,7 @@ function knownMutationError(message: string) {
     ["RUNTIME_UAT_INCOMPLETE", "Skenario UAT wajib belum seluruhnya lulus.", 409],
     ["RUNTIME_CRITICAL_INCIDENT_OPEN", "Critical incident harus diselesaikan sebelum mode pilot atau live.", 409],
     ["RUNTIME_HIGH_INCIDENT_OPEN", "High incident harus diselesaikan sebelum mode live.", 409],
+    ["RUNTIME_ACCEPTANCE_CERTIFICATION_REQUIRED", "Mode pilot/live membutuhkan sertifikasi penerimaan Fase 12 yang valid.", 409],
   ];
   return errors.find(([code]) => message.includes(code));
 }

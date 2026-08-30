@@ -248,6 +248,7 @@ function knownMutationError(message: string) {
     ["GO_NO_GO_HIGH_INCIDENT_OPEN", "High atau critical incident harus diselesaikan sebelum keputusan go penuh.", 409],
     ["GO_NO_GO_HEALTHY_SNAPSHOT_REQUIRED", "Keputusan go membutuhkan snapshot healthy tanpa blocker.", 409],
     ["GO_NO_GO_CONDITIONAL_SNAPSHOT_INVALID", "Conditional go tidak dapat digunakan pada snapshot critical atau tanpa bukti.", 409],
+    ["GO_NO_GO_ACCEPTANCE_REQUIRED", "Selesaikan sertifikasi penerimaan Fase 12 pada snapshot yang sama sebelum keputusan go/no-go.", 409],
   ];
   return errors.find(([code]) => message.includes(code));
 }

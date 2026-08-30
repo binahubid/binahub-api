@@ -14,6 +14,7 @@ import {
   deliveryProjectUpdateSchema,
   inquiryUpdateSchema,
   operationalTaskUpdateSchema,
+  pilotCertificationMutationSchema,
   pilotOperationsMutationSchema,
   operationalAssuranceMutationSchema,
   proposalDraftSchema,
@@ -270,5 +271,44 @@ describe("admin mutation schemas", () => {
       owner: "operations@binahub.id",
       resolutionNote: "Akar masalah sudah diperbaiki dan diverifikasi.",
     }).success).toBe(true);
+  });
+
+  it("keeps Phase 12 rehearsal and acceptance evidence human-owned", () => {
+    expect(pilotCertificationMutationSchema.safeParse({
+      action: "save_rehearsal",
+      releaseId: id,
+      rehearsalKey: "pilot_rehearsal_01",
+      title: "Production dry-run rehearsal",
+      environment: "production",
+      owner: null,
+      approver: null,
+      isMock: false,
+    }).success).toBe(false);
+    expect(pilotCertificationMutationSchema.safeParse({
+      action: "update_step",
+      stepId: id,
+      status: "passed",
+      owner: "qa@binahub.id",
+      evidenceNote: "Execution log tersimpan.",
+      actualResult: "Dry-run selesai tanpa outbound.",
+    }).success).toBe(true);
+    expect(pilotCertificationMutationSchema.safeParse({
+      action: "transition_rehearsal",
+      rehearsalId: id,
+      nextStatus: "passed",
+      snapshotId: id,
+      summary: "Seluruh langkah rehearsal lulus.",
+      rollbackResult: "Kill switch dan recovery berhasil diverifikasi.",
+    }).success).toBe(true);
+    expect(pilotCertificationMutationSchema.safeParse({
+      action: "record_certification",
+      releaseId: id,
+      rehearsalId: id,
+      snapshotId: id,
+      decision: "accepted_with_conditions",
+      conditions: [],
+      decisionNote: "Diterima dengan pengawasan tambahan.",
+      isMock: false,
+    }).success).toBe(false);
   });
 });

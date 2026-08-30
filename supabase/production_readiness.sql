@@ -304,6 +304,29 @@ select
     and to_regprocedure('public.record_pilot_go_no_go_review(uuid,uuid,text,text,jsonb,text)') is not null
     and (select count(*) from public.automation_monitoring_policies) = 4
   ) as operational_assurance_phase11_ready,
+  (
+    to_regclass('public.pilot_rehearsals') is not null
+    and to_regclass('public.pilot_rehearsal_steps') is not null
+    and to_regclass('public.pilot_rehearsal_events') is not null
+    and to_regclass('public.pilot_acceptance_certifications') is not null
+    and to_regclass('public.pilot_acceptance_events') is not null
+    and to_regprocedure('public.save_pilot_rehearsal(uuid,uuid,text,text,text,text,text,boolean,text)') is not null
+    and to_regprocedure('public.update_pilot_rehearsal_step(uuid,text,text,text,text,text,text,text)') is not null
+    and to_regprocedure('public.transition_pilot_rehearsal(uuid,text,text,uuid,text,text,text)') is not null
+    and to_regprocedure('public.record_pilot_acceptance_certification(uuid,uuid,uuid,text,text,jsonb,text,boolean)') is not null
+    and exists (
+      select 1 from pg_trigger
+      where tgname = 'pilot_go_no_go_reviews_phase12_acceptance_gate' and not tgisinternal
+    )
+    and exists (
+      select 1 from pg_trigger
+      where tgname = 'pilot_release_plans_phase12_acceptance_gate' and not tgisinternal
+    )
+    and exists (
+      select 1 from pg_trigger
+      where tgname = 'automation_runtime_controls_phase12_acceptance_gate' and not tgisinternal
+    )
+  ) as pilot_certification_phase12_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
@@ -524,6 +547,59 @@ where review.decision in ('go', 'conditional_go')
         and incident.severity = 'critical'
         and (incident.pilot_release_id is null or incident.pilot_release_id = review.pilot_release_id)
     )
+  );
+
+select
+  count(*) as pilot_rehearsal_total,
+  count(*) filter (where environment = 'production' and not is_mock) as pilot_rehearsal_real_total,
+  count(*) filter (where status = 'passed' and environment = 'production' and not is_mock) as pilot_rehearsal_real_passed_total,
+  count(*) filter (where status = 'passed' and monitoring_snapshot_id is null) as pilot_rehearsal_snapshot_issues
+from public.pilot_rehearsals;
+
+select count(*) as pilot_rehearsal_definition_issues
+from public.pilot_rehearsals rehearsal
+where (
+  select count(*)
+  from public.pilot_rehearsal_steps step
+  where step.rehearsal_id = rehearsal.id
+    and step.required
+) <> 8;
+
+select count(*) as pilot_rehearsal_step_evidence_issues
+from public.pilot_rehearsal_steps
+where status in ('passed', 'failed')
+  and (
+    evidence_note is null or length(btrim(evidence_note)) < 5
+    or actual_result is null or length(btrim(actual_result)) < 5
+    or last_tested_at is null
+    or last_tested_by is null
+  );
+
+select
+  count(*) as pilot_acceptance_certification_total,
+  count(*) filter (where decision in ('accepted', 'accepted_with_conditions') and not is_mock) as pilot_acceptance_real_total,
+  count(*) filter (
+    where decision in ('accepted', 'accepted_with_conditions')
+      and (
+        is_mock
+        or jsonb_typeof(uat_evidence_snapshot) <> 'array'
+        or jsonb_array_length(uat_evidence_snapshot) < 12
+      )
+  ) as pilot_acceptance_evidence_issues
+from public.pilot_acceptance_certifications;
+
+select count(*) as pilot_acceptance_binding_issues
+from public.pilot_acceptance_certifications certification
+join public.pilot_rehearsals rehearsal on rehearsal.id = certification.rehearsal_id
+join public.pilot_monitoring_snapshots snapshot on snapshot.id = certification.monitoring_snapshot_id
+where certification.decision in ('accepted', 'accepted_with_conditions')
+  and (
+    rehearsal.pilot_release_id <> certification.pilot_release_id
+    or rehearsal.monitoring_snapshot_id <> certification.monitoring_snapshot_id
+    or rehearsal.status <> 'passed'
+    or rehearsal.is_mock
+    or snapshot.is_mock
+    or snapshot.overall_status in ('critical', 'insufficient_data')
   );
 
 select

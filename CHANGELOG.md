@@ -3,6 +3,20 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] - 2026-08-30
+
+### Added — Phase 12 Pilot Rehearsal & Acceptance
+
+- Menambahkan migration `0037_phase12_pilot_rehearsal_certification.sql` untuk rehearsal, delapan langkah evidence, acceptance certification, dan audit event.
+- Menambahkan endpoint admin `/api/admin/pilot-certification` beserta schema validasi dan boundary akses admin.
+- Menambahkan gate acceptance pada keputusan go/no-go, scheduling release, dan perubahan runtime ke pilot/live.
+- Menambahkan readiness flag/counter Phase 12 serta smoke gate `npm run test:phase12`.
+
+### Safety
+
+- Rehearsal dikunci `dry_run=true`; kelulusan membutuhkan production rehearsal non-mock dan snapshot real berusia kurang dari 24 jam.
+- Acceptance tidak mengaktifkan workflow, mengubah environment, atau mengirim outbound; aktivasi tetap merupakan deployment manusia terpisah.
+
 ## [0.15.0] - 2026-08-30
 
 ### Added — Phase 11 Operational Assurance

@@ -54,6 +54,8 @@ Fase 10 menambahkan migration `0035_phase10_pilot_operations_control_plane.sql` 
 
 Fase 11 menambahkan migration `0036_phase11_operational_assurance.sql` dan API `0.15.0`. Endpoint `/api/admin/operational-assurance` mengelola threshold deterministik, snapshot, incident response, dan keputusan go/no-go. Watchdog `GET /api/automation/pilot-monitoring` memakai `Authorization: Bearer <PILOT_MONITOR_SECRET>`. Pertahankan `PILOT_MONITOR_DRY_RUN=true` selama konstruksi/UAT: snapshot tetap tercatat, tetapi finding tidak dimaterialisasi menjadi incident otomatis. Keputusan go/no-go tidak pernah mengaktifkan n8n atau mengubah environment.
 
+Fase 12 menambahkan migration `0037_phase12_pilot_rehearsal_certification.sql` dan API `0.16.0`. Endpoint `/api/admin/pilot-certification` mengelola rehearsal produksi yang selalu dry-run, delapan evidence wajib, snapshot monitoring fresh, dan acceptance manusia. Keputusan go/no-go, scheduling release, serta runtime pilot/live ditolak sampai acceptance yang sesuai tersedia. Acceptance tetap tidak mengaktifkan n8n, tidak mengubah environment, dan tidak mengirim outbound.
+
 Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 
 Gunakan `FOLLOW_UP_DRY_RUN=true` pada lokal/UAT. Scheduler tetap membaca jadwal dan mengembalikan `candidates`, tetapi tidak membuat claim, memanggil AI, mengirim email, atau mengubah status lead. Production baru boleh memakai `false` setelah sender domain, suppression, isi pesan, dan policy follow-up disetujui.
@@ -87,4 +89,4 @@ npm audit
 
 Jalankan juga `supabase/production_readiness.sql` sebelum release production.
 
-Setelah API `0.15.0` dideploy, jalankan `PHASE11_API_URL=https://api.binahub.id npm run test:phase11` (atau `$env:PHASE11_API_URL="https://api.binahub.id"; npm run test:phase11` di PowerShell). Smoke gate ini memastikan Operational Assurance, control plane, watchdog, dan worker tidak dapat diakses anonymous; verifikasi policy, snapshot, incident, serta keputusan go/no-go dilakukan dari dashboard admin.
+Setelah API `0.16.0` dideploy, jalankan `PHASE12_API_URL=https://api.binahub.id npm run test:phase12` (atau `$env:PHASE12_API_URL="https://api.binahub.id"; npm run test:phase12` di PowerShell). Smoke gate ini memastikan Pilot Certification, Operational Assurance, control plane, watchdog, dan worker tidak dapat diakses anonymous; verifikasi evidence dilakukan dari dashboard admin.
