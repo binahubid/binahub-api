@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireWorker } from "@/lib/transformation/auth";
 import { getDb, processPendingEvents } from "@/lib/transformation/service";
+import { loadAutomationRuntimeControl } from "@/lib/automation-runtime-control";
 
 const processSchema = z.object({
   limit: z.number().int().min(1).max(50).optional().default(10),
@@ -20,7 +21,28 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const dryRun = process.env.TRANSFORMATION_WORKER_DRY_RUN === "true";
+  let runtimeControl;
+  try {
+    runtimeControl = await loadAutomationRuntimeControl(
+      db,
+      "transformation_event_worker",
+      process.env.TRANSFORMATION_WORKER_DRY_RUN !== "false",
+    );
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Runtime control gagal dibaca." }, { status: 503 });
+  }
+  if (runtimeControl.effectiveMode === "disabled") {
+    return NextResponse.json({
+      success: false,
+      locked: true,
+      code: "AUTOMATION_KILL_SWITCH_ACTIVE",
+      error: "Transformation Event Worker dinonaktifkan oleh kill switch database.",
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+      processed: [],
+    }, { status: 423 });
+  }
+  const dryRun = runtimeControl.effectiveMode === "dry_run";
   const referenceDate = new Date().toISOString().slice(0, 10);
   const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${referenceDate}:${dryRun ? "dry" : "live"}`).slice(0, 200);
   const recordRun = async (input: {
@@ -64,26 +86,47 @@ export async function POST(req: NextRequest) {
         candidateCount: pendingDue,
         processedCount: 0,
         failureCount: 0,
-        summary: { pendingDue, processedCount: 0 },
+        summary: {
+          pendingDue,
+          processedCount: 0,
+          requestedMode: runtimeControl.requestedMode,
+          effectiveMode: runtimeControl.effectiveMode,
+          runtimeControlVersion: runtimeControl.version,
+        },
       });
       return NextResponse.json({
         success: true,
         dryRun: true,
+        requestedMode: runtimeControl.requestedMode,
+        effectiveMode: runtimeControl.effectiveMode,
+        runtimeControlVersion: runtimeControl.version,
         pendingDue,
         processed: [],
       });
     }
 
-    const processed = await processPendingEvents(db, parsed.data.limit);
+    const processed = await processPendingEvents(db, Math.min(parsed.data.limit, runtimeControl.maximumItemsPerRun));
     const processedCount = Array.isArray(processed) ? processed.length : 0;
     await recordRun({
       status: "succeeded",
       candidateCount: processedCount,
       processedCount,
       failureCount: 0,
-      summary: { processedCount },
+      summary: {
+        processedCount,
+        requestedMode: runtimeControl.requestedMode,
+        effectiveMode: runtimeControl.effectiveMode,
+        runtimeControlVersion: runtimeControl.version,
+      },
     });
-    return NextResponse.json({ success: true, processed });
+    return NextResponse.json({
+      success: true,
+      dryRun: false,
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+      runtimeControlVersion: runtimeControl.version,
+      processed,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gagal memproses event.";
     await recordRun({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBearerToken } from "@/lib/auth-role";
 import { createServerSupabase } from "@/lib/supabase";
+import { loadAutomationRuntimeControl } from "@/lib/automation-runtime-control";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const WORKFLOW_KEY = "client_operations_daily";
@@ -18,13 +19,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "referenceDate harus menggunakan format YYYY-MM-DD." }, { status: 400 });
   }
 
-  const dryRun = process.env.OPERATIONS_DRY_RUN !== "false";
+  const db = createServerSupabase();
+  let runtimeControl;
+  try {
+    runtimeControl = await loadAutomationRuntimeControl(
+      db,
+      WORKFLOW_KEY,
+      process.env.OPERATIONS_DRY_RUN !== "false",
+    );
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Runtime control gagal dibaca." }, { status: 503 });
+  }
+  if (runtimeControl.effectiveMode === "disabled") {
+    return NextResponse.json({
+      success: false,
+      locked: true,
+      code: "AUTOMATION_KILL_SWITCH_ACTIVE",
+      error: "Client Operations Scheduler dinonaktifkan oleh kill switch database.",
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+    }, { status: 423 });
+  }
+  const dryRun = runtimeControl.effectiveMode === "dry_run";
   const idempotencyKey = req.headers.get("x-idempotency-key")?.trim() || `${requestedDate}:${dryRun ? "dry" : "live"}`;
   if (idempotencyKey.length > 200) {
     return NextResponse.json({ success: false, error: "Idempotency key terlalu panjang." }, { status: 400 });
   }
 
-  const db = createServerSupabase();
   const { data: existing } = await db.from("automation_runs")
     .select("id, status, dry_run, candidate_count, processed_count, failure_count, summary, started_at, finished_at")
     .eq("workflow_key", WORKFLOW_KEY)
@@ -83,31 +104,74 @@ export async function GET(req: NextRequest) {
     runId = run.id;
   }
 
-  const { data, error } = await db.rpc("sync_client_operations_tasks", {
+  const { data: candidateData, error: candidateError } = await db.rpc("sync_client_operations_tasks", {
     p_actor: "automation:client-operations",
-    p_dry_run: dryRun,
+    p_dry_run: true,
     p_reference_date: requestedDate,
   });
 
-  if (error) {
+  if (candidateError) {
     await db.from("automation_runs").update({
       status: "failed",
       failure_count: 1,
-      error_message: error.message,
+      error_message: candidateError.message,
       finished_at: new Date().toISOString(),
     }).eq("id", runId);
-    return NextResponse.json({ success: false, dryRun, retried, error: error.message, runId }, { status: 500 });
+    return NextResponse.json({ success: false, dryRun, retried, error: candidateError.message, runId }, { status: 500 });
   }
 
-  const result = (data || {}) as { candidateCount?: number; createdCount?: number };
+  const candidateResult = (candidateData || {}) as { candidateCount?: number; candidates?: Array<Record<string, unknown>> };
+  const selectedCandidates = (candidateResult.candidates || []).slice(0, runtimeControl.maximumItemsPerRun);
+  let materialized: { createdCount?: number } = { createdCount: 0 };
+  if (!dryRun && selectedCandidates.length) {
+    const { data: materializedData, error: materializeError } = await db.rpc("create_limited_client_operations_tasks", {
+      p_actor: "automation:client-operations",
+      p_candidates: selectedCandidates,
+    });
+    if (materializeError) {
+      await db.from("automation_runs").update({
+        status: "failed",
+        candidate_count: selectedCandidates.length,
+        failure_count: 1,
+        error_message: materializeError.message,
+        finished_at: new Date().toISOString(),
+      }).eq("id", runId);
+      return NextResponse.json({ success: false, dryRun, retried, error: materializeError.message, runId }, { status: 500 });
+    }
+    materialized = (materializedData || {}) as { createdCount?: number };
+  }
+  const result = {
+    success: true,
+    dryRun,
+    referenceDate: requestedDate,
+    availableCandidateCount: candidateResult.candidateCount || 0,
+    candidateCount: selectedCandidates.length,
+    createdCount: materialized.createdCount || 0,
+    maximumItemsPerRun: runtimeControl.maximumItemsPerRun,
+    candidates: selectedCandidates,
+  };
   await db.from("automation_runs").update({
     status: "succeeded",
-    candidate_count: result.candidateCount || 0,
-    processed_count: result.createdCount || 0,
+    candidate_count: result.candidateCount,
+    processed_count: result.createdCount,
     failure_count: 0,
-    summary: data || {},
+    summary: {
+      ...result,
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+      runtimeControlVersion: runtimeControl.version,
+    },
     finished_at: new Date().toISOString(),
   }).eq("id", runId);
 
-  return NextResponse.json({ success: true, dryRun, retried, runId, result: data });
+  return NextResponse.json({
+    success: true,
+    dryRun,
+    requestedMode: runtimeControl.requestedMode,
+    effectiveMode: runtimeControl.effectiveMode,
+    runtimeControlVersion: runtimeControl.version,
+    retried,
+    runId,
+    result,
+  });
 }

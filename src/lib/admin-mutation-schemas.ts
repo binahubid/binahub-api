@@ -505,3 +505,90 @@ export const catalogModuleMutationSchema = z.object({
   active: z.boolean(),
   catalogVersion: z.string().trim().min(2).max(100),
 }).strict();
+
+const pilotOwnerSchema = z.string().trim().email("Email owner pilot tidak valid.").max(320);
+const optionalPilotOwnerSchema = pilotOwnerSchema.nullable().optional();
+const pilotDateTimeSchema = z.string().datetime({ offset: true }).nullable().optional();
+const pilotChecklistSchema = z.array(z.string().trim().min(5).max(500)).max(30);
+
+export const pilotReleasePlanSchema = z.object({
+  action: z.literal("save_plan"),
+  releaseId: z.string().uuid("ID release pilot tidak valid.").nullable().optional(),
+  releaseKey: z.string().trim().min(3).max(80).regex(
+    /^[a-z][a-z0-9_-]{2,79}$/,
+    "Release key harus diawali huruf kecil dan hanya memakai huruf kecil, angka, underscore, atau dash.",
+  ),
+  title: z.string().trim().min(3).max(200),
+  cohortDescription: z.string().trim().min(10).max(4000),
+  maximumParticipants: z.number().int().min(1).max(10000),
+  startsAt: pilotDateTimeSchema,
+  endsAt: pilotDateTimeSchema,
+  businessOwner: optionalPilotOwnerSchema,
+  technicalOwner: optionalPilotOwnerSchema,
+  monitoringOwner: optionalPilotOwnerSchema,
+  successCriteria: pilotChecklistSchema.default([]),
+  rollbackTriggers: pilotChecklistSchema.default([]),
+  rollbackPlan: z.string().trim().max(4000).nullable().optional(),
+  isMock: z.boolean().default(true),
+}).strict().superRefine((value, context) => {
+  if (value.startsAt && value.endsAt && new Date(value.endsAt) <= new Date(value.startsAt)) {
+    context.addIssue({ code: "custom", path: ["endsAt"], message: "Waktu selesai harus setelah waktu mulai." });
+  }
+});
+
+export const pilotReleaseTransitionSchema = z.object({
+  action: z.literal("transition_plan"),
+  releaseId: z.string().uuid("ID release pilot tidak valid."),
+  nextStatus: z.enum(["review_requested", "approved", "rejected", "scheduled", "paused", "rolled_back", "completed"]),
+  decisionNote: z.string().trim().min(10).max(4000),
+}).strict();
+
+export const automationRuntimeControlSchema = z.object({
+  action: z.literal("set_control"),
+  workflowKey: z.enum([
+    "follow_up_scheduler",
+    "transformation_event_worker",
+    "client_operations_daily",
+    "acquisition_batch_processor",
+  ]),
+  requestedMode: z.enum(["disabled", "dry_run", "pilot", "live"]),
+  maximumItemsPerRun: z.number().int().min(1).max(500),
+  owner: optionalPilotOwnerSchema,
+  releaseId: z.string().uuid("ID release pilot tidak valid.").nullable().optional(),
+  humanApproved: z.boolean().default(false),
+  approvalNote: z.string().trim().max(4000).nullable().optional(),
+  rollbackPlan: z.string().trim().max(4000).nullable().optional(),
+  killSwitchReason: z.string().trim().max(2000).nullable().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.requestedMode === "disabled"
+    && (!value.killSwitchReason || value.killSwitchReason.length < 5)) {
+    context.addIssue({
+      code: "custom",
+      path: ["killSwitchReason"],
+      message: "Alasan kill switch minimal 5 karakter.",
+    });
+  }
+  if (["pilot", "live"].includes(value.requestedMode)) {
+    if (!value.humanApproved) {
+      context.addIssue({ code: "custom", path: ["humanApproved"], message: "Persetujuan manusia wajib." });
+    }
+    if (!value.owner) {
+      context.addIssue({ code: "custom", path: ["owner"], message: "Owner workflow wajib ditetapkan." });
+    }
+    if (!value.releaseId) {
+      context.addIssue({ code: "custom", path: ["releaseId"], message: "Release pilot approved wajib dipilih." });
+    }
+    if (!value.approvalNote || value.approvalNote.length < 10) {
+      context.addIssue({ code: "custom", path: ["approvalNote"], message: "Catatan persetujuan minimal 10 karakter." });
+    }
+    if (!value.rollbackPlan || value.rollbackPlan.length < 10) {
+      context.addIssue({ code: "custom", path: ["rollbackPlan"], message: "Rencana rollback minimal 10 karakter." });
+    }
+  }
+});
+
+export const pilotOperationsMutationSchema = z.discriminatedUnion("action", [
+  pilotReleasePlanSchema,
+  pilotReleaseTransitionSchema,
+  automationRuntimeControlSchema,
+]);

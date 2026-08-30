@@ -270,6 +270,26 @@ select
     and to_regprocedure('public.update_uat_scenario(uuid,text,text,text,text,text,text,text,text)') is not null
     and (select count(*) from public.uat_scenarios where required) >= 12
   ) as human_uat_pilot_gate_phase9_ready,
+  (
+    to_regclass('public.pilot_release_plans') is not null
+    and to_regclass('public.pilot_release_events') is not null
+    and to_regclass('public.automation_runtime_controls') is not null
+    and to_regclass('public.automation_runtime_control_events') is not null
+    and to_regprocedure('public.save_pilot_release_plan(uuid,text,text,text,text,integer,timestamptz,timestamptz,text,text,text,jsonb,jsonb,text,boolean)') is not null
+    and to_regprocedure('public.transition_pilot_release_plan(uuid,text,text,text)') is not null
+    and to_regprocedure('public.set_automation_runtime_control(text,text,text,integer,text,uuid,boolean,text,text,text)') is not null
+    and to_regprocedure('public.create_limited_client_operations_tasks(text,jsonb)') is not null
+    and (
+      select count(*)
+      from public.automation_runtime_controls
+      where workflow_key in (
+        'follow_up_scheduler',
+        'transformation_event_worker',
+        'client_operations_daily',
+        'acquisition_batch_processor'
+      )
+    ) = 4
+  ) as pilot_operations_phase10_ready,
   to_regprocedure('public.create_program_batch(uuid,text)') is not null as batch_rpc_ready,
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
@@ -403,6 +423,52 @@ select
   count(*) filter (where required and status = 'passed') as uat_required_passed,
   count(*) filter (where required and status <> 'passed') as uat_required_pending_for_human_execution
 from public.uat_scenarios;
+
+select
+  (
+    4 - count(*)
+  ) + count(*) filter (
+    where requested_mode in ('pilot', 'live')
+      and (
+        pilot_release_id is null
+        or owner is null
+        or approval_note is null
+        or rollback_plan is null
+        or approved_by is null
+        or approved_at is null
+      )
+  ) + count(*) filter (
+    where not exists (
+      select 1
+      from public.automation_runtime_control_events event
+      where event.workflow_key = automation_runtime_controls.workflow_key
+        and event.event_type = 'seeded'
+    )
+  ) as pilot_operations_definition_issues
+from public.automation_runtime_controls;
+
+select
+  count(*) filter (where requested_mode = 'disabled') as runtime_controls_disabled,
+  count(*) filter (where requested_mode = 'dry_run') as runtime_controls_requested_dry_run,
+  count(*) filter (where requested_mode = 'pilot') as runtime_controls_requested_pilot,
+  count(*) filter (where requested_mode = 'live') as runtime_controls_requested_live,
+  count(*) filter (
+    where requested_mode in ('pilot', 'live')
+      and not exists (
+        select 1
+        from public.pilot_release_plans release
+        where release.id = automation_runtime_controls.pilot_release_id
+          and release.status in ('approved', 'scheduled')
+          and release.is_mock = false
+      )
+  ) as active_runtime_release_issues
+from public.automation_runtime_controls;
+
+select
+  count(*) as pilot_release_total,
+  count(*) filter (where status in ('approved', 'scheduled') and is_mock = false) as pilot_release_approved_or_scheduled,
+  count(*) filter (where status in ('approved', 'scheduled') and is_mock = true) as pilot_release_mock_approval_issues
+from public.pilot_release_plans;
 
 select
   cls.relname as table_name,

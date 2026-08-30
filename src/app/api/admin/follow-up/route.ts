@@ -7,6 +7,7 @@ import { OutreachSuppressedError, sendOutreachEmail } from "@/lib/email-service"
 import { requireAdmin } from "@/lib/admin-auth";
 import { getBearerToken } from "@/lib/auth-role";
 import { evaluateFollowUpWindow, followUpStopReason, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
+import { loadAutomationRuntimeControl } from "@/lib/automation-runtime-control";
 import {
   ApprovedOutreachTemplateRequiredError,
   isOutboundAutomationActive,
@@ -695,7 +696,30 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createServerSupabase();
-  const dryRun = process.env.FOLLOW_UP_DRY_RUN === "true";
+  let runtimeControl;
+  try {
+    runtimeControl = await loadAutomationRuntimeControl(
+      db,
+      "follow_up_scheduler",
+      process.env.FOLLOW_UP_DRY_RUN !== "false",
+    );
+  } catch (error) {
+    return adminError(error instanceof Error ? error.message : "Runtime control gagal dibaca.", 503, "RUNTIME_CONTROL_UNAVAILABLE");
+  }
+  if (runtimeControl.effectiveMode === "disabled") {
+    return NextResponse.json({
+      success: false,
+      locked: true,
+      code: "AUTOMATION_KILL_SWITCH_ACTIVE",
+      error: "Follow-up Scheduler dinonaktifkan oleh kill switch database.",
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+      sent: [],
+      failures: [],
+    }, { status: 423 });
+  }
+  const dryRun = runtimeControl.effectiveMode === "dry_run";
+  const maximumItemsPerRun = Math.min(runtimeControl.maximumItemsPerRun, 20);
   if (!dryRun) {
     try {
       const activation = await isOutboundAutomationActive(db);
@@ -731,7 +755,7 @@ export async function GET(req: NextRequest) {
   for (const inquiry of (inquiries || []) as InquiryForFollowUp[]) {
     const level = getDueInquiryLevel(inquiry);
     if (!level) continue;
-    if (sent.length + candidates.length >= 10) break;
+    if (sent.length + candidates.length >= Math.min(maximumItemsPerRun, 10)) break;
 
     try {
       const targetId = String(inquiry.id || "");
@@ -762,12 +786,12 @@ export async function GET(req: NextRequest) {
   const { data: assessments, error: assessmentsError } = await db.from("assessments").select("*").order("created_at", { ascending: true }).limit(100);
   if (assessmentsError) return adminError("Gagal memuat antrean assessment.", 500, "FOLLOW_UP_QUEUE_FAILED");
   for (const assessment of (assessments || []) as AssessmentForFollowUp[]) {
-    if (sent.length + candidates.length >= 20) break;
+    if (sent.length + candidates.length >= maximumItemsPerRun) break;
 
     for (const channel of ["result", "proposal"] as AssessmentFollowUpChannel[]) {
       const level = getDueAssessmentLevel(assessment, channel);
       if (!level) continue;
-      if (sent.length + candidates.length >= 20) break;
+      if (sent.length + candidates.length >= maximumItemsPerRun) break;
 
       try {
         const targetId = String(assessment.id || "");
@@ -813,6 +837,9 @@ export async function GET(req: NextRequest) {
       sentCount: sent.length,
       failureCount: failures.length,
       businessWindow: `${window.policy.startHour}:00-${window.policy.endHour}:00`,
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+      runtimeControlVersion: runtimeControl.version,
     },
     error_message: failures.length ? `${failures.length} follow-up gagal diproses.` : null,
     started_at: runStartedAt,
@@ -821,7 +848,16 @@ export async function GET(req: NextRequest) {
   if (auditError) console.error("Follow-up automation audit gagal:", auditError.message);
 
   return NextResponse.json(
-    { success: failures.length === 0, dryRun, candidates, sent, failures },
+    {
+      success: failures.length === 0,
+      dryRun,
+      requestedMode: runtimeControl.requestedMode,
+      effectiveMode: runtimeControl.effectiveMode,
+      runtimeControlVersion: runtimeControl.version,
+      candidates,
+      sent,
+      failures,
+    },
     { status: failures.length ? 207 : 200 },
   );
 }

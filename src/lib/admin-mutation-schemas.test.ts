@@ -14,6 +14,7 @@ import {
   deliveryProjectUpdateSchema,
   inquiryUpdateSchema,
   operationalTaskUpdateSchema,
+  pilotOperationsMutationSchema,
   proposalDraftSchema,
   retentionOpportunitySchema,
   uatScenarioUpdateSchema,
@@ -205,5 +206,33 @@ describe("admin mutation schemas", () => {
       prospects: [{ name: "Contoh", email: "prospect@example.com", consentStatus: "unknown" }],
     }).success).toBe(true);
     expect(acquisitionBatchReviewSchema.safeParse({ batchId: id, decision: "approved", note: "ok" }).success).toBe(false);
+  });
+
+  it("keeps Phase 10 pilot activation behind explicit human and rollback gates", () => {
+    expect(pilotOperationsMutationSchema.safeParse({
+      action: "save_plan",
+      releaseKey: "pilot-september-2026",
+      title: "Pilot September 2026",
+      cohortDescription: "Lima organisasi undangan untuk pilot terkontrol.",
+      maximumParticipants: 5,
+      successCriteria: [],
+      rollbackTriggers: [],
+      isMock: true,
+    }).success).toBe(true);
+    expect(pilotOperationsMutationSchema.safeParse({
+      action: "set_control",
+      workflowKey: "follow_up_scheduler",
+      requestedMode: "pilot",
+      maximumItemsPerRun: 5,
+      humanApproved: false,
+    }).success).toBe(false);
+    expect(pilotOperationsMutationSchema.safeParse({
+      action: "set_control",
+      workflowKey: "follow_up_scheduler",
+      requestedMode: "disabled",
+      maximumItemsPerRun: 5,
+      humanApproved: false,
+      killSwitchReason: "Stop darurat pilot.",
+    }).success).toBe(true);
   });
 });

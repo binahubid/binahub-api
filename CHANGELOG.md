@@ -3,6 +3,21 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] - 2026-08-30
+
+### Added — Phase 10 Controlled Pilot Operations
+
+- Menambahkan migration `0035_phase10_pilot_operations_control_plane.sql` untuk release plan, requested runtime mode, limit per run, kill switch, dan audit event.
+- Menambahkan RPC tervalidasi yang mengunci approval pilot sampai Human UAT, template outreach, dan Business Rules benar-benar siap.
+- Menambahkan endpoint admin `/api/admin/pilot-operations` dengan readiness gate, mutasi release, dan runtime control yang tidak dapat mengubah environment atau mengaktifkan n8n.
+- Menerapkan effective-mode fail-closed pada Follow-up, Event Worker, Client Operations, dan Acquisition; environment dry-run selalu menjadi otoritas terakhir.
+- Menambahkan pemeriksaan readiness terhadap seed control, audit trail, orphan release aktif, serta approval mock.
+
+### Safety
+
+- Release tidak dapat dipause, di-rollback, atau diselesaikan sebelum runtime control pilot/live dikembalikan ke dry-run atau disabled.
+- Kill switch memerlukan alasan dan worker yang disabled berhenti dengan HTTP 423 sebelum memproses data.
+
 ## [0.13.0] - 2026-08-30
 
 ### Added — Phase 9 Human UAT & Pilot Gate

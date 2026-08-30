@@ -49,6 +49,8 @@ Fase 8 tidak menambah migration. API `0.12.0` menyediakan Launch Control read-on
 
 Fase 9 menambahkan migration `0034_phase9_human_uat_pilot_gate.sql` dan API `0.13.0`. Dua belas skenario UAT wajib mempunyai owner, hasil, bukti, blocker, serta audit trail. Endpoint `/api/admin/pilot-readiness` hanya dapat menyatakan layak untuk review manusia dan tidak mempunyai kemampuan mengaktifkan workflow.
 
+Fase 10 menambahkan migration `0035_phase10_pilot_operations_control_plane.sql` dan API `0.14.0`. Endpoint `/api/admin/pilot-operations` menyimpan release plan, approval manusia, requested mode, batas item per run, rollback plan, dan kill switch. Keempat worker memakai mode efektif paling ketat antara database dan environment. Database tidak dapat menonaktifkan `*_DRY_RUN=true`, dan control plane tidak dapat mengaktifkan n8n.
+
 Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 
 Gunakan `FOLLOW_UP_DRY_RUN=true` pada lokal/UAT. Scheduler tetap membaca jadwal dan mengembalikan `candidates`, tetapi tidak membuat claim, memanggil AI, mengirim email, atau mengubah status lead. Production baru boleh memakai `false` setelah sender domain, suppression, isi pesan, dan policy follow-up disetujui.
@@ -81,3 +83,5 @@ npm audit
 ```
 
 Jalankan juga `supabase/production_readiness.sql` sebelum release production.
+
+Setelah API `0.14.0` dideploy, jalankan `PHASE10_API_URL=https://api.binahub.id npm run test:phase10` (atau `$env:PHASE10_API_URL="https://api.binahub.id"; npm run test:phase10` di PowerShell). Smoke gate ini memastikan control plane dan worker tidak dapat diakses anonymous; verifikasi approval, kill switch, serta effective mode dilakukan dari dashboard admin dan execution log.
