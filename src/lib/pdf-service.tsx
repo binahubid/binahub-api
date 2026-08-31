@@ -3,6 +3,7 @@ import path from 'path';
 import { Document, Page, Text, View, StyleSheet, Font, Svg, Polygon, Circle } from '@react-pdf/renderer';
 import { AssessmentData, DIMENSIONS } from './validations';
 import type { Locale } from '@/i18n/config';
+import { EnterpriseAssessmentReport } from './assessment-report-enterprise';
 
 const FONT_DIR = path.resolve(process.cwd(), 'public', 'fonts');
 
@@ -16,6 +17,9 @@ Font.register({
     { src: path.join(FONT_DIR, 'Inter-Bold.ttf'), fontWeight: 700 },
   ],
 });
+
+// Executive reports should never split words in the middle of a line.
+Font.registerHyphenationCallback((word) => [word]);
 
 export interface AssessmentResult {
   scores: Record<string, number> & { overall: number };
@@ -139,6 +143,12 @@ function getPdfCopy(locale: Locale = 'id') {
         roadmapSubtitle: 'Follow-up roadmap · next consultation steps',
         roadmapSection: 'Follow-up Roadmap & Next Steps',
         roadmapSectionSubtitle: 'Supporting recommendations to strengthen implementation rhythm after the main priorities begin',
+        roadmap90Title: '90-Day Implementation Rhythm',
+        roadmapPhases: [
+          { period: 'DAYS 0-30', title: 'Align', text: 'Confirm priorities, owners, success indicators, and the first process to improve.' },
+          { period: 'DAYS 31-60', title: 'Pilot', text: 'Run the new rhythm in a limited scope and document evidence, obstacles, and decisions.' },
+          { period: 'DAYS 61-90', title: 'Review & Scale', text: 'Review adoption and business impact, then decide what should be standardized or expanded.' },
+        ],
         nextSteps: 'Next Steps',
         nextStepsText: 'Discuss this result with the BinaHub team to translate diagnostic priorities into an implementation roadmap that fits your organization context.',
         footer: 'BinaHub · Strategic Transformation Division · Confidential Document',
@@ -195,6 +205,12 @@ function getPdfCopy(locale: Locale = 'id') {
         roadmapSubtitle: 'Roadmap lanjutan · langkah konsultasi berikutnya',
         roadmapSection: 'Roadmap Lanjutan & Langkah Berikutnya',
         roadmapSectionSubtitle: 'Rekomendasi pendukung untuk memperkuat ritme implementasi setelah prioritas utama berjalan',
+        roadmap90Title: 'Ritme Implementasi 90 Hari',
+        roadmapPhases: [
+          { period: 'HARI 0-30', title: 'Selaraskan', text: 'Konfirmasi prioritas, pemilik, indikator sukses, dan proses pertama yang akan diperbaiki.' },
+          { period: 'HARI 31-60', title: 'Uji Terbatas', text: 'Jalankan ritme baru pada lingkup terbatas dan dokumentasikan bukti, hambatan, serta keputusan.' },
+          { period: 'HARI 61-90', title: 'Tinjau & Perluas', text: 'Tinjau adopsi dan dampak bisnis, lalu putuskan praktik yang distandardisasi atau diperluas.' },
+        ],
         nextSteps: 'Langkah Berikutnya',
         nextStepsText: 'Diskusikan hasil ini bersama tim BinaHub untuk menerjemahkan prioritas diagnostik menjadi roadmap implementasi yang relevan dengan konteks organisasi Anda.',
         footer: 'BinaHub · Divisi Transformasi Strategis · Dokumen Rahasia',
@@ -235,8 +251,8 @@ const styles = StyleSheet.create({
   metaValue: { fontSize: 8, color: '#FFFFFF', fontWeight: 600 },
   content: { padding: '22 44 56 44', flexShrink: 0 },
   kpiRow: { flexDirection: 'row', padding: '0 44', marginTop: 12, gap: 12, zIndex: 10, flexShrink: 0 },
-  kpiCard: { flex: 1, backgroundColor: '#FFFFFF', padding: 15, borderRadius: 8, borderTopWidth: 4, borderTopColor: GOLD, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 4 } },
-  kpiLabel: { fontSize: 7, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 },
+  kpiCard: { flex: 1, minHeight: 88, backgroundColor: '#FFFFFF', padding: 15, borderRadius: 8, borderTopWidth: 4, borderTopColor: GOLD, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 4 } },
+  kpiLabel: { fontSize: 6.8, lineHeight: 1.25, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 },
   kpiValue: { fontSize: 18, fontWeight: 700, color: NAVY },
   kpiBadge: { marginTop: 8, padding: '3 8', backgroundColor: '#F1F5F9', borderRadius: 4, alignSelf: 'flex-start' },
   kpiBadgeText: { fontSize: 8, color: NAVY, fontWeight: 700 },
@@ -266,8 +282,8 @@ const styles = StyleSheet.create({
   summaryCard: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 24, borderLeftWidth: 4, borderLeftColor: GOLD },
   summaryTitle: { fontSize: 10, fontWeight: 700, color: NAVY, textTransform: 'uppercase', marginBottom: 10 },
   summaryText: { fontSize: 10, lineHeight: 1.55, color: '#4A5568', fontWeight: 400 },
-  visualGrid: { flexDirection: 'row', gap: 15, marginBottom: 20 },
-  visualBox: { flex: 1, backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  visualGrid: { flexDirection: 'row', gap: 15, marginBottom: 16 },
+  visualBox: { flex: 1, backgroundColor: '#FFFFFF', padding: 14, borderRadius: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   visualTitle: { fontSize: 8, fontWeight: 700, color: NAVY, textTransform: 'uppercase', marginBottom: 15, textAlign: 'center' },
   barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 9, width: '100%' },
   barLabel: { width: 60, fontSize: 8, color: '#4A5568', fontWeight: 600 },
@@ -321,11 +337,13 @@ function Footer({ page, copy, totalPages = 4 }: { page: number; copy: ReturnType
   );
 }
 
-function compactText(text = '', maxLength = 280) {
-  if (text.length <= maxLength) return text;
-  const trimmed = text.slice(0, maxLength).trim();
-  const lastSpace = trimmed.lastIndexOf(' ');
-  return `${trimmed.slice(0, lastSpace > 180 ? lastSpace : maxLength).trim()}...`;
+function reportText(text = '') {
+  return text
+    .normalize('NFC')
+    .replace(/([a-zà-ÿ])([A-Z])/g, '$1 $2')
+    .replace(/([.!?])(?=[A-ZÀ-Ý])/g, '$1 ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: AssessmentData; result: AssessmentResult; locale?: Locale }) => {
@@ -347,15 +365,15 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
   const maturityLevel = getMaturityLevel(scores.overall, copy.maturityLevels);
   const nextMaturityLevel = getNextMaturityLevel(scores.overall, copy.maturityLevels);
   const gapToNext = nextMaturityLevel ? Math.max(0, nextMaturityLevel.min - scores.overall) : 0;
-  const scoreInterpretation = result.scoreInterpretation || (locale === 'en'
+  const scoreInterpretation = reportText(result.scoreInterpretation || (locale === 'en'
     ? `A score of ${scores.overall} places ${formData.company} in the ${result.category} category, with relative strength in ${topDimension} and a strengthening priority in ${lowestDimension}.`
-    : `Skor ${scores.overall} menempatkan ${formData.company} pada kategori ${result.category}, dengan kekuatan relatif pada ${topDimension} dan prioritas penguatan pada ${lowestDimension}.`);
-  const strategicKey = result.strategicKey || (locale === 'en'
+    : `Skor ${scores.overall} menempatkan ${formData.company} pada kategori ${result.category}, dengan kekuatan relatif pada ${topDimension} dan prioritas penguatan pada ${lowestDimension}.`));
+  const strategicKey = reportText(result.strategicKey || (locale === 'en'
     ? `Over the next 90 days, the main focus is strengthening ${lowestDimension} so organizational capability is better connected to daily execution rhythm.`
-    : `Dalam 90 hari ke depan, fokus utama adalah memperkuat dimensi ${lowestDimension} agar kapasitas organisasi lebih terhubung dengan ritme eksekusi harian.`);
-  const riskProjection = result.riskProjection || (locale === 'en'
+    : `Dalam 90 hari ke depan, fokus utama adalah memperkuat dimensi ${lowestDimension} agar kapasitas organisasi lebih terhubung dengan ritme eksekusi harian.`));
+  const riskProjection = reportText(result.riskProjection || (locale === 'en'
     ? `If ${lowestDimension} is not strengthened, the organization risks slower execution as growth demands increase.`
-    : `Jika dimensi ${lowestDimension} tidak diperkuat, organisasi berisiko mengalami perlambatan eksekusi saat tuntutan pertumbuhan meningkat.`);
+    : `Jika dimensi ${lowestDimension} tidak diperkuat, organisasi berisiko mengalami perlambatan eksekusi saat tuntutan pertumbuhan meningkat.`));
   const primaryRecommendations = result.recommendations.slice(0, 3);
   const secondaryRecommendations = result.recommendations.slice(3);
   const crossInsights = result.crossDimensionalInsights?.length ? result.crossDimensionalInsights : [
@@ -391,7 +409,7 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
         </View>
 
         <View style={styles.kpiRow}>
-          <View style={styles.kpiCard}>
+          <View style={[styles.kpiCard, { flex: 1.1 }]}>
             <Text style={styles.kpiLabel}>{copy.overallScore}</Text>
             <Text style={styles.kpiValue}>{scores.overall}</Text>
             <View style={styles.kpiBadge}><Text style={styles.kpiBadgeText}>{copy.stage}: {result.category}</Text></View>
@@ -401,15 +419,10 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
             <Text style={styles.kpiValue}>7</Text>
             <View style={styles.kpiBadge}><Text style={styles.kpiBadgeText}>{copy.coreCriteria}</Text></View>
           </View>
-          <View style={styles.kpiCard}>
+          <View style={[styles.kpiCard, { flex: 1.1 }]}>
             <Text style={styles.kpiLabel}>{copy.teamScale}</Text>
             <Text style={styles.kpiValue}>{formData.employees || '-'}</Text>
             <View style={styles.kpiBadge}><Text style={styles.kpiBadgeText}>{copy.organizationScale}</Text></View>
-          </View>
-          <View style={styles.kpiCard}>
-            <Text style={styles.kpiLabel}>{copy.classification}</Text>
-            <Text style={[styles.kpiValue, { fontSize: 14, marginTop: 4 }]}>{copy.confidential}</Text>
-            <View style={styles.kpiBadge}><Text style={styles.kpiBadgeText}>{copy.highPriority}</Text></View>
           </View>
         </View>
 
@@ -473,7 +486,7 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
           <View style={styles.visualGrid} wrap={false}>
             <View style={styles.visualBox}>
               <Text style={styles.visualTitle}>{copy.balanceDistribution}</Text>
-              <Svg width="150" height="150" viewBox="0 0 130 130" style={{ alignSelf: 'center' }}>
+              <Svg width="174" height="174" viewBox="0 0 130 130" style={{ alignSelf: 'center' }}>
                 {[0.25, 0.5, 0.75, 1].map((scale, idx) => {
                   const pts = DIMENSIONS.map((_, i) => {
                     const r = 45 * scale;
@@ -484,8 +497,13 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
                 })}
                 <Polygon points={radarPoints} fill="rgba(212, 175, 55, 0.15)" stroke={GOLD} strokeWidth="2" />
               </Svg>
-              <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 }}>
-                {DIMENSIONS.map((d) => <Text key={d} style={{ fontSize: 6, color: SILVER }}>{d.toUpperCase()}: {scores[d]}</Text>)}
+              <View style={{ marginTop: 7, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 5 }}>
+                {DIMENSIONS.map((d) => (
+                  <View key={d} style={{ flexDirection: 'row', padding: '3 5', backgroundColor: '#F4F7FB', borderRadius: 3 }}>
+                    <Text style={{ fontSize: 5.7, color: SILVER }}>{d.toUpperCase()} </Text>
+                    <Text style={{ fontSize: 5.7, color: NAVY, fontWeight: 700 }}>{scores[d]}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 
@@ -507,20 +525,14 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
             {crossInsights.slice(0, 2).map((insight, i) => (
               <View key={i} wrap={false} style={[styles.miniCard, { borderTopColor: i === 0 ? NAVY : GOLD }]}>
                 <Text style={styles.miniLabel}>{copy.diagnosticReasoning} 0{i + 1}</Text>
-                <Text style={styles.miniText}>{compactText(insight, 330)}</Text>
+                <Text style={styles.miniText}>{reportText(insight)}</Text>
               </View>
             ))}
           </View>
 
-          <View style={[styles.twoColumn, { marginBottom: 0 }]} wrap={false}>
-            <View style={[styles.miniCard, { borderTopColor: GOLD }]}>
-              <Text style={styles.summaryTitle}>{copy.riskProjection}</Text>
-              <Text style={styles.miniText}>{compactText(riskProjection, 380)}</Text>
-            </View>
-            <View style={[styles.miniCard, { borderTopColor: NAVY }]}>
-              <Text style={styles.summaryTitle}>{copy.executiveSummary}</Text>
-              <Text style={styles.miniText}>{compactText(result.aiAnalysis, 620)}</Text>
-            </View>
+          <View style={[styles.riskCard, { marginTop: 0 }]} wrap={false}>
+            <Text style={styles.summaryTitle}>{copy.riskProjection}</Text>
+            <Text style={styles.summaryText}>{riskProjection}</Text>
           </View>
         </View>
         <Footer page={2} copy={copy} />
@@ -537,20 +549,25 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
             </View>
           </View>
 
+          <View style={[styles.summaryCard, { marginBottom: 16 }]} wrap={false}>
+            <Text style={styles.summaryTitle}>{copy.executiveSummary}</Text>
+            <Text style={[styles.summaryText, { fontSize: 9.2 }]}>{reportText(result.aiAnalysis)}</Text>
+          </View>
+
           <View style={styles.recGrid}>
             {primaryRecommendations.map((rec, i) => (
               <View key={i} wrap={false} style={styles.recCard}>
                 <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 4 }}>{copy.strategy} 0{i + 1} · {rec.service}</Text>
-                <Text style={styles.recTitle}>{compactText(rec.title, 86)}</Text>
-                {rec.diagnosis && <Text style={styles.recDiagnosis}>{compactText(rec.diagnosis, 180)}</Text>}
-                <Text style={styles.recDesc}>{compactText(rec.description, 260)}</Text>
+                <Text style={styles.recTitle}>{reportText(rec.title)}</Text>
+                {rec.diagnosis && <Text style={styles.recDiagnosis}>{reportText(rec.diagnosis)}</Text>}
+                <Text style={styles.recDesc}>{reportText(rec.description)}</Text>
               </View>
             ))}
           </View>
 
           <View style={styles.callout} wrap={false}>
             <Text style={styles.summaryTitle}>{copy.consultantKey}</Text>
-            <Text style={styles.summaryText}>{compactText(strategicKey, 560)}</Text>
+            <Text style={styles.summaryText}>{strategicKey}</Text>
           </View>
         </View>
         <Footer page={3} copy={copy} />
@@ -571,14 +588,27 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
             {secondaryRecommendations.map((rec, i) => (
               <View key={i} wrap={false} style={styles.recCard}>
                 <Text style={{ fontSize: 7, color: SILVER, fontWeight: 700, marginBottom: 4 }}>{copy.strategy} 0{i + 4} · {rec.service}</Text>
-                <Text style={styles.recTitle}>{compactText(rec.title, 96)}</Text>
-                {rec.diagnosis && <Text style={styles.recDiagnosis}>{compactText(rec.diagnosis, 220)}</Text>}
-                <Text style={styles.recDesc}>{compactText(rec.description, 320)}</Text>
+                <Text style={styles.recTitle}>{reportText(rec.title)}</Text>
+                {rec.diagnosis && <Text style={styles.recDiagnosis}>{reportText(rec.diagnosis)}</Text>}
+                <Text style={styles.recDesc}>{reportText(rec.description)}</Text>
               </View>
             ))}
           </View>
 
-          <View style={{ marginTop: 22, backgroundColor: '#FFFFFF', padding: 18, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: GOLD }} wrap={false}>
+          <View style={{ marginTop: 20 }} wrap={false}>
+            <Text style={[styles.summaryTitle, { marginBottom: 10 }]}>{copy.roadmap90Title}</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {copy.roadmapPhases.map((phase, index) => (
+                <View key={phase.period} style={{ flex: 1, minHeight: 104, backgroundColor: index === 1 ? NAVY : '#FFFFFF', padding: 13, borderRadius: 7, borderTopWidth: 3, borderTopColor: GOLD }}>
+                  <Text style={{ fontSize: 6.5, color: index === 1 ? '#C9D5E5' : SILVER, fontWeight: 700, letterSpacing: 0.8 }}>{phase.period}</Text>
+                  <Text style={{ marginTop: 5, fontSize: 10, color: index === 1 ? '#FFFFFF' : NAVY, fontWeight: 700 }}>{phase.title}</Text>
+                  <Text style={{ marginTop: 6, fontSize: 7.2, lineHeight: 1.45, color: index === 1 ? '#DCE5F0' : '#64748B' }}>{phase.text}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={{ marginTop: 18, backgroundColor: '#FFFFFF', padding: 18, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: GOLD }} wrap={false}>
             <Text style={styles.summaryTitle}>{copy.nextSteps}</Text>
             <Text style={styles.summaryText}>
               {copy.nextStepsText}
@@ -747,7 +777,10 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
 
 export async function generatePDFBuffer(formData: AssessmentData, result: AssessmentResult, locale: Locale = 'id'): Promise<Buffer> {
   const { renderToBuffer } = await import('@react-pdf/renderer');
-  return await renderToBuffer(<AssessmentPDF formData={formData} result={result} locale={locale} />);
+  const ReportDocument = process.env.BINAINSIGHT_PDF_STYLE === 'legacy'
+    ? AssessmentPDF
+    : EnterpriseAssessmentReport;
+  return await renderToBuffer(<ReportDocument formData={formData} result={result} locale={locale} />);
 }
 
 export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult): Promise<Buffer> {

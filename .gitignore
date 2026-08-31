@@ -19,6 +19,7 @@ build/
 # testing
 coverage/
 tmp/
+/output/pdf/rendered-*/
 
 # env and secrets
 .env

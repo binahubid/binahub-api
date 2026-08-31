@@ -3,6 +3,26 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Operations — Phase 13 Evidence Kit
+
+- Menambahkan `scripts/phase13-evidence.mjs` untuk preflight runtime control, production dry-run, duplicate/idempotency check, audit run, dan monitoring snapshot tanpa mencetak secret.
+- Menambahkan `scripts/phase13-access-evidence.mjs` untuk membuktikan akses anonim, token invalid, dan role non-admin ditolak sementara admin sah dapat membaca endpoint; probe mutasi memakai payload kosong sehingga tidak mengubah data.
+- Menambahkan command `test:phase13:access` dan `test:phase13:automation` agar evidence Fase 13 dapat diulang secara eksplisit.
+- Script menolak memanggil worker jika salah satu runtime control database bukan `dry_run` dan memerlukan konfirmasi eksplisit untuk target production.
+- Perubahan ini merupakan alat operator lokal dan tidak memerlukan deployment runtime baru.
+
+## [0.16.1] - 2026-08-30
+
+### Changed — BinaInsight Executive Report
+
+- Mencegah pemenggalan kata di tengah baris dan menormalisasi jarak pada narasi hasil assessment.
+- Menghapus pemangkasan narasi dengan elipsis agar insight, analisis, diagnosis, dan rekomendasi tetap utuh.
+- Mengganti sistem visual lama berbasis rounded card dan border aksen satu sisi dengan grid editorial korporat, sudut tegas, garis pemisah netral, whitespace luas, dan aksen warna yang hanya dipakai pada data penting.
+- Menata ulang KPI, visual radar, portofolio skor, rekomendasi bernomor, dan timeline 90 hari mengikuti hierarki laporan eksekutif perusahaan besar.
+- Menyeimbangkan kepadatan empat halaman tanpa mengubah formula skor, konten AI, pengiriman email, atau format data assessment.
+
 ## [0.16.0] - 2026-08-30
 
 ### Added — Phase 12 Pilot Rehearsal & Acceptance
