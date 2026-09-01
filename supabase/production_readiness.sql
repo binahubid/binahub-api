@@ -209,6 +209,12 @@ select
     and to_regprocedure('public.save_retention_opportunity(uuid,uuid,uuid,text,text,text,text,jsonb,numeric,date,text,timestamptz,text,boolean,text)') is not null
   ) as client_delivery_phase3_ready,
   (
+    to_regprocedure('public.convert_won_lead_to_client(uuid,text,text,text,text,date)') is not null
+    and position(
+      'jsonb_populate_record' in lower(pg_get_functiondef(to_regprocedure('public.convert_won_lead_to_client(uuid,text,text,text,text,date)')))
+    ) > 0
+  ) as client_handoff_source_id_compatibility_ready,
+  (
     to_regclass('public.operational_tasks') is not null
     and to_regclass('public.operational_task_events') is not null
     and to_regclass('public.automation_runs') is not null

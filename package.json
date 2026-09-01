@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,13 @@
     "test:phase11": "node scripts/phase11-smoke.mjs",
     "test:phase12": "node scripts/phase12-smoke.mjs",
     "test:phase13:access": "node scripts/phase13-access-evidence.mjs",
-    "test:phase13:automation": "node scripts/phase13-evidence.mjs"
+    "test:phase13:automation": "node scripts/phase13-evidence.mjs",
+    "test:phase13:calcom": "node scripts/phase13-calcom-evidence.mjs",
+    "test:phase13:client-lifecycle": "node scripts/phase13-client-lifecycle-evidence.mjs",
+    "test:phase13:end-to-end": "node scripts/phase13-end-to-end-evidence.mjs",
+    "test:phase13:proposal-gate": "node scripts/phase13-proposal-gate-evidence.mjs",
+    "test:phase13:resend": "node scripts/phase13-resend-evidence.mjs",
+    "test:phase13:suppression": "node scripts/phase13-suppression-evidence.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

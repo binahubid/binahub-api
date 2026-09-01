@@ -9,9 +9,23 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 - Menambahkan `scripts/phase13-evidence.mjs` untuk preflight runtime control, production dry-run, duplicate/idempotency check, audit run, dan monitoring snapshot tanpa mencetak secret.
 - Menambahkan `scripts/phase13-access-evidence.mjs` untuk membuktikan akses anonim, token invalid, dan role non-admin ditolak sementara admin sah dapat membaca endpoint; probe mutasi memakai payload kosong sehingga tidak mengubah data.
-- Menambahkan command `test:phase13:access` dan `test:phase13:automation` agar evidence Fase 13 dapat diulang secara eksplisit.
+- Menambahkan `scripts/phase13-resend-evidence.mjs` untuk event bounce bertanda tangan valid, idempotensi webhook, audit delivery, dan suppression menggunakan alamat `example.invalid` tanpa outbound.
+- Menambahkan `scripts/phase13-suppression-evidence.mjs` untuk menguji pause outreach dan inquiry setelah bounce pada lead UAT beralamat `example.invalid`; runner mengulang pemeriksaan scheduler pada business window tanpa mengirim email.
+- Menambahkan `scripts/phase13-calcom-evidence.mjs` untuk menguji booking, reschedule, cancellation, no-show, idempotensi, lineage, dan audit webhook Cal.com dengan payload bertanda tangan valid tanpa membuat booking vendor.
+- Menambahkan `scripts/phase13-client-lifecycle-evidence.mjs` untuk menguji handoff lead won, stakeholder, project risk, human task ber-owner, health review, repeat opportunity qualified, idempotensi, dan audit lifecycle lewat API admin pada data `example.invalid`; runner mencatat tiga skenario UAT setelah seluruh pemeriksaan lulus.
+- Menambahkan `scripts/phase13-end-to-end-evidence.mjs` untuk menelusuri satu fixture `example.invalid` dari acquisition source/campaign, prospect, lead, seluruh stage opportunity, client/project, sampai repeat opportunity; campaign ditutup dan source dipause setelah evidence selesai.
+- Menambahkan `scripts/phase13-proposal-gate-evidence.mjs` untuk membuktikan hard blocker proposal tidak dapat di-approve atau dikirim, tetap berada pada antrean human approval, dan tidak menghasilkan outbound; runner mencatat skenario UAT hanya setelah seluruh pemeriksaan lulus.
+- Menambahkan command `test:phase13:access`, `test:phase13:automation`, `test:phase13:calcom`, `test:phase13:client-lifecycle`, `test:phase13:end-to-end`, `test:phase13:proposal-gate`, `test:phase13:resend`, dan `test:phase13:suppression` agar evidence Fase 13 dapat diulang secara eksplisit.
 - Script menolak memanggil worker jika salah satu runtime control database bukan `dry_run` dan memerlukan konfirmasi eksplisit untuk target production.
 - Perubahan ini merupakan alat operator lokal dan tidak memerlukan deployment runtime baru.
+
+## [0.16.2] - 2026-09-01
+
+### Fixed — Client Handoff Source Compatibility
+
+- Menambahkan migration `0038_client_handoff_source_id_compatibility.sql` setelah UAT production menemukan `projects.source_id` bertipe UUID pada schema legacy sementara RPC handoff lama selalu mengirim text.
+- Menghidrasi `source_id` melalui row type `projects` sehingga `convert_won_lead_to_client` kompatibel dengan schema UUID production maupun schema text pada instalasi baru.
+- Menambahkan readiness flag `client_handoff_source_id_compatibility_ready` agar perbaikan dapat diverifikasi tanpa mutasi.
 
 ## [0.16.1] - 2026-08-30
 
