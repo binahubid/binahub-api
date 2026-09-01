@@ -6,6 +6,7 @@ loadEnvConfig(process.cwd());
 
 const baseUrl = (process.env.PHASE13_API_URL || "").replace(/\/$/, "");
 const productionConfirmed = process.env.PHASE13_CONFIRM_DRY_RUN === "true";
+const uatActor = process.env.PHASE13_UAT_ACTOR?.trim().toLowerCase() || "admin@binahub.id";
 const failures = [];
 const expectedWorkflows = [
   "follow_up_scheduler",
@@ -204,12 +205,70 @@ async function runIdempotencyPair(name, path, secret, key) {
   }, null, 2));
 }
 
+async function runRetryProbe(name, workflowKey, path, secret, key) {
+  const seeded = await db.from("automation_runs").insert({
+    workflow_key: workflowKey,
+    idempotency_key: key,
+    trigger_source: "phase13_retry_probe",
+    dry_run: true,
+    status: "failed",
+    reference_date: referenceDate,
+    candidate_count: 0,
+    processed_count: 0,
+    failure_count: 1,
+    summary: { phase13: true, syntheticFailure: true },
+    error_message: "Synthetic Phase 13 retry probe.",
+    finished_at: new Date().toISOString(),
+  }).select("id").single();
+  if (seeded.error || !seeded.data) {
+    fail(`${name} failed-run probe tidak dapat dibuat: ${seeded.error?.message || "data kosong"}`);
+    return;
+  }
+
+  const headers = {
+    Authorization: `Bearer ${secret}`,
+    "X-Idempotency-Key": key,
+  };
+  const retry = await requestJson(path, { headers });
+  const retryDryRun = retry.body?.dryRun === true || retry.body?.result?.dryRun === true || retry.body?.run?.dry_run === true;
+  check(
+    retry.status === 200 && retry.body?.retried === true && retryDryRun,
+    `${name} mengambil ulang failed run secara dry-run`,
+    `HTTP ${retry.status}, retried=${retry.body?.retried}, dryRun=${retryDryRun}`,
+  );
+
+  const duplicate = await requestJson(path, { headers });
+  check(
+    duplicate.status === 200 && duplicate.body?.duplicate === true,
+    `${name} retry sukses tidak diproses ulang pada request berikutnya`,
+    `HTTP ${duplicate.status}, duplicate=${duplicate.body?.duplicate}`,
+  );
+
+  const saved = await db.from("automation_runs")
+    .select("id, status, dry_run, failure_count")
+    .eq("workflow_key", workflowKey)
+    .eq("idempotency_key", key)
+    .single();
+  if (saved.error) fail(`${name} retry audit tidak dapat dibaca: ${saved.error.message}`);
+  check(
+    saved.data?.id === seeded.data.id && saved.data?.status === "succeeded" && saved.data?.dry_run === true && saved.data?.failure_count === 0,
+    `${name} menggunakan run ID yang sama dan menutup retry sebagai succeeded`,
+  );
+}
+
 const clientKey = `${label}-client-operations`;
 await runIdempotencyPair(
   "clientOperations",
-  `/api/automation/client-operations?date=${referenceDate}`,
+  `/api/automation/client-operations?referenceDate=${referenceDate}`,
   operationsSecret,
   clientKey,
+);
+await runRetryProbe(
+  "clientOperationsRetry",
+  "client_operations_daily",
+  `/api/automation/client-operations?referenceDate=${referenceDate}`,
+  operationsSecret,
+  `${label}-client-operations-retry`,
 );
 
 const acquisitionKey = `${label}-acquisition`;
@@ -218,6 +277,13 @@ await runIdempotencyPair(
   "/api/automation/acquisition",
   acquisitionSecret,
   acquisitionKey,
+);
+await runRetryProbe(
+  "acquisitionRetry",
+  "acquisition_batch_processor",
+  "/api/automation/acquisition",
+  acquisitionSecret,
+  `${label}-acquisition-retry`,
 );
 
 const runRows = await db
@@ -288,5 +354,30 @@ if (followUpDeferred) {
   console.log("\nPhase 13 evidence run aman, tetapi evidence Follow-up belum lengkap karena request deferred.");
   console.log("Ulangi pada Senin–Jumat di dalam window 08.00–17.00 WIB dengan PHASE13_RUN_LABEL baru.");
 } else {
+  const { data: scenario, error: scenarioError } = await db.from("uat_scenarios")
+    .select("id")
+    .eq("scenario_key", "automation_dry_run_audit")
+    .single();
+  if (scenarioError || !scenario) {
+    fail(`Skenario UAT automation_dry_run_audit tidak ditemukan: ${scenarioError?.message || "data kosong"}`);
+  } else {
+    const { error: updateError } = await db.rpc("update_uat_scenario", {
+      p_scenario_id: scenario.id,
+      p_actor: uatActor,
+      p_status: "passed",
+      p_owner: uatActor,
+      p_environment: "production",
+      p_evidence_note: `Runner ${label}: empat runtime control dry_run; follow-up, event worker, client operations, acquisition, duplicate, failed-run retry, audit run, dan monitoring lock lulus tanpa outbound.`,
+      p_evidence_url: null,
+      p_actual_result: "Seluruh automation berjalan dry-run; tidak ada email atau mutasi live, duplicate tidak diproses ulang, failed run dapat diretry memakai run ID yang sama, dan monitoring tetap activation locked.",
+      p_blocker_reason: null,
+    });
+    if (updateError) fail(`Evidence UAT automation_dry_run_audit tidak dapat dicatat: ${updateError.message}`);
+    else pass("Skenario UAT automation_dry_run_audit dicatat passed");
+  }
+  if (failures.length) {
+    console.error(`\nPhase 13 automation evidence gagal saat pencatatan UAT (${failures.length} pemeriksaan).`);
+    process.exit(1);
+  }
   console.log("\nPhase 13 automation dry-run evidence berhasil dikumpulkan.");
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MOCK_PROPOSAL_RULES,
+  applyCommercialPolicy,
   addBusinessDays,
   calculateProposalCommercials,
   evaluateRequiredProposalData,
@@ -70,6 +71,26 @@ describe("proposal policy", () => {
     });
     expect(gate.reasons.map((reason) => reason.code)).toContain("BELOW_MINIMUM_TRANSACTION");
     expect(gate.canAutoSend).toBe(false);
+  });
+
+  it("applies the configurable transaction policy and can disable the threshold", () => {
+    const base = normalizeProposalRules({ version: "v1", is_mock: false, rules: {} });
+    const rules = applyCommercialPolicy(base, {
+      minimum_transaction_enabled: false,
+      minimum_transaction_amount: 15_000_000,
+      below_threshold_action: "reject",
+      version: 3,
+    });
+    const gate = evaluateProposalGate({
+      rules,
+      modules: [readyModule],
+      totalBeforeTax: 1_000_000,
+      discountPercent: 0,
+      scopeType: "standard",
+      requiredDataComplete: true,
+    });
+    expect(rules.version).toContain("commercial-v3");
+    expect(gate.reasons.some((reason) => reason.code.startsWith("BELOW_MINIMUM"))).toBe(false);
   });
 
   it("allows a real standard proposal when active rules explicitly permit it", () => {

@@ -9,7 +9,12 @@ export type ProposalRules = {
   isMock: boolean;
   currency: string;
   minimumTransaction: number;
+  minimumTransactionEnabled: boolean;
+  belowThresholdAction: "allow" | "reject" | "approval_required" | "route_to_module";
+  routeCatalogModuleId: string | null;
   proposalValidityDays: number;
+  allowAdminOverride: boolean;
+  overrideRequiresNote: boolean;
   humanGate: {
     alwaysRequireApprovalForMock: boolean;
     allowStandardAutoSend: boolean;
@@ -57,7 +62,12 @@ export const DEFAULT_MOCK_PROPOSAL_RULES: ProposalRules = {
   isMock: true,
   currency: "IDR",
   minimumTransaction: 25_000_000,
+  minimumTransactionEnabled: true,
+  belowThresholdAction: "approval_required",
+  routeCatalogModuleId: null,
   proposalValidityDays: 14,
+  allowAdminOverride: false,
+  overrideRequiresNote: true,
   humanGate: {
     alwaysRequireApprovalForMock: true,
     allowStandardAutoSend: false,
@@ -86,7 +96,14 @@ export function normalizeProposalRules(row?: { version?: string; is_mock?: boole
     isMock: row?.is_mock ?? DEFAULT_MOCK_PROPOSAL_RULES.isMock,
     currency: typeof raw.currency === "string" ? raw.currency : DEFAULT_MOCK_PROPOSAL_RULES.currency,
     minimumTransaction: finiteNumber(raw.minimumTransaction, DEFAULT_MOCK_PROPOSAL_RULES.minimumTransaction),
+    minimumTransactionEnabled: typeof raw.minimumTransactionEnabled === "boolean" ? raw.minimumTransactionEnabled : true,
+    belowThresholdAction: ["allow", "reject", "approval_required", "route_to_module"].includes(String(raw.belowThresholdAction))
+      ? raw.belowThresholdAction as ProposalRules["belowThresholdAction"]
+      : "approval_required",
+    routeCatalogModuleId: typeof raw.routeCatalogModuleId === "string" ? raw.routeCatalogModuleId : null,
     proposalValidityDays: finiteNumber(raw.proposalValidityDays, DEFAULT_MOCK_PROPOSAL_RULES.proposalValidityDays),
+    allowAdminOverride: typeof raw.allowAdminOverride === "boolean" ? raw.allowAdminOverride : false,
+    overrideRequiresNote: typeof raw.overrideRequiresNote === "boolean" ? raw.overrideRequiresNote : true,
     humanGate: {
       alwaysRequireApprovalForMock: typeof gate.alwaysRequireApprovalForMock === "boolean"
         ? gate.alwaysRequireApprovalForMock
@@ -99,6 +116,40 @@ export function normalizeProposalRules(row?: { version?: string; is_mock?: boole
       absoluteMaxDiscount: finiteNumber(gate.absoluteMaxDiscount, DEFAULT_MOCK_PROPOSAL_RULES.humanGate.absoluteMaxDiscount),
       lowConfidenceThreshold: finiteNumber(gate.lowConfidenceThreshold, DEFAULT_MOCK_PROPOSAL_RULES.humanGate.lowConfidenceThreshold),
     },
+  };
+}
+
+export function applyCommercialPolicy(
+  rules: ProposalRules,
+  policy?: {
+    minimum_transaction_enabled?: boolean;
+    minimum_transaction_amount?: number | string;
+    below_threshold_action?: string;
+    route_catalog_module_id?: string | null;
+    currency?: string;
+    proposal_validity_days?: number;
+    allow_admin_override?: boolean;
+    override_requires_note?: boolean;
+    version?: number;
+  } | null,
+): ProposalRules {
+  if (!policy) return rules;
+  const action = ["allow", "reject", "approval_required", "route_to_module"].includes(String(policy.below_threshold_action))
+    ? policy.below_threshold_action as ProposalRules["belowThresholdAction"]
+    : "approval_required";
+  return {
+    ...rules,
+    version: `${rules.version}+commercial-v${Number(policy.version || 1)}`,
+    currency: policy.currency || rules.currency,
+    minimumTransactionEnabled: policy.minimum_transaction_enabled !== false,
+    minimumTransaction: policy.minimum_transaction_enabled === false
+      ? 0
+      : finiteNumber(policy.minimum_transaction_amount, rules.minimumTransaction),
+    belowThresholdAction: action,
+    routeCatalogModuleId: policy.route_catalog_module_id || null,
+    proposalValidityDays: finiteNumber(policy.proposal_validity_days, rules.proposalValidityDays),
+    allowAdminOverride: policy.allow_admin_override === true,
+    overrideRequiresNote: policy.override_requires_note !== false,
   };
 }
 
@@ -194,8 +245,14 @@ export function evaluateProposalGate(input: {
     add("MODULE_NOT_READY", "Satu atau lebih modul belum berstatus siap dijual.");
   }
   if (input.scopeType === "custom") add("CUSTOM_SCOPE", "Scope custom wajib ditinjau manusia.");
-  if (input.totalBeforeTax < input.rules.minimumTransaction) {
-    add("BELOW_MINIMUM_TRANSACTION", "Nilai proposal berada di bawah minimum transaksi dan memerlukan keputusan manusia.");
+  if (input.rules.minimumTransactionEnabled && input.totalBeforeTax < input.rules.minimumTransaction) {
+    if (input.rules.belowThresholdAction === "reject") {
+      add("BELOW_MINIMUM_TRANSACTION_REJECTED", "Nilai proposal berada di bawah minimum transaksi dan kebijakan saat ini menolak pengecualian.");
+    } else if (input.rules.belowThresholdAction === "approval_required") {
+      add("BELOW_MINIMUM_TRANSACTION", "Nilai proposal berada di bawah minimum transaksi dan memerlukan keputusan manusia.");
+    } else if (input.rules.belowThresholdAction === "route_to_module") {
+      add("BELOW_MINIMUM_TRANSACTION_ROUTE", "Nilai proposal berada di bawah minimum transaksi dan harus dialihkan ke modul entry-level yang ditetapkan.");
+    }
   }
   if (input.totalBeforeTax > input.rules.humanGate.highDealThreshold) {
     add("HIGH_DEAL_VALUE", "Nilai proposal melewati batas review manusia.");

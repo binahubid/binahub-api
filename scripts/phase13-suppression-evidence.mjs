@@ -8,6 +8,7 @@ loadEnvConfig(process.cwd());
 const baseUrl = (process.env.PHASE13_API_URL || "").replace(/\/$/, "");
 const productionConfirmed = process.env.PHASE13_CONFIRM_SUPPRESSION_TEST === "true";
 const runLabel = process.env.PHASE13_RUN_LABEL?.trim() || "phase13-suppression";
+const uatActor = process.env.PHASE13_UAT_ACTOR?.trim().toLowerCase() || "admin@binahub.id";
 const failures = [];
 
 function pass(message) {
@@ -182,12 +183,14 @@ const scheduler = await requestJson("/api/admin/follow-up", {
     "X-Idempotency-Key": `${normalizedLabel}-scheduler`,
   },
 });
+let schedulerVerified = false;
 if (scheduler.status === 202 && scheduler.body?.deferred === true) {
   console.log("[PENDING] Scheduler deferred di luar business window; ulangi command yang sama pada Senin–Jumat pukul 08.00–17.00 WIB.");
 } else {
   const candidateIds = Array.isArray(scheduler.body?.candidates) ? scheduler.body.candidates.map((item) => item.id) : [];
+  schedulerVerified = scheduler.status === 200 && scheduler.body?.dryRun === true && !candidateIds.includes(inquiry.data.id);
   check(
-    scheduler.status === 200 && scheduler.body?.dryRun === true && !candidateIds.includes(inquiry.data.id),
+    schedulerVerified,
     "Scheduler dry-run mengabaikan inquiry yang sudah suppressed",
     `HTTP ${scheduler.status}`,
   );
@@ -195,6 +198,35 @@ if (scheduler.status === 202 && scheduler.body?.deferred === true) {
 
 if (failures.length) {
   console.error(`\nPhase 13 suppression evidence gagal (${failures.length} pemeriksaan).`);
+  process.exit(1);
+}
+
+if (schedulerVerified) {
+  const { data: scenario, error: scenarioError } = await db.from("uat_scenarios")
+    .select("id")
+    .eq("scenario_key", "email_suppression_stop_rules")
+    .single();
+  if (scenarioError || !scenario) {
+    fail(`Skenario UAT email_suppression_stop_rules tidak ditemukan: ${scenarioError?.message || "data kosong"}`);
+  } else {
+    const { error: updateError } = await db.rpc("update_uat_scenario", {
+      p_scenario_id: scenario.id,
+      p_actor: uatActor,
+      p_status: "passed",
+      p_owner: uatActor,
+      p_environment: "production",
+      p_evidence_note: `Runner ${normalizedLabel}: bounce valid menjeda lead ${lead.data.id} dan inquiry ${inquiry.data.id}; scheduler dry-run tidak memasukkan inquiry suppressed sebagai kandidat.`,
+      p_evidence_url: null,
+      p_actual_result: "Bounce membuat suppression serta audit stop condition; lead dan inquiry dipause, dan Follow-up Scheduler pada business window mengabaikan contact tanpa mengirim email.",
+      p_blocker_reason: null,
+    });
+    if (updateError) fail(`Evidence UAT email_suppression_stop_rules tidak dapat dicatat: ${updateError.message}`);
+    else pass("Skenario UAT email_suppression_stop_rules dicatat passed");
+  }
+}
+
+if (failures.length) {
+  console.error(`\nPhase 13 suppression evidence gagal saat pencatatan UAT (${failures.length} pemeriksaan).`);
   process.exit(1);
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.16.2",
+  "version": "0.17.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,9 +19,11 @@
     "test:phase13:calcom": "node scripts/phase13-calcom-evidence.mjs",
     "test:phase13:client-lifecycle": "node scripts/phase13-client-lifecycle-evidence.mjs",
     "test:phase13:end-to-end": "node scripts/phase13-end-to-end-evidence.mjs",
+    "test:phase13:governance-prep": "node scripts/phase13-governance-preparation.mjs",
     "test:phase13:proposal-gate": "node scripts/phase13-proposal-gate-evidence.mjs",
     "test:phase13:resend": "node scripts/phase13-resend-evidence.mjs",
-    "test:phase13:suppression": "node scripts/phase13-suppression-evidence.mjs"
+    "test:phase13:suppression": "node scripts/phase13-suppression-evidence.mjs",
+    "test:phase14": "node scripts/phase14-smoke.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -31,6 +33,7 @@
     "framer-motion": "^12.40.0",
     "jimp": "^1.6.1",
     "lucide-react": "^1.18.0",
+    "mammoth": "^1.12.2",
     "next": "^16.3.1",
     "openai": "^6.42.0",
     "react": "19.2.4",

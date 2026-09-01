@@ -5,6 +5,30 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-01
+
+### Added — Configurable Commercial & Learning Operations
+
+- Menambahkan migration `0039_configurable_business_and_program_assessments.sql` untuk katalog publik, kebijakan minimum transaksi, owner/backup, approver/delegasi, SLA risiko, template dokumen, dan questionnaire per program.
+- Menambahkan endpoint admin `/api/admin/catalog` untuk membuat, mengubah, mempublikasikan, mengarsipkan, dan menghapus produk/modul dengan audit trail.
+- Menambahkan endpoint admin `/api/admin/business-settings` untuk seluruh kebijakan bisnis yang dapat dikonfigurasi tanpa deployment.
+- Menambahkan endpoint admin questionnaire dan impor plain-text aman dari DOCX/TXT/CSV/JSON dengan batas ukuran, validasi tipe, preview, serta larangan mengganti soal setelah ada respons.
+- Menambahkan endpoint peserta questionnaire dengan authorization program, required-answer validation, retake policy, deterministik scoring, dan penyimpanan attempt.
+- Menambahkan statistik questionnaire keseluruhan dan per soal beserta unit test skoring/distribusinya.
+- Menambahkan smoke gate `npm run test:phase14` untuk katalog publik dan boundary akses seluruh endpoint baru.
+
+### Changed
+
+- Memperluas modul program dengan `pre_test` dan `post_test` serta status penyelesaian pada ringkasan program peserta.
+- Memperketat katalog publik agar hanya membaca item `public_visible`, siap, aktif, dan non-mock; payload publik kini memuat slug, scope, deliverables, minimum quantity, durasi, dan featured state.
+- Menambahkan readiness counter untuk konfigurasi komersial, governance, approval, SLA, template finance/legal, questionnaire, dan RLS tabel baru.
+
+### Safety
+
+- Seluruh tabel baru memakai RLS, menolak privilege `anon`/`authenticated`, dan hanya diakses server melalui `service_role`.
+- Impor DOCX hanya mengekstrak plain text; HTML dan macro dokumen tidak dirender atau disimpan.
+- Nilai awal yang membutuhkan keputusan manusia dibuat fail-closed: delegasi/SLA nonaktif dan template finance/legal berstatus `review`.
+
 ### Operations — Phase 13 Evidence Kit
 
 - Menambahkan `scripts/phase13-evidence.mjs` untuk preflight runtime control, production dry-run, duplicate/idempotency check, audit run, dan monitoring snapshot tanpa mencetak secret.
@@ -16,6 +40,8 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 - Menambahkan `scripts/phase13-end-to-end-evidence.mjs` untuk menelusuri satu fixture `example.invalid` dari acquisition source/campaign, prospect, lead, seluruh stage opportunity, client/project, sampai repeat opportunity; campaign ditutup dan source dipause setelah evidence selesai.
 - Menambahkan `scripts/phase13-proposal-gate-evidence.mjs` untuk membuktikan hard blocker proposal tidak dapat di-approve atau dikirim, tetap berada pada antrean human approval, dan tidak menghasilkan outbound; runner mencatat skenario UAT hanya setelah seluruh pemeriksaan lulus.
 - Menambahkan command `test:phase13:access`, `test:phase13:automation`, `test:phase13:calcom`, `test:phase13:client-lifecycle`, `test:phase13:end-to-end`, `test:phase13:proposal-gate`, `test:phase13:resend`, dan `test:phase13:suppression` agar evidence Fase 13 dapat diulang secara eksplisit.
+- Memperketat runner automation dengan failed-run retry probe untuk Client Operations dan Acquisition, lalu mencatat UAT automation/suppression hanya setelah business-window evidence benar-benar lengkap.
+- Menambahkan governance preparation yang menetapkan empat monitoring policy real ber-owner dan membuat 18 template ID/EN non-mock berstatus draft review, dengan satu CTA Cal.com dan tanpa instruksi membalas alamat no-reply.
 - Script menolak memanggil worker jika salah satu runtime control database bukan `dry_run` dan memerlukan konfirmasi eksplisit untuk target production.
 - Perubahan ini merupakan alat operator lokal dan tidak memerlukan deployment runtime baru.
 

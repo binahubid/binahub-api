@@ -19,14 +19,18 @@ export async function GET(req: NextRequest) {
   const db = createServerSupabase();
   const [{ data: products, error: productsError }, { data: modules, error: modulesError }] = await Promise.all([
     db.from("catalog_products")
-      .select("id, product_key, name, objective")
+      .select("id, product_key, slug, name, objective, short_description, public_description, cover_image_url, featured, display_order")
       .eq("status", "ready")
+      .eq("public_visible", true)
+      .order("display_order", { ascending: true })
       .order("name", { ascending: true }),
     db.from("catalog_modules")
-      .select("id, product_id, module_code, name, description, standard_scope, pricing_unit, base_price, currency, catalog_version")
+      .select("id, product_id, module_code, slug, name, description, standard_scope, deliverables, out_of_scope, pricing_unit, base_price, minimum_quantity, currency, duration_label, featured, display_order, catalog_version")
       .eq("active", true)
       .eq("is_mock", false)
       .eq("readiness_status", "ready")
+      .eq("public_visible", true)
+      .order("display_order", { ascending: true })
       .order("name", { ascending: true }),
   ]);
 

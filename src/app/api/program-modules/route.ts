@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireTransformationAdmin } from "@/lib/transformation/auth";
 import { getDb } from "@/lib/transformation/service";
 
-const MODULE_KEYS = ["tbos", "lep", "binainsight"] as const;
+const MODULE_KEYS = ["tbos", "lep", "binainsight", "pre_test", "post_test"] as const;
 
 const moduleItemSchema = z.object({
   moduleKey: z.enum(MODULE_KEYS),

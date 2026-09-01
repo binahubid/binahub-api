@@ -5,6 +5,7 @@ import { proposalDraftSchema } from "@/lib/admin-mutation-schemas";
 import { generateAssessmentProposal } from "@/lib/ai-service";
 import {
   addBusinessDays,
+  applyCommercialPolicy,
   calculateProposalCommercials,
   evaluateRequiredProposalData,
   evaluateProposalGate,
@@ -59,7 +60,11 @@ export async function POST(req: NextRequest) {
   const input = parsed.data;
   const db = createServerSupabase();
 
-  const [{ data: assessment, error: assessmentError }, { data: ruleSets, error: rulesError }] = await Promise.all([
+  const [
+    { data: assessment, error: assessmentError },
+    { data: ruleSets, error: rulesError },
+    { data: commercialPolicy, error: commercialPolicyError },
+  ] = await Promise.all([
     db.from("assessments")
       .select("id, form_data, scores, category, ai_analysis, recommendations, overall_score")
       .eq("id", input.assessmentId)
@@ -68,12 +73,17 @@ export async function POST(req: NextRequest) {
       .select("id, version, status, is_mock, rules")
       .in("status", ["active", "mock"])
       .order("created_at", { ascending: false }),
+    db.from("commercial_policy_settings")
+      .select("minimum_transaction_enabled, minimum_transaction_amount, below_threshold_action, route_catalog_module_id, currency, proposal_validity_days, allow_admin_override, override_requires_note, version")
+      .eq("setting_key", "default")
+      .maybeSingle(),
   ]);
   if (assessmentError || !assessment) return adminError(assessmentError?.message || "Assessment tidak ditemukan.", 404, "ASSESSMENT_NOT_FOUND");
   if (rulesError) return adminError(rulesError.message, 500, "BUSINESS_RULES_READ_FAILED");
+  if (commercialPolicyError) return adminError(commercialPolicyError.message, 500, "COMMERCIAL_POLICY_READ_FAILED");
 
   const selectedRuleSet = ruleSets?.find((rule) => rule.status === "active") || ruleSets?.find((rule) => rule.status === "mock") || null;
-  const rules = normalizeProposalRules(selectedRuleSet);
+  const rules = applyCommercialPolicy(normalizeProposalRules(selectedRuleSet), commercialPolicy);
   const requestedIds = input.moduleItems.map((item) => item.catalogModuleId);
   const { data: moduleRows, error: moduleError } = await db
     .from("catalog_modules")

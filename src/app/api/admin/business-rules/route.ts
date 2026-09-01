@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { adminError, logAdminEvent, parseValidatedBody } from "@/lib/admin-api";
 import { catalogModuleMutationSchema } from "@/lib/admin-mutation-schemas";
-import { normalizeProposalRules } from "@/lib/proposal-policy";
+import { applyCommercialPolicy, normalizeProposalRules } from "@/lib/proposal-policy";
 import { createServerSupabase } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
@@ -10,13 +10,14 @@ export async function GET(req: NextRequest) {
   if ("error" in admin) return adminError(admin.error || "Akses admin tidak valid.", admin.status, "ADMIN_REQUIRED");
 
   const db = createServerSupabase();
-  const [{ data: ruleSets, error: rulesError }, { data: products, error: productsError }, { data: modules, error: modulesError }] = await Promise.all([
+  const [{ data: ruleSets, error: rulesError }, { data: products, error: productsError }, { data: modules, error: modulesError }, { data: commercialPolicy, error: commercialError }] = await Promise.all([
     db.from("business_rule_sets").select("id, version, status, is_mock, rules, effective_at, approved_by, approved_at, created_at, updated_at").order("created_at", { ascending: false }),
     db.from("catalog_products").select("id, product_key, name, status, objective, notes, created_at, updated_at").order("name", { ascending: true }),
     db.from("catalog_modules").select("id, product_id, module_code, name, description, standard_scope, pricing_unit, base_price, currency, readiness_status, is_mock, active, catalog_version, metadata, created_at, updated_at").order("name", { ascending: true }),
+    db.from("commercial_policy_settings").select("*").eq("setting_key", "default").maybeSingle(),
   ]);
 
-  const error = rulesError || productsError || modulesError;
+  const error = rulesError || productsError || modulesError || commercialError;
   if (error) return adminError(error.message, 500, "BUSINESS_RULES_READ_FAILED");
 
   const selectedRuleSet = ruleSets?.find((item) => item.status === "active")
@@ -27,7 +28,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     selectedRuleSet,
-    normalizedRules: normalizeProposalRules(selectedRuleSet),
+    normalizedRules: applyCommercialPolicy(normalizeProposalRules(selectedRuleSet), commercialPolicy),
+    commercialPolicy,
     ruleSets: ruleSets || [],
     products: products || [],
     modules: modules || [],

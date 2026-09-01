@@ -608,6 +608,67 @@ where certification.decision in ('accepted', 'accepted_with_conditions')
     or snapshot.overall_status in ('critical', 'insufficient_data')
   );
 
+-- Configurable commercial/governance controls introduced in migration 0039.
+-- Pending values are reported explicitly; they do not silently become approved defaults.
+select
+  count(*) filter (where minimum_transaction_enabled) as minimum_transaction_policy_enabled,
+  count(*) filter (
+    where minimum_transaction_enabled
+      and minimum_transaction_amount <= 0
+  ) as minimum_transaction_policy_issues,
+  max(version) as commercial_policy_version
+from public.commercial_policy_settings;
+
+select
+  count(*) as governance_assignment_total,
+  count(*) filter (where active and owner_email is null) as governance_owner_pending,
+  count(*) filter (
+    where active
+      and owner_user_id is not null
+      and backup_user_id is not null
+      and owner_user_id = backup_user_id
+  ) as governance_backup_conflict_issues
+from public.governance_assignments;
+
+select
+  count(*) as approval_rule_total,
+  count(*) filter (where active) as approval_rule_active_total,
+  count(*) filter (where active and primary_approver_email is null) as approval_rule_owner_issues,
+  count(*) filter (
+    where active
+      and valid_until is not null
+      and valid_until <= now()
+  ) as approval_delegation_expired_issues
+from public.approval_delegations;
+
+select
+  count(*) as risk_sla_total,
+  count(*) filter (where enabled) as risk_sla_enabled_total,
+  count(*) filter (where enabled and owner_email is null) as risk_sla_owner_issues
+from public.risk_sla_policies;
+
+select
+  count(*) as finance_legal_template_total,
+  count(*) filter (where status = 'approved') as finance_legal_template_approved_total,
+  count(*) filter (
+    where status = 'approved'
+      and (approved_by is null or approved_at is null or length(btrim(approval_note)) < 5)
+  ) as finance_legal_template_approval_issues
+from public.document_templates;
+
+select
+  count(*) as program_questionnaire_total,
+  count(*) filter (where status = 'published') as program_questionnaire_published_total,
+  count(*) filter (
+    where status = 'published'
+      and not exists (
+        select 1
+        from public.program_questionnaire_questions question
+        where question.questionnaire_id = program_questionnaires.id
+      )
+  ) as published_questionnaire_without_questions_issues
+from public.program_questionnaires;
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,
