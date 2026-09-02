@@ -2,6 +2,12 @@
 
 Dokumen ini adalah urutan resmi untuk database bersama `app-binahub` dan `binahub-api`.
 
+## Phase 15 runtime circuit breaker (API 0.18.0)
+
+Fase 15 tidak memiliki migration database. Deploy API `0.18.0` lalu tambahkan `AUTOMATION_PILOT_ENABLED=false` dan `AUTOMATION_LIVE_ENABLED=false` pada environment production. Kedua nilai yang tidak tersedia juga diperlakukan sebagai `false`, tetapi deklarasi eksplisit memudahkan audit konfigurasi.
+
+Pertahankan seluruh `*_DRY_RUN=true`. Setelah deployment, jalankan `npm run test:phase15` dengan environment `PHASE15_API_URL`, kredensial admin sementara, dan `PHASE15_CONFIRM_PRODUCTION_READINESS=true`. Gate harus membuktikan empat runtime efektif `dry_run`/`disabled`, kedua master switch tertutup, serta setiap runtime mengembalikan status change window dan blocker.
+
 ## Mengapa Tidak Boleh Menjalankan Dua `db push`
 
 Kedua repositori memiliki migration historis bernomor `0005`–`0017`. Supabase mencatat versi dari prefix filename, sehingga menjalankan `supabase db push` dari kedua direktori dapat menganggap migration berbeda sebagai versi yang sama. Untuk database yang sudah berjalan, jangan rename, repair, atau replay migration lama tanpa membandingkan `supabase_migrations.schema_migrations` dan schema aktual.

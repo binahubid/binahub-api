@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
       error: "Acquisition Batch Processor dinonaktifkan oleh kill switch database.",
       requestedMode: runtimeControl.requestedMode,
       effectiveMode: runtimeControl.effectiveMode,
+      activationBlockers: runtimeControl.activationBlockers,
+      releaseWindowState: runtimeControl.releaseWindowState,
     }, { status: 423 });
   }
   const dryRun = runtimeControl.effectiveMode === "dry_run";
@@ -95,6 +97,10 @@ export async function GET(req: NextRequest) {
     requestedMode: runtimeControl.requestedMode,
     effectiveMode: runtimeControl.effectiveMode,
     runtimeControlVersion: runtimeControl.version,
+    activationEligible: runtimeControl.activationEligible,
+    activationBlockers: runtimeControl.activationBlockers,
+    releaseWindowState: runtimeControl.releaseWindowState,
+    pilotReleaseId: runtimeControl.pilotReleaseId,
     batchCount: (batches || []).length,
     candidateCount: candidates,
     promotedCount: promoted,

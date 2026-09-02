@@ -10,6 +10,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_DB_PASSWORD
 PROPOSAL_LINK_SECRET
+AUTOMATION_PILOT_ENABLED
+AUTOMATION_LIVE_ENABLED
 TRANSFORMATION_WORKER_SECRET
 FOLLOW_UP_CRON_SECRET
 OPERATIONS_CRON_SECRET
@@ -34,6 +36,8 @@ FACILITATOR_EMAILS
 
 `PROPOSAL_LINK_SECRET`, `TRANSFORMATION_WORKER_SECRET`, `FOLLOW_UP_CRON_SECRET`, `OPERATIONS_CRON_SECRET`, `ACQUISITION_CRON_SECRET`, `PILOT_MONITOR_SECRET`, `UNSUBSCRIBE_SECRET`, `CALCOM_WEBHOOK_SECRET`, dan `RESEND_WEBHOOK_SECRET` wajib berupa secret acak yang berbeda khusus production. `UNSUBSCRIBE_SECRET` minimal 32 karakter. Jangan memakai nilai yang diekspos ke browser atau menyimpan service-role key dalam variable berprefix `NEXT_PUBLIC_`.
 
+`AUTOMATION_PILOT_ENABLED` dan `AUTOMATION_LIVE_ENABLED` bukan secret, tetapi merupakan master circuit breaker server-side. Pertahankan keduanya `false` pada deployment normal. Pilot membutuhkan `AUTOMATION_PILOT_ENABLED=true`; live membutuhkan kedua variable `true`. Worker tetap menilai dry-run per workflow, requested mode database, release non-mock berstatus scheduled, dan change window pada setiap invocation, sehingga satu variable saja tidak pernah cukup untuk membuka outbound.
+
 Follow-up otomatis tersedia melalui `GET /api/admin/follow-up` dengan header `Authorization: Bearer <FOLLOW_UP_CRON_SECRET>`. Endpoint ini tetap memerlukan scheduler eksternal (misalnya n8n) dan tidak akan berjalan periodik hanya karena API sudah di-deploy. Worker event tersedia melalui `POST /api/events/process` dengan `TRANSFORMATION_WORKER_SECRET`.
 
 Worker memakai header `x-worker-secret: <TRANSFORMATION_WORKER_SECRET>`. Gunakan `TRANSFORMATION_WORKER_DRY_RUN=true` pada lokal/UAT agar endpoint hanya menghitung `pendingDue` tanpa mengklaim atau memproses event.
@@ -55,6 +59,8 @@ Fase 10 menambahkan migration `0035_phase10_pilot_operations_control_plane.sql` 
 Fase 11 menambahkan migration `0036_phase11_operational_assurance.sql` dan API `0.15.0`. Endpoint `/api/admin/operational-assurance` mengelola threshold deterministik, snapshot, incident response, dan keputusan go/no-go. Watchdog `GET /api/automation/pilot-monitoring` memakai `Authorization: Bearer <PILOT_MONITOR_SECRET>`. Pertahankan `PILOT_MONITOR_DRY_RUN=true` selama konstruksi/UAT: snapshot tetap tercatat, tetapi finding tidak dimaterialisasi menjadi incident otomatis. Keputusan go/no-go tidak pernah mengaktifkan n8n atau mengubah environment.
 
 Fase 12 menambahkan migration `0037_phase12_pilot_rehearsal_certification.sql` dan API `0.16.0`. Endpoint `/api/admin/pilot-certification` mengelola rehearsal produksi yang selalu dry-run, delapan evidence wajib, snapshot monitoring fresh, dan acceptance manusia. Keputusan go/no-go, scheduling release, serta runtime pilot/live ditolak sampai acceptance yang sesuai tersedia. Acceptance tetap tidak mengaktifkan n8n, tidak mengubah environment, dan tidak mengirim outbound.
+
+Fase 15 menggunakan API `0.18.0` tanpa migration baru. Runtime pilot/live kini memerlukan master circuit breaker eksplisit dan hanya efektif di dalam change window release non-mock berstatus `scheduled`. Di luar window, sebelum window, setelah window, ketika release tidak valid, atau ketika master switch tertutup, worker otomatis turun ke `dry_run`. Jalankan `npm run test:phase15` setelah deployment; runner hanya membaca control plane dan memeriksa boundary akses tanpa menjalankan worker menggunakan secret.
 
 Cron follow-up secara default hanya mengirim pada Senin-Jumat pukul 08.00-17.00 `Asia/Jakarta`. Atur `FOLLOW_UP_TIME_ZONE`, `FOLLOW_UP_WINDOW_START`, `FOLLOW_UP_WINDOW_END`, `FOLLOW_UP_WEEKDAYS`, dan `FOLLOW_UP_HOLIDAYS` untuk kalender operasional. Di luar jendela tersebut endpoint mengembalikan HTTP 202 dengan `deferred: true`.
 
@@ -90,3 +96,5 @@ npm audit
 Jalankan juga `supabase/production_readiness.sql` sebelum release production.
 
 Setelah API `0.16.0` dideploy, jalankan `PHASE12_API_URL=https://api.binahub.id npm run test:phase12` (atau `$env:PHASE12_API_URL="https://api.binahub.id"; npm run test:phase12` di PowerShell). Smoke gate ini memastikan Pilot Certification, Operational Assurance, control plane, watchdog, dan worker tidak dapat diakses anonymous; verifikasi evidence dilakukan dari dashboard admin.
+
+Setelah API `0.18.0` dideploy, jalankan smoke gate Fase 15 dengan `PHASE15_API_URL`, `PHASE15_ADMIN_EMAIL`, `PHASE15_ADMIN_PASSWORD`, dan `PHASE15_CONFIRM_PRODUCTION_READINESS=true`. Pertahankan `AUTOMATION_PILOT_ENABLED=false` serta `AUTOMATION_LIVE_ENABLED=false`; smoke gate akan gagal jika salah satu master switch terbuka.

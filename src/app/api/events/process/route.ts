@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
       error: "Transformation Event Worker dinonaktifkan oleh kill switch database.",
       requestedMode: runtimeControl.requestedMode,
       effectiveMode: runtimeControl.effectiveMode,
+      activationBlockers: runtimeControl.activationBlockers,
+      releaseWindowState: runtimeControl.releaseWindowState,
       processed: [],
     }, { status: 423 });
   }
@@ -92,6 +94,10 @@ export async function POST(req: NextRequest) {
           requestedMode: runtimeControl.requestedMode,
           effectiveMode: runtimeControl.effectiveMode,
           runtimeControlVersion: runtimeControl.version,
+          activationEligible: runtimeControl.activationEligible,
+          activationBlockers: runtimeControl.activationBlockers,
+          releaseWindowState: runtimeControl.releaseWindowState,
+          pilotReleaseId: runtimeControl.pilotReleaseId,
         },
       });
       return NextResponse.json({
@@ -100,6 +106,10 @@ export async function POST(req: NextRequest) {
         requestedMode: runtimeControl.requestedMode,
         effectiveMode: runtimeControl.effectiveMode,
         runtimeControlVersion: runtimeControl.version,
+        activationEligible: runtimeControl.activationEligible,
+        activationBlockers: runtimeControl.activationBlockers,
+        releaseWindowState: runtimeControl.releaseWindowState,
+        pilotReleaseId: runtimeControl.pilotReleaseId,
         pendingDue,
         processed: [],
       });
@@ -117,6 +127,10 @@ export async function POST(req: NextRequest) {
         requestedMode: runtimeControl.requestedMode,
         effectiveMode: runtimeControl.effectiveMode,
         runtimeControlVersion: runtimeControl.version,
+        activationEligible: runtimeControl.activationEligible,
+        activationBlockers: runtimeControl.activationBlockers,
+        releaseWindowState: runtimeControl.releaseWindowState,
+        pilotReleaseId: runtimeControl.pilotReleaseId,
       },
     });
     return NextResponse.json({
@@ -125,6 +139,10 @@ export async function POST(req: NextRequest) {
       requestedMode: runtimeControl.requestedMode,
       effectiveMode: runtimeControl.effectiveMode,
       runtimeControlVersion: runtimeControl.version,
+      activationEligible: runtimeControl.activationEligible,
+      activationBlockers: runtimeControl.activationBlockers,
+      releaseWindowState: runtimeControl.releaseWindowState,
+      pilotReleaseId: runtimeControl.pilotReleaseId,
       processed,
     });
   } catch (error) {

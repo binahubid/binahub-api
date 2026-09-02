@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminError, parseValidatedBody } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/admin-auth";
 import { pilotOperationsMutationSchema } from "@/lib/admin-mutation-schemas";
-import { resolveEffectiveAutomationMode, type AutomationRequestedMode } from "@/lib/automation-runtime-control";
+import { evaluateAutomationActivation, type AutomationRequestedMode } from "@/lib/automation-runtime-control";
 import { createServerSupabase } from "@/lib/supabase";
 
 type RuntimeRow = {
@@ -53,6 +53,9 @@ const environmentDryRun: Record<string, boolean> = {
   acquisition_batch_processor: process.env.ACQUISITION_DRY_RUN !== "false",
 };
 
+const pilotMasterSwitchEnabled = process.env.AUTOMATION_PILOT_ENABLED === "true";
+const liveMasterSwitchEnabled = process.env.AUTOMATION_LIVE_ENABLED === "true";
+
 function mapRelease(item: ReleaseRow) {
   return {
     id: item.id,
@@ -80,13 +83,29 @@ function mapRelease(item: ReleaseRow) {
   };
 }
 
-function mapRuntime(item: RuntimeRow) {
+function mapRuntime(item: RuntimeRow, releases: Map<string, ReleaseRow>) {
   const envDryRun = environmentDryRun[item.workflow_key] ?? true;
+  const release = item.pilot_release_id ? releases.get(item.pilot_release_id) || null : null;
+  const activation = evaluateAutomationActivation({
+    requestedMode: item.requested_mode,
+    environmentDryRun: envDryRun,
+    pilotMasterSwitchEnabled,
+    liveMasterSwitchEnabled,
+    release: release ? {
+      id: release.id,
+      status: release.status,
+      isMock: release.is_mock,
+      startsAt: release.starts_at,
+      endsAt: release.ends_at,
+    } : null,
+  });
   return {
     workflowKey: item.workflow_key,
     requestedMode: item.requested_mode,
-    effectiveMode: resolveEffectiveAutomationMode(item.requested_mode, envDryRun),
+    ...activation,
     environmentDryRun: envDryRun,
+    pilotMasterSwitchEnabled,
+    liveMasterSwitchEnabled,
     maximumItemsPerRun: item.maximum_items_per_run,
     pilotReleaseId: item.pilot_release_id,
     owner: item.owner,
@@ -174,7 +193,9 @@ export async function GET(req: NextRequest) {
   );
   const uatReady = requiredUat.length >= 12 && passedUat.length === requiredUat.length;
   const templatesReady = approvedTemplateKeys.size >= 18;
-  const mappedReleases = ((releases.data || []) as ReleaseRow[]).map(mapRelease);
+  const releaseRows = (releases.data || []) as ReleaseRow[];
+  const mappedReleases = releaseRows.map(mapRelease);
+  const releaseRowsById = new Map(releaseRows.map((item) => [item.id, item]));
   const approvedReleaseCount = mappedReleases.filter((item) => ["approved", "scheduled"].includes(item.status) && !item.isMock).length;
   const gatesReady = uatReady && templatesReady && businessRulesReady;
 
@@ -207,7 +228,7 @@ export async function GET(req: NextRequest) {
       note: item.note,
       createdAt: item.created_at,
     })),
-    controls: ((controls.data || []) as RuntimeRow[]).map(mapRuntime),
+    controls: ((controls.data || []) as RuntimeRow[]).map((item) => mapRuntime(item, releaseRowsById)),
     controlEvents: (controlEvents.data || []).map((item) => ({
       id: item.id,
       workflowKey: item.workflow_key,

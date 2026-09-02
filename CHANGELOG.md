@@ -5,6 +5,21 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-02
+
+### Added — Phase 15 Controlled Pilot Safety
+
+- Menambahkan master circuit breaker server-side `AUTOMATION_PILOT_ENABLED` dan `AUTOMATION_LIVE_ENABLED`; keduanya default tertutup dan tidak diekspos ke browser.
+- Menambahkan evaluasi change window pada setiap runtime control. Mode pilot/live hanya efektif untuk release non-mock berstatus `scheduled` dengan waktu mulai dan selesai valid serta waktu eksekusi berada di dalam window.
+- Menambahkan blocker aktivasi, status change window, release ID, dan eligibility ke audit run serta respons worker untuk rekonsiliasi operator.
+- Menambahkan smoke gate read-only `npm run test:phase15` yang memverifikasi empat runtime tetap dry-run/disabled, kedua master switch tertutup, dan seluruh endpoint worker menolak pemanggil tanpa secret.
+
+### Safety
+
+- Requested mode database tidak lagi cukup untuk membuat worker efektif pilot/live. Environment dry-run, master switch, release, dan change window dievaluasi ulang pada setiap invocation.
+- Release yang masih draft/approved, mock, belum mulai, sudah selesai, atau tidak memiliki window valid otomatis menurunkan effective mode ke `dry_run`.
+- Fase 15 tidak mengaktifkan n8n, tidak mengubah runtime database, tidak membuat release, dan tidak mengirim outbound.
+
 ## [0.17.0] - 2026-09-01
 
 ### Added — Configurable Commercial & Learning Operations
