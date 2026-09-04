@@ -5,6 +5,15 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-09-04
+
+### Changed — Scheduled Program Status
+
+- Menyelaraskan status program aktif secara otomatis berdasarkan kalender Asia/Jakarta: `active` menjadi `in_progress` saat tanggal mulai tiba dan menjadi `review` setelah tanggal selesai lewat.
+- Mengembalikan program `in_progress` ke `active` ketika tanggal mulai dipindahkan ke masa depan.
+- Mempertahankan keputusan manusia untuk status `draft`, `review`, `completed`, dan `archived`.
+- Menambahkan unit test untuk batas tanggal, reschedule, dan zona waktu operasional.
+
 ## [0.18.0] - 2026-09-02
 
 ### Added — Phase 15 Controlled Pilot Safety

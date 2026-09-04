@@ -4,6 +4,7 @@ import { createEngagementSchema } from "@/lib/transformation/schemas";
 import { createEngagement, getDb } from "@/lib/transformation/service";
 import { z } from "zod";
 import { getAccessibleProgramIds, transformationErrorResponse } from "@/lib/transformation/access";
+import { jakartaCalendarDate, resolveScheduledProgramStatus, type ProgramStatus } from "@/lib/program-status";
 
 const moduleSelectionSchema = z.array(z.object({
   moduleKey: z.enum(["tbos", "lep", "binainsight"]),
@@ -41,9 +42,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
+  const today = jakartaCalendarDate();
+  let reconciled = data || [];
+  try {
+    reconciled = await Promise.all((data || []).map(async (row) => {
+      const nextStatus = resolveScheduledProgramStatus({
+        status: row.status as ProgramStatus,
+        startDate: row.start_date,
+        endDate: row.end_date,
+      }, today);
+      if (nextStatus === row.status) return row;
+      const updatedAt = new Date().toISOString();
+      const { error: updateError } = await db
+        .from("engagements")
+        .update({ status: nextStatus, updated_at: updatedAt })
+        .eq("id", row.id)
+        .eq("status", row.status);
+      if (updateError) throw updateError;
+      return { ...row, status: nextStatus, updated_at: updatedAt };
+    }));
+  } catch (statusError) {
+    return NextResponse.json({
+      success: false,
+      error: statusError instanceof Error ? statusError.message : "Status program otomatis tidak dapat diselaraskan.",
+    }, { status: 500 });
+  }
+
   return NextResponse.json({
     success: true,
-    engagements: (data || []).map(({ engagement_participants: memberships, ...engagement }) => ({
+    engagements: reconciled.map(({ engagement_participants: memberships, ...engagement }) => ({
       ...engagement,
       participants: memberships?.[0]?.count || 0,
     })),

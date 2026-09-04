@@ -38,6 +38,10 @@ const supabaseUrl = requiredEnvironment("NEXT_PUBLIC_SUPABASE_URL");
 const anonKey = requiredEnvironment("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 const adminEmail = requiredEnvironment("PHASE15_ADMIN_EMAIL");
 const adminPassword = requiredEnvironment("PHASE15_ADMIN_PASSWORD");
+check(
+  /^[^\\\s@]+@[^\\\s@]+\.[^\\\s@]+$/.test(adminEmail),
+  "format email administrator valid dan tidak memakai backslash",
+);
 if (failures.length) process.exit(1);
 
 const supabase = createClient(supabaseUrl, anonKey, {
@@ -48,7 +52,13 @@ const { data: authData, error: authError } = await supabase.auth.signInWithPassw
   password: adminPassword,
 });
 const token = authData.session?.access_token || "";
-check(!authError && Boolean(token), "administrator memperoleh sesi sementara");
+const authDetail = authError
+  ? `${authError.code || `HTTP ${authError.status || "unknown"}`}: ${authError.message}`
+  : token ? "" : "Supabase tidak mengembalikan access token";
+check(!authError && Boolean(token), "administrator memperoleh sesi sementara", authDetail);
+if (authError?.message.toLowerCase().includes("invalid login credentials")) {
+  console.error("Periksa bahwa email ditulis admin@binahub.id tanpa backslash dan password sama dengan login admin pada project Supabase production.");
+}
 if (!token || failures.length) process.exit(1);
 
 const anonymous = await jsonRequest("/api/admin/pilot-operations");
