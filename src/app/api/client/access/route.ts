@@ -7,6 +7,7 @@ import { createOpaqueToken, hashOpaqueToken } from "@/lib/secure-token";
 import { participantAccessExpiry, programAccessAvailable, publicProgram, type ClientProgramRow } from "@/lib/client-program";
 import { findSimilarParticipantNames, matchingParticipantAccesses } from "@/lib/participant-identity";
 import { createParticipantCode, hashParticipantCode, normalizeParticipantCode, participantCodeHint } from "@/lib/participant-code";
+import type { ProgramModuleKey } from "@/lib/program-modules";
 
 const accessSchema = z.object({
   mode: z.enum(["register", "participant"]).optional().default("register"),
@@ -63,7 +64,7 @@ async function getEnabledModules(db: ReturnType<typeof createServerSupabase>, pr
     .eq("program_id", programId)
     .eq("enabled", true);
   if (error) throw new Error("Gagal memuat modul program.");
-  return (data || []).map((module) => module.module_key as "tbos" | "lep" | "binainsight");
+  return (data || []).map((module) => module.module_key as ProgramModuleKey);
 }
 
 async function findLegacyUserByEmail(db: ReturnType<typeof createServerSupabase>, email: string): Promise<User | null> {

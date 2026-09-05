@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTransformationActor, requireTransformationAdmin } from "@/lib/transformation/auth";
 import { createEngagementSchema } from "@/lib/transformation/schemas";
 import { createEngagement, getDb } from "@/lib/transformation/service";
-import { z } from "zod";
 import { getAccessibleProgramIds, transformationErrorResponse } from "@/lib/transformation/access";
 import { jakartaCalendarDate, resolveScheduledProgramStatus, type ProgramStatus } from "@/lib/program-status";
+import { completeProgramModuleSelectionSchema } from "@/lib/program-modules";
 
-const moduleSelectionSchema = z.array(z.object({
-  moduleKey: z.enum(["tbos", "lep", "binainsight"]),
-  enabled: z.boolean(),
-})).length(3)
-  .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === 3, "Setiap modul program wajib disebut tepat satu kali.")
+const moduleSelectionSchema = completeProgramModuleSelectionSchema
   .refine((modules) => modules.some((module) => module.enabled), "Pilih minimal satu modul.");
 
 export async function GET(req: NextRequest) {

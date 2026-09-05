@@ -5,6 +5,15 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-09-04
+
+### Fixed — Program Creation Module Contract
+
+- Menyatukan kontrak modul program menjadi lima pilihan resmi: T-BOS, LEP, BinaInsight, Pre-test, dan Post-test.
+- Memperbaiki pembuatan program yang sebelumnya ditolak ketika form mengirim pilihan Pre-test/Post-test yang valid.
+- Menggunakan skema dan tipe modul yang sama pada pembuatan program, pengelolaan modul, akses peserta, dan pemilih program.
+- Menambahkan regression test agar kontrak lima modul tidak kembali menyempit menjadi tiga modul lama.
+
 ## [0.18.1] - 2026-09-04
 
 ### Changed — Scheduled Program Status

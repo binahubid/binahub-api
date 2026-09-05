@@ -5,9 +5,10 @@ import { createServerSupabase } from "@/lib/supabase";
 import { getParticipantProgramIds, type ProgramModuleKey } from "@/lib/program-access";
 import { getClientAccessBySupabaseUser } from "@/lib/client-access";
 import { programAccessAvailable } from "@/lib/client-program";
+import { programModuleKeySchema } from "@/lib/program-modules";
 
 const querySchema = z.object({
-  moduleKey: z.enum(["tbos", "lep", "binainsight"]),
+  moduleKey: programModuleKeySchema,
 });
 
 export async function GET(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     moduleKey: req.nextUrl.searchParams.get("moduleKey"),
   });
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "moduleKey wajib berupa tbos, lep, atau binainsight." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "moduleKey program tidak valid." }, { status: 400 });
   }
 
   const db = createServerSupabase();

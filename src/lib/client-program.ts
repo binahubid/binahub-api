@@ -1,3 +1,5 @@
+import type { ProgramModuleKey } from "@/lib/program-modules";
+
 export const ACTIVE_PROGRAM_STATUSES = ["active", "in_progress", "review"] as const;
 
 export interface ClientProgramRow {
@@ -25,7 +27,7 @@ export function programAccessAvailable(program: Pick<ClientProgramRow, "status" 
   return new Date(participantAccessExpiry(program.end_date, now)).getTime() >= now;
 }
 
-export function publicProgram(program: ClientProgramRow, modules: Array<"tbos" | "lep" | "binainsight">) {
+export function publicProgram(program: ClientProgramRow, modules: ProgramModuleKey[]) {
   const companyName = Array.isArray(program.organization)
     ? program.organization[0]?.name
     : program.organization?.name;

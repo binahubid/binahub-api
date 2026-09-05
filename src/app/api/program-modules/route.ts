@@ -2,17 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireTransformationAdmin } from "@/lib/transformation/auth";
 import { getDb } from "@/lib/transformation/service";
-
-const MODULE_KEYS = ["tbos", "lep", "binainsight", "pre_test", "post_test"] as const;
-
-const moduleItemSchema = z.object({
-  moduleKey: z.enum(MODULE_KEYS),
-  enabled: z.boolean(),
-});
+import { PROGRAM_MODULE_KEYS, programModuleItemSchema } from "@/lib/program-modules";
 
 const putSchema = z.object({
   programId: z.string().uuid(),
-  modules: z.array(moduleItemSchema).min(1).max(MODULE_KEYS.length)
+  modules: z.array(programModuleItemSchema).min(1).max(PROGRAM_MODULE_KEYS.length)
     .refine((modules) => new Set(modules.map((module) => module.moduleKey)).size === modules.length, "Module key tidak boleh duplikat."),
 });
 
