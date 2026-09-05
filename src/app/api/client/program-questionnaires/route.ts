@@ -5,13 +5,13 @@ import { questionnaireSubmissionSchema } from "@/lib/configurable-business-schem
 import { scoreQuestionnaire, type QuestionnaireQuestion } from "@/lib/program-questionnaires";
 import { createServerSupabase } from "@/lib/supabase";
 
-const kindSchema = z.enum(["pre_test", "post_test"]);
+const kindSchema = z.enum(["pre_test", "post_test", "binainsight"]);
 
 async function questionnaireAvailable(
   db: ReturnType<typeof createServerSupabase>,
   programId: string,
   questionnaireId?: string,
-  kind?: "pre_test" | "post_test",
+  kind?: "pre_test" | "post_test" | "binainsight",
 ) {
   let query = db.from("program_questionnaires").select("*")
     .eq("program_id", programId)
@@ -137,5 +137,5 @@ export async function POST(req: NextRequest) {
   }).select("id, score, maximum_score, percentage, attempt_number, submitted_at").single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: error.code === "23505" ? 409 : 500 });
 
-  return NextResponse.json({ success: true, submission: data });
+  return NextResponse.json({ success: true, submission: data, evaluations: scoring.evaluations });
 }

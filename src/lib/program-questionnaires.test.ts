@@ -33,7 +33,19 @@ describe("program questionnaires", () => {
     expect(scoreQuestionnaire(questions, [
       { questionId: "q1", value: "A" },
       { questionId: "q2", value: 4 },
-    ])).toEqual({ score: 2, maximumScore: 2, percentage: 100 });
+    ])).toMatchObject({ score: 2, maximumScore: 2, percentage: 100 });
+  });
+
+  it("awards fair partial credit for multiple-choice without negative scores", () => {
+    const multiple: QuestionnaireQuestion = { ...questions[0], id: "multi", question_type: "multiple_choice", options: ["A", "B", "C", "D"], correct_answer: ["A", "B"], points: 4 };
+    expect(scoreQuestionnaire([multiple], [{ questionId: "multi", value: ["A"] }])).toMatchObject({ score: 2, maximumScore: 4, percentage: 50 });
+    expect(scoreQuestionnaire([multiple], [{ questionId: "multi", value: ["A", "C"] }])).toMatchObject({ score: 0, maximumScore: 4, percentage: 0 });
+  });
+
+  it("compares numeric equivalents and excludes open text from automatic grading", () => {
+    const number: QuestionnaireQuestion = { ...questions[0], id: "number", question_type: "number", correct_answer: 2, points: 3 };
+    const open: QuestionnaireQuestion = { ...questions[0], id: "open", question_type: "short_text", correct_answer: "jawaban", points: 10 };
+    expect(scoreQuestionnaire([number, open], [{ questionId: "number", value: "2.0" }, { questionId: "open", value: "jawaban" }])).toMatchObject({ score: 3, maximumScore: 3, percentage: 100 });
   });
 
   it("builds overall and per-question statistics", () => {

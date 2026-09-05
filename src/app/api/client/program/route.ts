@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
         completed: module.module_key === "lep"
           ? Boolean(lepResponse)
           : module.module_key === "binainsight"
-            ? Boolean(insightAssessment)
+            ? Boolean(insightAssessment) || completedTests.has("binainsight")
             : completedTests.has(module.module_key),
       };
     }),

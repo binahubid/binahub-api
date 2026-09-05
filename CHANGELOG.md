@@ -5,6 +5,21 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-05
+
+### Added — Program Assessment Finishing
+
+- Menambahkan jenis form `binainsight` yang terpisah per program tanpa mengubah assessment publik gratis.
+- Menambahkan nama peserta dan evaluasi benar/salah pada respons form program.
+- Menambahkan ekspor PDF profesional untuk respons Pre-test, Post-test, dan BinaInsight program.
+- Menambahkan migration `0040_program_assessment_finishing.sql` dan smoke gate Fase 16.
+
+### Changed
+
+- Pilihan jamak memperoleh poin parsial yang proporsional dengan penalti pilihan salah tanpa nilai negatif.
+- Nilai angka dibandingkan secara numerik; jawaban teks terbuka tidak dinilai otomatis agar variasi bahasa tidak dihukum.
+- Penggantian daftar soal mendukung draf kosong, sementara publikasi tetap mensyaratkan minimal satu soal.
+
 ## [0.18.2] - 2026-09-04
 
 ### Fixed — Program Creation Module Contract

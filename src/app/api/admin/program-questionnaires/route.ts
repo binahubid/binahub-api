@@ -3,7 +3,7 @@ import { z } from "zod";
 import { adminError, logAdminEvent, parseValidatedBody } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/admin-auth";
 import { programQuestionnaireMutationSchema } from "@/lib/configurable-business-schemas";
-import { summarizeQuestionnaire, type QuestionnaireQuestion } from "@/lib/program-questionnaires";
+import { evaluateQuestionAnswer, summarizeQuestionnaire, type QuestionnaireQuestion } from "@/lib/program-questionnaires";
 import { createServerSupabase } from "@/lib/supabase";
 
 const uuidSchema = z.string().uuid();
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       .in("questionnaire_id", questionnaireIds)
       .order("position"),
     db.from("program_questionnaire_submissions")
-      .select("id, questionnaire_id, profile_id, participant_id, answers, score, maximum_score, percentage, attempt_number, submitted_at")
+      .select("id, questionnaire_id, profile_id, participant_id, answers, score, maximum_score, percentage, attempt_number, submitted_at, participant:participants(name, email)")
       .in("questionnaire_id", questionnaireIds)
       .order("submitted_at", { ascending: false }),
   ]);
@@ -91,7 +91,17 @@ export async function GET(req: NextRequest) {
       return {
         ...questionnaire,
         questions: questionnaireQuestions,
-        submissions: questionnaireSubmissions,
+        submissions: questionnaireSubmissions.map((submission) => {
+          const answerMap = new Map((Array.isArray(submission.answers) ? submission.answers : []).flatMap((item) => {
+            if (!item || typeof item !== "object") return [];
+            const candidate = item as { questionId?: unknown; value?: unknown };
+            return typeof candidate.questionId === "string" ? [[candidate.questionId, candidate.value] as const] : [];
+          }));
+          return {
+            ...submission,
+            evaluations: questionnaireQuestions.map((question) => evaluateQuestionAnswer(question as QuestionnaireQuestion, answerMap.get(question.id))),
+          };
+        }),
         statistics: summarizeQuestionnaire(
           questionnaireQuestions as QuestionnaireQuestion[],
           questionnaireSubmissions,
@@ -140,7 +150,7 @@ export async function POST(req: NextRequest) {
       actor: admin.email,
       payload: { programId: input.programId, kind: input.kind },
       status: "Saved",
-      message: `${input.kind === "pre_test" ? "Pre-test" : "Post-test"} disimpan oleh ${admin.email}.`,
+      message: `${input.kind === "pre_test" ? "Pre-test" : input.kind === "post_test" ? "Post-test" : "BinaInsight Program"} disimpan oleh ${admin.email}.`,
     });
     return NextResponse.json({ success: true, questionnaire: data });
   }

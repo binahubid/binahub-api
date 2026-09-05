@@ -33,13 +33,54 @@ function normalizedArray(value: unknown) {
   return value.map(normalizedScalar).filter(Boolean).sort();
 }
 
-function valuesMatch(actual: unknown, expected: unknown) {
+function valuesMatch(actual: unknown, expected: unknown, questionType?: string) {
+  if (questionType === "number") {
+    const left = Number(actual);
+    const right = Number(expected);
+    return Number.isFinite(left) && Number.isFinite(right) && left === right;
+  }
   if (Array.isArray(expected)) {
     const left = normalizedArray(actual);
     const right = normalizedArray(expected);
     return left.length === right.length && left.every((value, index) => value === right[index]);
   }
   return normalizedScalar(actual) === normalizedScalar(expected);
+}
+
+export type AnswerEvaluation = {
+  questionId: string;
+  scored: boolean;
+  correct: boolean | null;
+  awardedPoints: number;
+  maximumPoints: number;
+};
+
+export function evaluateQuestionAnswer(question: QuestionnaireQuestion, actual: unknown): AnswerEvaluation {
+  const points = Math.max(0, Number(question.points || 0));
+  const expected = question.correct_answer;
+  if (question.question_type === "short_text" || question.question_type === "long_text") {
+    return { questionId: question.id, scored: false, correct: null, awardedPoints: 0, maximumPoints: 0 };
+  }
+  if (expected === null || expected === undefined || points === 0) {
+    return { questionId: question.id, scored: false, correct: null, awardedPoints: 0, maximumPoints: 0 };
+  }
+
+  if (question.question_type === "multiple_choice" && Array.isArray(expected)) {
+    const selected = new Set(normalizedArray(actual));
+    const correctOptions = new Set(normalizedArray(expected));
+    if (correctOptions.size === 0) {
+      return { questionId: question.id, scored: false, correct: null, awardedPoints: 0, maximumPoints: 0 };
+    }
+    const correctSelected = [...selected].filter((value) => correctOptions.has(value)).length;
+    const wrongSelected = [...selected].filter((value) => !correctOptions.has(value)).length;
+    const ratio = Math.max(0, (correctSelected - wrongSelected) / correctOptions.size);
+    const awardedPoints = Number((points * ratio).toFixed(2));
+    const correct = selected.size === correctOptions.size && [...selected].every((value) => correctOptions.has(value));
+    return { questionId: question.id, scored: true, correct, awardedPoints, maximumPoints: points };
+  }
+
+  const correct = valuesMatch(actual, expected, question.question_type);
+  return { questionId: question.id, scored: true, correct, awardedPoints: correct ? points : 0, maximumPoints: points };
 }
 
 export function scoreQuestionnaire(
@@ -51,14 +92,14 @@ export function scoreQuestionnaire(
   let maximumScore = 0;
 
   for (const question of questions) {
-    if (question.correct_answer === null || question.correct_answer === undefined) continue;
-    const points = Math.max(0, Number(question.points || 0));
-    maximumScore += points;
-    if (valuesMatch(answerMap.get(question.id), question.correct_answer)) score += points;
+    const evaluation = evaluateQuestionAnswer(question, answerMap.get(question.id));
+    maximumScore += evaluation.maximumPoints;
+    score += evaluation.awardedPoints;
   }
 
   const percentage = maximumScore > 0 ? Number(((score / maximumScore) * 100).toFixed(2)) : null;
-  return { score, maximumScore, percentage };
+  const evaluations = questions.map((question) => evaluateQuestionAnswer(question, answerMap.get(question.id)));
+  return { score: Number(score.toFixed(2)), maximumScore, percentage, evaluations };
 }
 
 function answerArray(value: unknown): QuestionnaireAnswer[] {
