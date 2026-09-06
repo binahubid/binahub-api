@@ -669,6 +669,43 @@ select
   ) as published_questionnaire_without_questions_issues
 from public.program_questionnaires;
 
+-- Phase 18 AI Lead Discovery infrastructure. Environment/provider readiness is
+-- verified by the Phase 18 smoke runner because secrets never live in SQL.
+select
+  to_regclass('public.lead_discovery_runs') is not null as lead_discovery_runs_ready,
+  to_regclass('public.lead_discovery_candidates') is not null as lead_discovery_candidates_ready,
+  count(*) filter (where status = 'running' and started_at < now() - interval '30 minutes') as stale_lead_discovery_run_issues,
+  count(*) filter (where dry_run = false and batch_id is null and status = 'succeeded') as unstaged_live_discovery_issues
+from public.lead_discovery_runs;
+
+select
+  count(*) filter (where table_name = 'lead_discovery_candidates' and column_name = 'candidate_kind') = 1 as lead_discovery_candidate_kind_ready,
+  count(*) filter (where table_name = 'lead_discovery_candidates' and column_name = 'employee_range') = 1 as lead_discovery_employee_range_ready,
+  count(*) filter (where table_name = 'lead_discovery_runs' and column_name = 'company_review_count') = 1 as lead_discovery_company_review_count_ready
+from information_schema.columns
+where table_schema = 'public'
+  and table_name in ('lead_discovery_runs', 'lead_discovery_candidates');
+
+select
+  count(*) filter (
+    where conname = 'lead_discovery_runs_provider_valid'
+      and pg_get_constraintdef(oid) ilike '%hunter%'
+  ) = 1 as hunter_run_provider_ready,
+  count(*) filter (
+    where conname = 'lead_discovery_candidates_provider_valid'
+      and pg_get_constraintdef(oid) ilike '%hunter%'
+  ) = 1 as hunter_candidate_provider_ready,
+  count(*) filter (
+    where conname = 'acquisition_sources_provider_valid'
+      and pg_get_constraintdef(oid) ilike '%hunter%'
+  ) = 1 as hunter_source_provider_ready
+from pg_constraint
+where conname in (
+  'lead_discovery_runs_provider_valid',
+  'lead_discovery_candidates_provider_valid',
+  'acquisition_sources_provider_valid'
+);
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,

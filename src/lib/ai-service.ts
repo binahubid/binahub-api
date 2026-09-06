@@ -48,6 +48,11 @@ const aiLeadScoreSchema = z.object({
   reasoning: z.string().trim().max(1000),
 });
 
+const aiDiscoveryReviewSchema = z.object({
+  adjustment: z.number().int().min(-10).max(10),
+  reasoning: z.string().trim().min(1).max(600),
+}).strict();
+
 const aiFollowUpSchema = z.object({
   subject: z.string().trim().min(1).max(300),
   html: z.string().trim().min(1).max(20_000),
@@ -322,6 +327,44 @@ Output JSON:
   if (!jsonMatch) return fallback;
   const parsed = aiLeadScoreSchema.safeParse(JSON.parse(jsonMatch[0]));
   return parsed.success ? parsed.data : fallback;
+}
+
+export async function refineLeadDiscoveryScoreWithAI(input: {
+  roleTitle: string | null;
+  company: string | null;
+  industry: string | null;
+  location: string | null;
+  employeeCount: number | null;
+  organizationDescription: string | null;
+  deterministicScore: number;
+  evidence: Record<string, unknown>;
+}) {
+  const prompt = `
+Tinjau kecocokan prospek B2B terhadap ICP BinaHub hanya dari bukti perusahaan yang diberikan.
+Jangan menebak fakta yang tidak ada. Penilaian utama sudah deterministik; kamu hanya boleh memberi
+penyesuaian -10 sampai +10. PII seperti email dan telepon sengaja tidak diberikan.
+
+Jabatan: ${input.roleTitle || "tidak tersedia"}
+Perusahaan: ${input.company || "tidak tersedia"}
+Industri: ${input.industry || "tidak tersedia"}
+Lokasi: ${input.location || "tidak tersedia"}
+Jumlah karyawan: ${input.employeeCount ?? "tidak tersedia"}
+Deskripsi organisasi: ${input.organizationDescription || "tidak tersedia"}
+Skor deterministik: ${input.deterministicScore}
+Bukti: ${JSON.stringify(input.evidence)}
+
+Output JSON ketat:
+{"adjustment": <integer -10..10>, "reasoning": "alasan singkat berbasis bukti"}
+`;
+  const text = await callAI([
+    { role: "system", content: "You review B2B ICP fit conservatively and never invent missing evidence." },
+    { role: "user", content: prompt },
+  ], true);
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("AI scoring tidak menghasilkan JSON yang dapat diverifikasi.");
+  const parsed = aiDiscoveryReviewSchema.safeParse(JSON.parse(match[0]));
+  if (!parsed.success) throw new Error("AI scoring menghasilkan struktur yang tidak valid.");
+  return parsed.data;
 }
 
 export async function generateAssessmentProposal(input: {

@@ -5,6 +5,50 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+### Changed — Apollo Manual Baseline
+
+- Menetapkan Apollo Free melalui ekspor CSV/JSON sebagai jalur operasional awal Fase 18.
+- Mempertahankan Apollo API sebagai upgrade tanpa migration baru dan menjadikan Hunter adapter alternatif yang tidak aktif.
+- Mengunci seluruh provider call, enrichment, staging otomatis, dan workflow n8n selama mode manual.
+
+## [0.22.0] - 2026-09-06
+
+### Added — Phase 18 Multi-provider Discovery
+
+- Menambahkan Hunter Free Discover untuk pencarian perusahaan sesuai ICP dan Domain Search opsional yang dibatasi kredit per run.
+- Menambahkan status `company_review` agar hasil perusahaan tidak disalahartikan sebagai decision maker yang siap di-stage.
+- Mempertahankan adapter Apollo untuk aktivasi setelah paket berbayar memiliki akses API serta jalur manual melalui Batch Prospek.
+- Menambahkan migration `0042_phase18_multi_provider_hunter.sql` dan pengujian kontrak Hunter tanpa menyimpan nomor telepon.
+
+### Safety
+
+- API key Hunter dikirim melalui header Authorization, tidak melalui URL.
+- Hasil Hunter tanpa decision maker terverifikasi hanya masuk daftar tinjauan perusahaan.
+- Pengayaan, staging, provider call, dan outbound tetap terpisah serta fail-closed.
+
+## [0.21.0] - 2026-09-06
+
+### Added — Phase 18 Governed AI Lead Discovery
+
+- Menambahkan migration `0041_phase18_ai_lead_discovery.sql` untuk audit run dan kandidat dengan RLS service-role only.
+- Menambahkan adapter Apollo People Search dan enrichment email kerja opsional tanpa meminta telepon atau email pribadi.
+- Menambahkan deterministic ICP scoring serta review AI opsional yang dibatasi ±10 dan tidak menerima PII kontak.
+- Menambahkan endpoint admin dan automation, idempotency, deduplikasi, suppression, dan staging ke batch acquisition existing.
+- Menambahkan smoke gate `npm run test:phase18` serta runbook deployment/aktivasi bertahap.
+
+### Safety
+
+- Provider call, enrichment, AI scoring, dan staging mempunyai switch fail-closed terpisah.
+- Agent tidak mengirim outbound, tidak menyetujui batch, dan tidak mempromosikan kandidat menjadi lead.
+- Secret provider/worker tidak pernah dikembalikan oleh endpoint status.
+
+## [0.20.0] - 2026-09-05
+
+### Added — Phase 17 Interim Governance Defaults
+
+- Menambahkan runner idempoten untuk menerapkan owner, approver, SLA, wording finance/legal, dan 18 template outreach yang diputuskan administrator.
+- Menambahkan smoke gate read-only untuk memverifikasi governance tanpa mengaktifkan workflow, outbound, release, atau pilot.
+
 ## [0.19.0] - 2026-09-05
 
 ### Added — Program Assessment Finishing

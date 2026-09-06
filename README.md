@@ -16,6 +16,9 @@ TRANSFORMATION_WORKER_SECRET
 FOLLOW_UP_CRON_SECRET
 OPERATIONS_CRON_SECRET
 ACQUISITION_CRON_SECRET
+LEAD_AGENT_SECRET
+APOLLO_API_KEY
+HUNTER_API_KEY
 PILOT_MONITOR_SECRET
 UNSUBSCRIBE_SECRET
 CALCOM_WEBHOOK_SECRET
@@ -45,6 +48,8 @@ Worker memakai header `x-worker-secret: <TRANSFORMATION_WORKER_SECRET>`. Gunakan
 Fase 4 menyediakan `GET /api/automation/client-operations` dengan header `Authorization: Bearer <OPERATIONS_CRON_SECRET>`. Endpoint memindai review client, renewal 90/60/30, account/project berisiko, milestone terlambat, dan next action retention. Default aman adalah `OPERATIONS_DRY_RUN=true`: kandidat dan audit run tercatat tanpa membuat human task. Nilai `false` hanya boleh dipakai setelah migration `0029`, deployment, dan UAT disetujui.
 
 Fase 5 menyediakan `GET /api/automation/acquisition` dengan `Authorization: Bearer <ACQUISITION_CRON_SECRET>`. Default `ACQUISITION_DRY_RUN=true` hanya menghitung prospect valid pada batch approved. Mode live dapat mempromosikannya menjadi lifecycle `consumer` pada existing `leads`, tetapi tidak pernah melakukan scraping, enrichment, atau outreach. Source, campaign, dan batch tetap membutuhkan human/legal approval.
+
+Fase 18 menambahkan AI Lead Agent melalui `/api/admin/lead-agent` dan `/api/automation/lead-discovery`. Baseline saat ini memakai ekspor Apollo Free yang diunggah manual ke Batch Prospek; adapter Apollo API sudah siap untuk upgrade paket Pro, sementara Hunter tetap tersedia sebagai provider alternatif tetapi tidak digunakan. Default tetap fail-closed: provider call, staging, enrichment, dan AI adjustment memiliki switch terpisah. Agent tidak memiliki jalur outbound atau auto-promotion; batch tetap memerlukan review manusia. Lihat `PHASE-18-AI-LEAD-AGENT-RUNBOOK.md` untuk alur manual dan upgrade API.
 
 Fase 6 menambahkan migration `0031_phase6_release_reconciliation.sql`. Migration ini mengganti label katalog BinaInsight publik dari versi seed mock menjadi `v1.0-public`, menetapkan produk BinaInsight `ready`, dan menambahkan readiness gate `public_catalog_phase6_ready`. Kebijakan pajak tetap berstatus belum final sampai Business Rules Finance/Legal disetujui.
 
@@ -98,3 +103,5 @@ Jalankan juga `supabase/production_readiness.sql` sebelum release production.
 Setelah API `0.16.0` dideploy, jalankan `PHASE12_API_URL=https://api.binahub.id npm run test:phase12` (atau `$env:PHASE12_API_URL="https://api.binahub.id"; npm run test:phase12` di PowerShell). Smoke gate ini memastikan Pilot Certification, Operational Assurance, control plane, watchdog, dan worker tidak dapat diakses anonymous; verifikasi evidence dilakukan dari dashboard admin.
 
 Setelah API `0.18.0` dideploy, jalankan smoke gate Fase 15 dengan `PHASE15_API_URL`, `PHASE15_ADMIN_EMAIL`, `PHASE15_ADMIN_PASSWORD`, dan `PHASE15_CONFIRM_PRODUCTION_READINESS=true`. Pertahankan `AUTOMATION_PILOT_ENABLED=false` serta `AUTOMATION_LIVE_ENABLED=false`; smoke gate akan gagal jika salah satu master switch terbuka.
+
+Setelah API `0.22.0` serta migration `0041` dan `0042` dideploy, jalankan smoke gate Fase 18 dengan `PHASE18_API_URL`, `PHASE18_ADMIN_EMAIL`, dan `PHASE18_ADMIN_PASSWORD`. Runner hanya membaca control plane dan boundary; provider tidak dipanggil dan tidak ada batch yang dibuat.

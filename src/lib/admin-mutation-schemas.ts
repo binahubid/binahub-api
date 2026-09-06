@@ -365,7 +365,7 @@ export const acquisitionSourceSchema = z.object({
   id: z.string().uuid().nullable().optional(),
   sourceKey: z.string().trim().min(3).max(64).regex(/^[a-z][a-z0-9_-]{2,63}$/),
   name: z.string().trim().min(2).max(200),
-  providerType: z.enum(["manual_upload", "website", "google_ads", "meta_ads", "microsoft_ads", "apollo", "linkedin", "google_maps", "referral", "partner", "other"]),
+  providerType: z.enum(["manual_upload", "website", "google_ads", "meta_ads", "microsoft_ads", "apollo", "hunter", "linkedin", "google_maps", "referral", "partner", "other"]),
   channel: z.enum(["inbound", "outbound", "partner", "offline"]),
   acquisitionMethod: z.string().trim().min(3).max(500),
   lawfulBasis: z.enum(["consent", "legitimate_interest", "contract", "legal_obligation", "public_task", "not_applicable"]).nullable().optional(),
