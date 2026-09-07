@@ -5,6 +5,20 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-09-07
+
+### Fixed — Phase 17 Business Rules Reconciliation
+
+- Menambahkan migration `0043_reconcile_phase17_business_rules.sql` untuk mengganti snapshot `v1.0-approved-partial` dengan `v1.1-default-governance` berdasarkan konfigurasi governance yang benar-benar tersimpan.
+- Memvalidasi kebijakan komersial, tujuh owner, enam approver, empat SLA, dua wording finance/legal, dan 18 template sebelum rule set menjadi aktif.
+- Mengarsipkan rule set lama secara fail-closed serta menyimpan blocker baru secara eksplisit jika konfigurasi Phase 17 tidak lagi lengkap.
+- Menambahkan endpoint admin teraudit dan memperbarui smoke gate/readiness production agar memeriksa rule set hasil penyelarasan.
+
+### Safety
+
+- Penyelarasan hanya mencatat izin policy; runtime mode, environment dry-run, release, n8n, dan master switch pilot/live tidak diubah.
+- Proposal auto-send tetap nonaktif dan seluruh aktivasi tetap membutuhkan control plane serta persetujuan manusia.
+
 ### Changed — Apollo Manual Baseline
 
 - Menetapkan Apollo Free melalui ekspor CSV/JSON sebagai jalur operasional awal Fase 18.

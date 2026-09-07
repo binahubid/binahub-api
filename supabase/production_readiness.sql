@@ -127,10 +127,11 @@ select
   (
     exists (
       select 1 from public.business_rule_sets
-      where version = 'v1.0-approved-partial'
-        and status = 'draft'
+      where version = 'v1.1-default-governance'
+        and status = 'active'
         and is_mock = false
-        and jsonb_array_length(coalesce(rules #> '{activation,blockers}', '[]'::jsonb)) > 0
+        and coalesce((rules #>> '{activation,outboundAutomationEnabled}')::boolean, false)
+        and jsonb_array_length(coalesce(rules #> '{activation,blockers}', '[]'::jsonb)) = 0
     )
     and exists (
       select 1 from information_schema.columns

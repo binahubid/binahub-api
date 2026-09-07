@@ -19,11 +19,16 @@ function check(condition, label, detail = "") {
   if (!condition) failures.push(label);
 }
 
-async function request(path, token) {
+async function request(path, token, init = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     redirect: "manual",
     signal: AbortSignal.timeout(30_000),
+    ...init,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.headers || {}),
+    },
   });
   const body = await response.json().catch(() => null);
   return { response, body };
@@ -46,14 +51,24 @@ if (!token || failures.length) process.exit(1);
 try {
   const anonymous = await request("/api/admin/business-settings");
   check(anonymous.response.status === 401, "business settings menolak akses anonim", `HTTP ${anonymous.response.status}`);
+  const anonymousReconciliation = await request("/api/admin/business-rules/reconcile", "", {
+    method: "POST",
+    body: JSON.stringify({
+      action: "reconcile_phase17_defaults",
+      confirmation: "ALIGN_PHASE17_DEFAULTS",
+    }),
+  });
+  check(anonymousReconciliation.response.status === 401, "penyelarasan Business Rules menolak akses anonim", `HTTP ${anonymousReconciliation.response.status}`);
 
-  const [settings, outreach, operations] = await Promise.all([
+  const [settings, outreach, businessRules, operations] = await Promise.all([
     request("/api/admin/business-settings", token),
     request("/api/admin/outreach-templates", token),
+    request("/api/admin/business-rules", token),
     request("/api/admin/pilot-operations", token),
   ]);
   check(settings.response.status === 200 && settings.body?.success === true, "business settings dapat dibaca admin");
   check(outreach.response.status === 200 && outreach.body?.success === true, "outreach templates dapat dibaca admin");
+  check(businessRules.response.status === 200 && businessRules.body?.success === true, "Business Rules dapat dibaca admin");
   check(operations.response.status === 200 && operations.body?.success === true, "control plane dapat dibaca admin");
 
   const policy = settings.body?.commercialPolicy;
@@ -96,6 +111,16 @@ try {
     )).length === 18,
     "18 template outreach approved interim",
   );
+  const activation = businessRules.body?.selectedRuleSet?.rules?.activation;
+  check(
+    businessRules.body?.selectedRuleSet?.version === "v1.1-default-governance"
+      && businessRules.body?.selectedRuleSet?.status === "active"
+      && businessRules.body?.selectedRuleSet?.is_mock === false
+      && activation?.outboundAutomationEnabled === true
+      && Array.isArray(activation?.blockers)
+      && activation.blockers.length === 0,
+    "Business Rules aktif selaras dengan keputusan Phase 17",
+  );
 
   const controls = operations.body?.controls || [];
   check(controls.length === 4, "empat runtime control tersedia");
@@ -117,4 +142,4 @@ if (failures.length) {
 }
 
 console.log(`\nPhase 17 governance smoke lulus terhadap ${baseUrl}.`);
-console.log("Governance default sudah tercatat; workflow, outbound, release, dan pilot tetap tidak diaktifkan.");
+console.log("Governance default dan izin policy sudah tercatat; runtime, environment, release, dan master switch tetap terkunci.");

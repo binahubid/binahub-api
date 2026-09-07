@@ -314,9 +314,26 @@ try {
   );
 
   if (failures.length) throw new Error(`Verifikasi governance gagal (${failures.length} pemeriksaan).`);
+
+  const alignedRules = await apiRequest("/api/admin/business-rules/reconcile", token, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "reconcile_phase17_defaults",
+      confirmation: "ALIGN_PHASE17_DEFAULTS",
+    }),
+  });
+  check(
+    alignedRules.aligned === true
+      && alignedRules.ruleSet?.version === "v1.1-default-governance"
+      && alignedRules.ruleSet?.status === "active"
+      && alignedRules.blockers?.length === 0,
+    "Business Rules lama diselaraskan dengan governance Phase 17",
+  );
+
+  if (failures.length) throw new Error(`Penyelarasan governance gagal (${failures.length} pemeriksaan).`);
   console.log("\nPhase 17 default governance berhasil diterapkan.");
   console.log(`Decision actor: ${decisionActor}`);
-  console.log("Tidak ada workflow, outbound, release, atau pilot yang diaktifkan oleh runner ini.");
+  console.log("Izin governance outbound tercatat; runtime, environment, release, dan master switch pilot/live tidak diubah oleh runner ini.");
 } finally {
   await supabase.auth.signOut();
 }

@@ -7,6 +7,7 @@ import {
   acquisitionSourceSchema,
   assessmentActionSchema,
   assessmentStatusUpdateSchema,
+  businessRuleReconciliationSchema,
   clientAccountUpdateSchema,
   clientHandoffSchema,
   contactUpdateSchema,
@@ -236,6 +237,22 @@ describe("admin mutation schemas", () => {
       humanApproved: false,
       killSwitchReason: "Stop darurat pilot.",
     }).success).toBe(true);
+  });
+
+  it("requires an explicit confirmation token before reconciling Business Rules", () => {
+    expect(businessRuleReconciliationSchema.safeParse({
+      action: "reconcile_phase17_defaults",
+      confirmation: "ALIGN_PHASE17_DEFAULTS",
+    }).success).toBe(true);
+    expect(businessRuleReconciliationSchema.safeParse({
+      action: "reconcile_phase17_defaults",
+      confirmation: "yes",
+    }).success).toBe(false);
+    expect(businessRuleReconciliationSchema.safeParse({
+      action: "reconcile_phase17_defaults",
+      confirmation: "ALIGN_PHASE17_DEFAULTS",
+      requestedMode: "live",
+    }).success).toBe(false);
   });
 
   it("keeps Phase 11 incidents and go/no-go evidence behind explicit human input", () => {

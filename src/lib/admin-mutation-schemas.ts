@@ -506,6 +506,11 @@ export const catalogModuleMutationSchema = z.object({
   catalogVersion: z.string().trim().min(2).max(100),
 }).strict();
 
+export const businessRuleReconciliationSchema = z.object({
+  action: z.literal("reconcile_phase17_defaults"),
+  confirmation: z.literal("ALIGN_PHASE17_DEFAULTS"),
+}).strict();
+
 const pilotOwnerSchema = z.string().trim().email("Email owner pilot tidak valid.").max(320);
 const optionalPilotOwnerSchema = pilotOwnerSchema.nullable().optional();
 const pilotDateTimeSchema = z.string().datetime({ offset: true }).nullable().optional();
