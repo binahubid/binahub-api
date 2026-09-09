@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireWorker } from "@/lib/transformation/auth";
 import { getDb, processPendingEvents } from "@/lib/transformation/service";
 import { loadAutomationRuntimeControl } from "@/lib/automation-runtime-control";
+import { claimAutomationRun, finishAutomationRun } from "@/lib/automation-run";
 
 const processSchema = z.object({
   limit: z.number().int().min(1).max(50).optional().default(10),
@@ -46,7 +47,33 @@ export async function POST(req: NextRequest) {
   }
   const dryRun = runtimeControl.effectiveMode === "dry_run";
   const referenceDate = new Date().toISOString().slice(0, 10);
-  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${referenceDate}:${dryRun ? "dry" : "live"}`).slice(0, 200);
+  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${referenceDate}:${dryRun ? "dry" : "live"}`).slice(0, 201);
+  if (idempotencyKey.length > 200) {
+    return NextResponse.json({ success: false, error: "Idempotency key maksimal 200 karakter." }, { status: 400 });
+  }
+  let runId: string;
+  try {
+    const claim = await claimAutomationRun(db, {
+      workflowKey: "transformation_event_worker",
+      idempotencyKey,
+      triggerSource: "n8n",
+      dryRun,
+      referenceDate,
+      startedAt: runStartedAt,
+    });
+    if (!claim.claimed) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        dryRun: claim.existing?.dry_run,
+        run: claim.existing,
+        processed: [],
+      });
+    }
+    runId = claim.runId;
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Automation run gagal diklaim." }, { status: 500 });
+  }
   const recordRun = async (input: {
     status: "succeeded" | "failed";
     candidateCount: number;
@@ -55,22 +82,14 @@ export async function POST(req: NextRequest) {
     summary: Record<string, unknown>;
     errorMessage?: string | null;
   }) => {
-    const { error } = await db.from("automation_runs").upsert({
-      workflow_key: "transformation_event_worker",
-      idempotency_key: idempotencyKey,
-      trigger_source: "n8n",
-      dry_run: dryRun,
+    await finishAutomationRun(db, runId, {
       status: input.status,
-      reference_date: referenceDate,
-      candidate_count: input.candidateCount,
-      processed_count: input.processedCount,
-      failure_count: input.failureCount,
+      candidateCount: input.candidateCount,
+      processedCount: input.processedCount,
+      failureCount: input.failureCount,
       summary: input.summary,
-      error_message: input.errorMessage || null,
-      started_at: runStartedAt,
-      finished_at: new Date().toISOString(),
-    }, { onConflict: "workflow_key,idempotency_key" });
-    if (error) console.error("Transformation worker audit gagal:", error.message);
+      errorMessage: input.errorMessage,
+    });
   };
 
   try {
@@ -110,6 +129,7 @@ export async function POST(req: NextRequest) {
         activationBlockers: runtimeControl.activationBlockers,
         releaseWindowState: runtimeControl.releaseWindowState,
         pilotReleaseId: runtimeControl.pilotReleaseId,
+        runId,
         pendingDue,
         processed: [],
       });
@@ -143,18 +163,23 @@ export async function POST(req: NextRequest) {
       activationBlockers: runtimeControl.activationBlockers,
       releaseWindowState: runtimeControl.releaseWindowState,
       pilotReleaseId: runtimeControl.pilotReleaseId,
+      runId,
       processed,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gagal memproses event.";
-    await recordRun({
-      status: "failed",
-      candidateCount: 0,
-      processedCount: 0,
-      failureCount: 1,
-      summary: {},
-      errorMessage: message,
-    });
+    try {
+      await recordRun({
+        status: "failed",
+        candidateCount: 0,
+        processedCount: 0,
+        failureCount: 1,
+        summary: {},
+        errorMessage: message,
+      });
+    } catch (auditError) {
+      console.error("Transformation worker audit gagal:", auditError instanceof Error ? auditError.message : auditError);
+    }
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

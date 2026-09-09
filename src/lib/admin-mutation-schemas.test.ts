@@ -218,10 +218,32 @@ describe("admin mutation schemas", () => {
       title: "Pilot September 2026",
       cohortDescription: "Lima organisasi undangan untuk pilot terkontrol.",
       maximumParticipants: 5,
+      recipientEmails: ["pilot-owner@example.com"],
       successCriteria: [],
       rollbackTriggers: [],
       isMock: true,
     }).success).toBe(true);
+    expect(pilotOperationsMutationSchema.safeParse({
+      action: "save_plan",
+      releaseKey: "pilot-tanpa-audience",
+      title: "Pilot tanpa audience",
+      cohortDescription: "Release ini harus ditolak tanpa penerima eksplisit.",
+      maximumParticipants: 5,
+      successCriteria: [],
+      rollbackTriggers: [],
+      isMock: true,
+    }).success).toBe(false);
+    expect(pilotOperationsMutationSchema.safeParse({
+      action: "save_plan",
+      releaseKey: "pilot-over-capacity",
+      title: "Pilot over capacity",
+      cohortDescription: "Release ini harus ditolak ketika audience melebihi batas.",
+      maximumParticipants: 1,
+      recipientEmails: ["first@example.com", "second@example.com"],
+      successCriteria: [],
+      rollbackTriggers: [],
+      isMock: true,
+    }).success).toBe(false);
     expect(pilotOperationsMutationSchema.safeParse({
       action: "set_control",
       workflowKey: "follow_up_scheduler",

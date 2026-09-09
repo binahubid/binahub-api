@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ASSURED_WORKFLOW_KEYS,
   evaluateOperationalAssurance,
+  resolveOperationalScanIdempotencyKey,
   type AutomationRunEvidence,
   type MonitoringPolicy,
   type RuntimeEvidence,
@@ -77,5 +78,24 @@ describe("operational assurance evaluator", () => {
     const result = evaluateOperationalAssurance({ policies, runs, runtime: unsafeRuntime, evaluatedAt: now });
     expect(result.overallStatus).toBe("critical");
     expect(result.findings.some((item) => item.code === "ENVIRONMENT_GUARD_DRIFT")).toBe(true);
+  });
+});
+
+describe("operational assurance scan idempotency", () => {
+  it("preserves a caller-provided key for safe request retries", () => {
+    expect(resolveOperationalScanIdempotencyKey({
+      providedKey: "  admin-scan-request-01  ",
+      releaseId: "release-01",
+      now,
+      nonce: "unused",
+    })).toBe("admin-scan-request-01");
+  });
+
+  it("does not collapse separate scans performed in the same hour", () => {
+    const first = resolveOperationalScanIdempotencyKey({ releaseId: "release-01", now, nonce: "scan-01" });
+    const second = resolveOperationalScanIdempotencyKey({ releaseId: "release-01", now, nonce: "scan-02" });
+
+    expect(first).not.toBe(second);
+    expect(first).toContain("release-01");
   });
 });

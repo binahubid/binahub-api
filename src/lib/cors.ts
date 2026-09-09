@@ -15,7 +15,7 @@ const allowedOrigins = new Set([
 export function getCorsHeaders(origin: string | null) {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Idempotency-Key, X-Idempotency-Key, X-Requested-With",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Idempotency-Key, X-Idempotency-Key, X-Request-ID, X-Requested-With",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };

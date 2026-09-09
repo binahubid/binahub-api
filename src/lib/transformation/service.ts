@@ -478,7 +478,7 @@ export async function generateInsightDraft(db: Db, engagementId: string, type: "
     input_id: engagementId,
     output_type: "insight",
     output_id: data.id,
-    model: process.env.OPENROUTER_MODEL || "stateless-draft",
+    model: "deterministic:evidence-template-v1",
   });
 
   return data;

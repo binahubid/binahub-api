@@ -707,6 +707,55 @@ where conname in (
   'acquisition_sources_provider_valid'
 );
 
+-- Phase 19 exact pilot audience and retry integrity. These checks ensure a
+-- release cannot become actionable with only a free-text cohort description.
+select
+  (
+    to_regclass('public.pilot_release_recipients') is not null
+    and to_regprocedure(
+      'public.save_pilot_release_plan_with_audience(uuid,text,text,text,text,integer,timestamptz,timestamptz,text,text,text,jsonb,jsonb,text,boolean,jsonb)'
+    ) is not null
+    and exists (
+      select 1 from pg_trigger
+      where tgname = 'enforce_pilot_release_audience_trigger' and not tgisinternal
+    )
+    and exists (
+      select 1 from pg_trigger
+      where tgname = 'enforce_runtime_release_audience_trigger' and not tgisinternal
+    )
+    and not exists (
+      select 1
+      from public.pilot_release_plans release
+      where release.status in ('approved', 'scheduled')
+        and not exists (
+          select 1 from public.pilot_release_recipients recipient
+          where recipient.release_id = release.id
+        )
+    )
+    and not exists (
+      select 1
+      from public.automation_runtime_controls control
+      where control.requested_mode in ('pilot', 'live')
+        and not exists (
+          select 1 from public.pilot_release_recipients recipient
+          where recipient.release_id = control.pilot_release_id
+        )
+    )
+  ) as pilot_audience_phase19_ready,
+  (
+    to_regclass('public.automation_runs') is not null
+    and exists (
+      select 1
+      from pg_constraint constraint_record
+      join pg_class table_record on table_record.oid = constraint_record.conrelid
+      join pg_namespace schema_record on schema_record.oid = table_record.relnamespace
+      where schema_record.nspname = 'public'
+        and table_record.relname = 'automation_runs'
+        and constraint_record.conname = 'automation_runs_identity_unique'
+        and constraint_record.contype = 'u'
+    )
+  ) as automation_run_claim_phase19_ready;
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,

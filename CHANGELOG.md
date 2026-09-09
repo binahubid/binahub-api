@@ -5,6 +5,25 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-09-09
+
+### Added — AI Provider Routing & Pilot Safety Hardening
+
+- Menjadikan CodeCraft sebagai provider AI utama dengan satu model utama, tiga fallback model, jalur khusus reasoning/vision, dan OpenRouter sebagai fallback provider terakhir.
+- Menambahkan smoke gate katalog, chat completion, dan vision yang tidak pernah mencetak API key.
+- Menambahkan allowlist penerima per release pilot yang divalidasi di database, API, UI, dan worker follow-up.
+- Mengklaim idempotency key sebelum efek samping follow-up dan transformation agar retry tidak mengirim ulang atau menimpa audit run yang sudah final.
+- Menambahkan smoke gate Phase 19 read-only untuk memverifikasi audience kanonis dan runtime yang tetap terkunci setelah deployment.
+- Memisahkan label generator insight deterministik dari log provider AI agar observability biaya tidak menandainya sebagai penggunaan OpenRouter.
+
+## [0.22.2] - 2026-09-07
+
+### Fixed — Operational Assurance Snapshot Refresh
+
+- Mencegah scan manual dalam jam yang sama memakai ulang snapshot lama dengan membentuk idempotency key unik per permintaan.
+- Tetap mempertahankan kunci yang dikirim pemanggil agar retry atas permintaan yang sama tidak membuat snapshot ganda.
+- Perubahan hanya memperbarui bukti monitoring; runtime, environment dry-run, n8n, outbound, release, dan master switch tidak diubah.
+
 ## [0.22.1] - 2026-09-07
 
 ### Fixed — Phase 17 Business Rules Reconciliation

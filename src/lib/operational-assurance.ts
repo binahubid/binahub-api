@@ -5,6 +5,18 @@ export const ASSURED_WORKFLOW_KEYS = [
   "acquisition_batch_processor",
 ] as const;
 
+export function resolveOperationalScanIdempotencyKey(input: {
+  providedKey?: string | null;
+  releaseId?: string | null;
+  now: Date;
+  nonce: string;
+}) {
+  const providedKey = input.providedKey?.trim();
+  if (providedKey) return providedKey;
+
+  return `phase11:${input.releaseId || "no-release"}:${input.now.toISOString()}:${input.nonce}`;
+}
+
 export type AssuredWorkflowKey = (typeof ASSURED_WORKFLOW_KEYS)[number];
 export type OperationalHealth = "healthy" | "warning" | "critical" | "insufficient_data";
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";

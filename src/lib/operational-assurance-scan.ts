@@ -1,11 +1,13 @@
 import {
   ASSURED_WORKFLOW_KEYS,
   evaluateOperationalAssurance,
+  resolveOperationalScanIdempotencyKey,
   type AssuredWorkflowKey,
   type AutomationRunEvidence,
   type MonitoringPolicy,
   type RuntimeEvidence,
 } from "@/lib/operational-assurance";
+import { randomUUID } from "node:crypto";
 import type { createServerSupabase } from "@/lib/supabase";
 
 type AssuranceDb = ReturnType<typeof createServerSupabase>;
@@ -149,9 +151,12 @@ export async function runOperationalAssuranceScan(input: {
     runtime: ((controlsResult.data || []) as RuntimeRow[]).map(toRuntime),
     evaluatedAt: now,
   });
-  const hourKey = now.toISOString().slice(0, 13).replaceAll(":", "-");
-  const idempotencyKey = input.idempotencyKey?.trim()
-    || `phase11:${releaseId || "no-release"}:${hourKey}`;
+  const idempotencyKey = resolveOperationalScanIdempotencyKey({
+    providedKey: input.idempotencyKey,
+    releaseId,
+    now,
+    nonce: randomUUID(),
+  });
   const isMock = !releaseId
     || policyRows.length !== ASSURED_WORKFLOW_KEYS.length
     || policyRows.some((item) => item.is_mock || !item.owner || !item.enabled);

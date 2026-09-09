@@ -8,6 +8,8 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { getBearerToken } from "@/lib/auth-role";
 import { evaluateFollowUpWindow, followUpStopReason, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
 import { loadAutomationRuntimeControl } from "@/lib/automation-runtime-control";
+import { claimAutomationRun, finishAutomationRun } from "@/lib/automation-run";
+import { assessmentRecipientEmail, isPilotRecipientAllowed } from "@/lib/pilot-audience";
 import {
   ApprovedOutreachTemplateRequiredError,
   isOutboundAutomationActive,
@@ -747,16 +749,74 @@ export async function GET(req: NextRequest) {
       );
     }
   }
+
+  let pilotAudience: Set<string> | null = null;
+  if (!dryRun) {
+    if (!runtimeControl.pilotReleaseId) {
+      return adminError("Release pilot aktif tidak memiliki audience.", 423, "PILOT_AUDIENCE_REQUIRED");
+    }
+    const { data: recipients, error: recipientsError } = await db.from("pilot_release_recipients")
+      .select("email")
+      .eq("release_id", runtimeControl.pilotReleaseId);
+    if (recipientsError) {
+      return adminError("Audience release pilot gagal dibaca.", 503, "PILOT_AUDIENCE_UNAVAILABLE");
+    }
+    pilotAudience = new Set((recipients || []).map((item) => String(item.email || "").trim().toLowerCase()).filter(Boolean));
+    if (pilotAudience.size < 1) {
+      return adminError("Release pilot aktif tidak memiliki audience.", 423, "PILOT_AUDIENCE_REQUIRED");
+    }
+  }
+
+  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${window.localDate}:${dryRun ? "dry" : "live"}`).slice(0, 201);
+  if (idempotencyKey.length > 200) {
+    return adminError("Idempotency key maksimal 200 karakter.", 400, "INVALID_IDEMPOTENCY_KEY");
+  }
+  let runId: string;
+  try {
+    const claim = await claimAutomationRun(db, {
+      workflowKey: "follow_up_scheduler",
+      idempotencyKey,
+      triggerSource: "n8n",
+      dryRun,
+      referenceDate: window.localDate,
+      startedAt: runStartedAt,
+    });
+    if (!claim.claimed) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        dryRun: claim.existing?.dry_run,
+        run: claim.existing,
+        sent: [],
+        failures: [],
+      });
+    }
+    runId = claim.runId;
+  } catch (error) {
+    return adminError(error instanceof Error ? error.message : "Automation run gagal diklaim.", 500, "AUTOMATION_RUN_CLAIM_FAILED");
+  }
+
   const sent: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel; status: string; emailId: string | null }> = [];
   const candidates: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level: FollowUpLevel }> = [];
   const failures: Array<{ target: string; id?: string; channel?: AssessmentFollowUpChannel; level?: FollowUpLevel; error: string }> = [];
   const dryRunReservations = new Map<string, number>();
+  let excludedByAudience = 0;
 
   const { data: inquiries, error: inquiriesError } = await db.from("inquiries").select("*").order("created_at", { ascending: true }).limit(50);
-  if (inquiriesError) return adminError("Gagal memuat antrean inquiry.", 500, "FOLLOW_UP_QUEUE_FAILED");
+  if (inquiriesError) {
+    await finishAutomationRun(db, runId, {
+      status: "failed", candidateCount: 0, processedCount: 0, failureCount: 1,
+      summary: { code: "FOLLOW_UP_QUEUE_FAILED" }, errorMessage: inquiriesError.message,
+    });
+    return adminError("Gagal memuat antrean inquiry.", 500, "FOLLOW_UP_QUEUE_FAILED");
+  }
   for (const inquiry of (inquiries || []) as InquiryForFollowUp[]) {
     const level = getDueInquiryLevel(inquiry);
     if (!level) continue;
+    if (pilotAudience && !isPilotRecipientAllowed(pilotAudience, inquiry.email)) {
+      excludedByAudience += 1;
+      continue;
+    }
     if (sent.length + candidates.length >= Math.min(maximumItemsPerRun, 10)) break;
 
     try {
@@ -786,9 +846,22 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: assessments, error: assessmentsError } = await db.from("assessments").select("*").order("created_at", { ascending: true }).limit(100);
-  if (assessmentsError) return adminError("Gagal memuat antrean assessment.", 500, "FOLLOW_UP_QUEUE_FAILED");
+  if (assessmentsError) {
+    await finishAutomationRun(db, runId, {
+      status: "failed", candidateCount: candidates.length, processedCount: sent.length, failureCount: failures.length + 1,
+      summary: { code: "FOLLOW_UP_QUEUE_FAILED", excludedByAudience }, errorMessage: assessmentsError.message,
+    });
+    return adminError("Gagal memuat antrean assessment.", 500, "FOLLOW_UP_QUEUE_FAILED");
+  }
   for (const assessment of (assessments || []) as AssessmentForFollowUp[]) {
     if (sent.length + candidates.length >= maximumItemsPerRun) break;
+
+    if (pilotAudience && !isPilotRecipientAllowed(pilotAudience, assessmentRecipientEmail(assessment.form_data))) {
+      if (getDueAssessmentLevel(assessment, "result") || getDueAssessmentLevel(assessment, "proposal")) {
+        excludedByAudience += 1;
+      }
+      continue;
+    }
 
     for (const channel of ["result", "proposal"] as AssessmentFollowUpChannel[]) {
       const level = getDueAssessmentLevel(assessment, channel);
@@ -823,21 +896,12 @@ export async function GET(req: NextRequest) {
   }
 
   const runStatus = failures.length ? (sent.length || candidates.length ? "partial" : "failed") : "succeeded";
-  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${window.localDate}:${dryRun ? "dry" : "live"}`).slice(0, 200);
-  const { error: auditError } = await db.from("automation_runs").upsert({
-    workflow_key: "follow_up_scheduler",
-    idempotency_key: idempotencyKey,
-    trigger_source: "n8n",
-    dry_run: dryRun,
-    status: runStatus,
-    reference_date: window.localDate,
-    candidate_count: candidates.length,
-    processed_count: sent.length,
-    failure_count: failures.length,
-    summary: {
+  const summary = {
       candidateCount: candidates.length,
       sentCount: sent.length,
       failureCount: failures.length,
+      excludedByAudience,
+      pilotAudienceCount: pilotAudience?.size || 0,
       businessWindow: `${window.policy.startHour}:00-${window.policy.endHour}:00`,
       requestedMode: runtimeControl.requestedMode,
       effectiveMode: runtimeControl.effectiveMode,
@@ -846,12 +910,19 @@ export async function GET(req: NextRequest) {
       activationBlockers: runtimeControl.activationBlockers,
       releaseWindowState: runtimeControl.releaseWindowState,
       pilotReleaseId: runtimeControl.pilotReleaseId,
-    },
-    error_message: failures.length ? `${failures.length} follow-up gagal diproses.` : null,
-    started_at: runStartedAt,
-    finished_at: new Date().toISOString(),
-  }, { onConflict: "workflow_key,idempotency_key" });
-  if (auditError) console.error("Follow-up automation audit gagal:", auditError.message);
+  };
+  try {
+    await finishAutomationRun(db, runId, {
+      status: runStatus,
+      candidateCount: candidates.length,
+      processedCount: sent.length,
+      failureCount: failures.length,
+      summary,
+      errorMessage: failures.length ? `${failures.length} follow-up gagal diproses.` : null,
+    });
+  } catch (error) {
+    return adminError(error instanceof Error ? error.message : "Audit follow-up gagal disimpan.", 500, "AUTOMATION_RUN_FINALIZE_FAILED");
+  }
 
   return NextResponse.json(
     {
@@ -864,6 +935,9 @@ export async function GET(req: NextRequest) {
       activationBlockers: runtimeControl.activationBlockers,
       releaseWindowState: runtimeControl.releaseWindowState,
       pilotReleaseId: runtimeControl.pilotReleaseId,
+      pilotAudienceCount: pilotAudience?.size || 0,
+      excludedByAudience,
+      runId,
       candidates,
       sent,
       failures,

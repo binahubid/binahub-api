@@ -49,7 +49,13 @@ function nullableInteger(value: unknown) {
 
 function sanitizeError(error: unknown) {
   const message = error instanceof Error ? error.message : "Lead discovery gagal dijalankan.";
-  const secrets = [process.env.APOLLO_API_KEY, process.env.HUNTER_API_KEY, process.env.OPENROUTER_API_KEY, process.env.LEAD_AGENT_SECRET]
+  const secrets = [
+    process.env.APOLLO_API_KEY,
+    process.env.HUNTER_API_KEY,
+    process.env.CODECRAFT_API_KEY,
+    process.env.OPENROUTER_API_KEY,
+    process.env.LEAD_AGENT_SECRET,
+  ]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
   return secrets.reduce((safe, secret) => safe.replaceAll(secret, "[REDACTED]"), message).slice(0, 1500);

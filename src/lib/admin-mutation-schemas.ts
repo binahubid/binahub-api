@@ -526,6 +526,7 @@ export const pilotReleasePlanSchema = z.object({
   title: z.string().trim().min(3).max(200),
   cohortDescription: z.string().trim().min(10).max(4000),
   maximumParticipants: z.number().int().min(1).max(10000),
+  recipientEmails: z.array(pilotOwnerSchema).min(1, "Minimal satu email penerima pilot wajib ditetapkan.").max(10000),
   startsAt: pilotDateTimeSchema,
   endsAt: pilotDateTimeSchema,
   businessOwner: optionalPilotOwnerSchema,
@@ -538,6 +539,13 @@ export const pilotReleasePlanSchema = z.object({
 }).strict().superRefine((value, context) => {
   if (value.startsAt && value.endsAt && new Date(value.endsAt) <= new Date(value.startsAt)) {
     context.addIssue({ code: "custom", path: ["endsAt"], message: "Waktu selesai harus setelah waktu mulai." });
+  }
+  if (new Set(value.recipientEmails.map((email) => email.toLowerCase())).size > value.maximumParticipants) {
+    context.addIssue({
+      code: "custom",
+      path: ["recipientEmails"],
+      message: "Jumlah email penerima tidak boleh melebihi maksimum peserta.",
+    });
   }
 });
 

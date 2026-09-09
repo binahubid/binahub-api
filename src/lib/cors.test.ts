@@ -29,5 +29,6 @@ describe("CORS allow-list", () => {
 
     expect(headers["Access-Control-Allow-Headers"]).toContain("Idempotency-Key");
     expect(headers["Access-Control-Allow-Headers"]).toContain("X-Idempotency-Key");
+    expect(headers["Access-Control-Allow-Headers"]).toContain("X-Request-ID");
   });
 });

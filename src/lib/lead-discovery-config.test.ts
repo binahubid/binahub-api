@@ -46,4 +46,19 @@ describe("lead discovery config", () => {
     expect(config.blockers).toEqual([]);
     expect(JSON.stringify(publicLeadDiscoveryConfig(config))).not.toContain("hunter-secret");
   });
+
+  it("accepts CodeCraft as the AI scoring credential with OpenRouter optional", () => {
+    const config = getLeadDiscoveryConfig({
+      LEAD_AGENT_PROVIDER: "apollo",
+      LEAD_AGENT_ENABLED: "true",
+      LEAD_AGENT_PROVIDER_CALLS_ENABLED: "true",
+      LEAD_AGENT_DRY_RUN: "true",
+      LEAD_AGENT_SOURCE_KEY: "ai_lead_discovery_apollo",
+      LEAD_AGENT_AI_SCORING_ENABLED: "true",
+      APOLLO_API_KEY: "apollo-secret",
+      CODECRAFT_API_KEY: "codecraft-secret",
+    });
+    expect(config.blockers).toEqual([]);
+    expect(JSON.stringify(publicLeadDiscoveryConfig(config))).not.toContain("codecraft-secret");
+  });
 });

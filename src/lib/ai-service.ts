@@ -1,29 +1,10 @@
-import OpenAI from 'openai';
 import { z } from 'zod';
 import { AssessmentData, DIMENSIONS } from './validations';
 import { calculateAssessmentScores, getAssessmentCategory } from './assessment-scoring';
 import { formatIdr } from './proposal-policy';
+import { callRoutedAI, type AIPurpose, type AIRoutedMessage } from './ai-provider';
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'arcee-ai/trinity-large-thinking:free';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
-const COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME || 'PT BinaHub';
-
-const openai = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': APP_URL,
-    'X-Title': COMPANY_NAME,
-  },
-  timeout: 45_000,
-  maxRetries: 1,
-});
-
-type AIMessage = {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-};
+type AIMessage = AIRoutedMessage;
 
 const aiAssessmentResultSchema = z.object({
   category: z.string().trim().max(100).optional(),
@@ -68,30 +49,10 @@ const aiProposalSchema = z.object({
   nextStep: z.string().trim().min(1).max(1000),
 }).strict();
 
-async function callAI(messages: AIMessage[], _jsonMode: boolean = false) {
-  void _jsonMode;
-
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is missing');
-  }
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: OPENROUTER_MODEL,
-      messages: messages,
-      // Beberapa model gratis tidak mendukung JSON mode, kita matikan agar lebih kompatibel
-      // response_format: jsonMode ? { type: 'json_object' } : undefined,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('Empty response from AI model');
-    }
-    return content;
-  } catch (error: unknown) {
-    console.error(`[AI Error] OpenRouter call failed:`, error instanceof Error ? error.message : error);
-    throw error;
-  }
+async function callAI(messages: AIMessage[], _jsonMode: boolean = false, purpose: AIPurpose = "general") {
+  const response = await callRoutedAI({ messages, jsonMode: _jsonMode, purpose });
+  console.info(`[AI Router] response served by ${response.provider}/${response.model}.`);
+  return response.content;
 }
 
 export async function analyzeAssessment(data: AssessmentData, locale: 'id' | 'en' = data.locale || 'id') {
@@ -240,7 +201,7 @@ Buat 5 rekomendasi yang spesifik dan actionable. Setiap rekomendasi harus diawal
         : 'Anda adalah konsultan bisnis senior manusia dari PT BinaHub. Seluruh output harus berbahasa Indonesia dan berbentuk JSON saja.'
     },
     { role: 'user', content: prompt }
-  ], true);
+  ], true, "reasoning");
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Invalid AI response format');
@@ -320,7 +281,7 @@ Output JSON:
   const text = await callAI([
     { role: 'system', content: 'You are a lead scoring AI.' },
     { role: 'user', content: prompt }
-  ], true);
+  ], true, "reasoning");
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   const fallback = { score: 30, status: 'cold' as const, reasoning: 'Insufficient data' };
@@ -359,7 +320,7 @@ Output JSON ketat:
   const text = await callAI([
     { role: "system", content: "You review B2B ICP fit conservatively and never invent missing evidence." },
     { role: "user", content: prompt },
-  ], true);
+  ], true, "reasoning");
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("AI scoring tidak menghasilkan JSON yang dapat diverifikasi.");
   const parsed = aiDiscoveryReviewSchema.safeParse(JSON.parse(match[0]));
@@ -453,7 +414,7 @@ Berikan JSON PERSIS:
     const text = await callAI([
       { role: 'system', content: 'Anda adalah konsultan senior PT BinaHub. Jawab hanya JSON Bahasa Indonesia.' },
       { role: 'user', content: prompt },
-    ], true);
+    ], true, "reasoning");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = aiProposalSchema.safeParse(JSON.parse(jsonMatch[0]));
@@ -502,7 +463,6 @@ Jangan menyebut AI atau otomatisasi. Bahasa Indonesia profesional, hangat, ringk
 
 DATA:
 Nama: ${input.name}
-Email: ${input.email}
 Perusahaan: ${input.company || '-'}
 Pesan awal: ${input.message || '-'}
 Follow up tingkat: ${input.level}
@@ -562,7 +522,6 @@ Tujuan follow up: ${followUpIntent[input.level] || followUpIntent[1]}
 
 DATA KLIEN:
 Nama: ${input.name}
-Email: ${input.email}
 Perusahaan: ${input.company || '-'}
 Kategori assessment: ${input.category || '-'}
 Skor keseluruhan: ${input.overallScore || '-'}
@@ -586,7 +545,9 @@ Output JSON persis:
     throw new Error('Invalid assessment follow up AI response format');
   }
 
-  return JSON.parse(jsonMatch[0]);
+  const parsed = aiFollowUpSchema.safeParse(JSON.parse(jsonMatch[0]));
+  if (!parsed.success) throw new Error('Invalid assessment follow up AI response');
+  return parsed.data;
 }
 
 export async function extractLinkedInProfileFields(input: {
@@ -760,7 +721,7 @@ Berikan JSON persis:
     const text = await callAI([
       { role: 'system', content: 'Anda adalah project director senior BinaHub. Jawab hanya JSON valid.' },
       { role: 'user', content: prompt },
-    ], true);
+    ], true, "reasoning");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Invalid project plan AI response format');
     return JSON.parse(jsonMatch[0]);
@@ -850,7 +811,7 @@ Output JSON:
     const text = await callAI([
       { role: 'system', content: 'Anda adalah talent/project matching specialist BinaHub. Jawab hanya JSON valid.' },
       { role: 'user', content: prompt },
-    ], true);
+    ], true, "reasoning");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Invalid match AI response format');
     const parsed = JSON.parse(jsonMatch[0]);

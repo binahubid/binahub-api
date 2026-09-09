@@ -263,11 +263,16 @@ export async function PATCH(req: NextRequest) {
   const input = parsed.data;
   try {
     if (input.action === "run_scan") {
+      const idempotencyKey = req.headers.get("x-idempotency-key")?.trim() || null;
+      if (idempotencyKey && idempotencyKey.length > 200) {
+        return adminError("Idempotency key maksimal 200 karakter.", 400, "INVALID_IDEMPOTENCY_KEY");
+      }
       const scan = await runOperationalAssuranceScan({
         db,
         actor: admin.email,
         releaseId: input.releaseId || null,
         materializeIncidents: input.materializeIncidents,
+        idempotencyKey,
       });
       return NextResponse.json({
         success: true,

@@ -67,7 +67,11 @@ export function getLeadDiscoveryConfig(environment: Record<string, string | unde
   if (!apiKeyConfigured) blockers.push("Kredensial penyedia discovery belum tersedia.");
   if (!sourceId && !sourceKey) blockers.push("Sumber data berizin untuk discovery belum dipilih.");
   if (!dryRun && stagingEnabled && !campaignId && !campaignCode) blockers.push("Kampanye untuk staging belum dipilih.");
-  if (aiScoringEnabled && !environment.OPENROUTER_API_KEY?.trim()) blockers.push("Kredensial AI scoring belum tersedia.");
+  if (aiScoringEnabled
+    && !environment.CODECRAFT_API_KEY?.trim()
+    && !environment.OPENROUTER_API_KEY?.trim()) {
+    blockers.push("Kredensial AI scoring belum tersedia.");
+  }
 
   return {
     provider,

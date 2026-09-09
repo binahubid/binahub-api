@@ -46,6 +46,11 @@ type ReleaseRow = {
   updated_at: string;
 };
 
+type RecipientRow = {
+  release_id: string;
+  email: string;
+};
+
 const environmentDryRun: Record<string, boolean> = {
   follow_up_scheduler: process.env.FOLLOW_UP_DRY_RUN !== "false",
   transformation_event_worker: process.env.TRANSFORMATION_WORKER_DRY_RUN !== "false",
@@ -56,7 +61,8 @@ const environmentDryRun: Record<string, boolean> = {
 const pilotMasterSwitchEnabled = process.env.AUTOMATION_PILOT_ENABLED === "true";
 const liveMasterSwitchEnabled = process.env.AUTOMATION_LIVE_ENABLED === "true";
 
-function mapRelease(item: ReleaseRow) {
+function mapRelease(item: ReleaseRow, recipients: Map<string, string[]>) {
+  const recipientEmails = recipients.get(item.id) || [];
   return {
     id: item.id,
     releaseKey: item.release_key,
@@ -64,6 +70,8 @@ function mapRelease(item: ReleaseRow) {
     status: item.status,
     cohortDescription: item.cohort_description,
     maximumParticipants: item.maximum_participants,
+    recipientEmails,
+    recipientCount: recipientEmails.length,
     startsAt: item.starts_at,
     endsAt: item.ends_at,
     businessOwner: item.business_owner,
@@ -129,10 +137,13 @@ export async function GET(req: NextRequest) {
   if ("error" in admin) return adminError(admin.error || "Akses admin tidak valid.", admin.status, "ADMIN_REQUIRED");
 
   const db = createServerSupabase();
-  const [releases, releaseEvents, controls, controlEvents, uat, templates, rules] = await Promise.all([
+  const [releases, recipients, releaseEvents, controls, controlEvents, uat, templates, rules] = await Promise.all([
     db.from("pilot_release_plans")
       .select("id, release_key, title, status, cohort_description, maximum_participants, starts_at, ends_at, business_owner, technical_owner, monitoring_owner, success_criteria, rollback_triggers, rollback_plan, decision_note, approved_by, approved_at, is_mock, created_by, updated_by, created_at, updated_at")
       .order("created_at", { ascending: false }),
+    db.from("pilot_release_recipients")
+      .select("release_id, email")
+      .order("email", { ascending: true }),
     db.from("pilot_release_events")
       .select("id, release_id, event_type, actor, before_snapshot, after_snapshot, note, created_at")
       .order("created_at", { ascending: false })
@@ -154,7 +165,7 @@ export async function GET(req: NextRequest) {
       .limit(1),
   ]);
 
-  const phase10QueryError = releases.error || releaseEvents.error || controls.error || controlEvents.error;
+  const phase10QueryError = releases.error || recipients.error || releaseEvents.error || controls.error || controlEvents.error;
   if (isMissingPhase10(phase10QueryError)) {
     return NextResponse.json({
       success: true,
@@ -194,9 +205,21 @@ export async function GET(req: NextRequest) {
   const uatReady = requiredUat.length >= 12 && passedUat.length === requiredUat.length;
   const templatesReady = approvedTemplateKeys.size >= 18;
   const releaseRows = (releases.data || []) as ReleaseRow[];
-  const mappedReleases = releaseRows.map(mapRelease);
+  const recipientsByRelease = new Map<string, string[]>();
+  for (const recipient of (recipients.data || []) as RecipientRow[]) {
+    recipientsByRelease.set(recipient.release_id, [
+      ...(recipientsByRelease.get(recipient.release_id) || []),
+      recipient.email,
+    ]);
+  }
+  const mappedReleases = releaseRows.map((item) => mapRelease(item, recipientsByRelease));
   const releaseRowsById = new Map(releaseRows.map((item) => [item.id, item]));
-  const approvedReleaseCount = mappedReleases.filter((item) => ["approved", "scheduled"].includes(item.status) && !item.isMock).length;
+  const approvedReleaseCount = mappedReleases.filter((item) => (
+    ["approved", "scheduled"].includes(item.status)
+    && !item.isMock
+    && item.recipientCount > 0
+    && item.recipientCount <= item.maximumParticipants
+  )).length;
   const gatesReady = uatReady && templatesReady && businessRulesReady;
 
   return NextResponse.json({
@@ -248,6 +271,9 @@ function knownMutationError(message: string) {
     ["PILOT_RELEASE_KEY_INVALID", "Release key pilot tidak valid.", 400],
     ["PILOT_PLAN_DESCRIPTION_REQUIRED", "Judul dan deskripsi cohort wajib dilengkapi.", 400],
     ["PILOT_DATE_RANGE_INVALID", "Waktu selesai harus setelah waktu mulai.", 400],
+    ["PILOT_AUDIENCE_REQUIRED", "Minimal satu email penerima pilot wajib ditetapkan.", 409],
+    ["PILOT_AUDIENCE_EMAIL_INVALID", "Daftar penerima pilot memuat email yang tidak valid.", 400],
+    ["PILOT_AUDIENCE_EXCEEDS_MAXIMUM", "Jumlah penerima pilot melebihi maksimum peserta.", 409],
     ["PILOT_RELEASE_LOCKED_FOR_EDIT", "Rencana hanya dapat diedit ketika draft atau rejected.", 409],
     ["PILOT_STATUS_TRANSITION_INVALID", "Perubahan status rencana pilot tidak valid.", 409],
     ["PILOT_DECISION_NOTE_REQUIRED", "Catatan keputusan minimal 10 karakter.", 400],
@@ -264,6 +290,8 @@ function knownMutationError(message: string) {
     ["RUNTIME_CONTROL_NOT_FOUND", "Runtime control tidak ditemukan.", 404],
     ["RUNTIME_HUMAN_APPROVAL_REQUIRED", "Mode pilot/live membutuhkan approval manusia, owner, release, catatan, dan rollback plan.", 409],
     ["RUNTIME_APPROVED_RELEASE_REQUIRED", "Mode pilot/live membutuhkan release non-mock yang approved atau scheduled.", 409],
+    ["RUNTIME_RELEASE_AUDIENCE_REQUIRED", "Release pilot wajib memiliki daftar penerima eksplisit.", 409],
+    ["RUNTIME_RELEASE_AUDIENCE_EXCEEDS_MAXIMUM", "Jumlah penerima release melebihi maksimum peserta.", 409],
     ["RUNTIME_SCHEDULED_RELEASE_REQUIRED", "Mode live membutuhkan release berstatus scheduled.", 409],
     ["RUNTIME_KILL_REASON_REQUIRED", "Alasan kill switch minimal 5 karakter.", 400],
     ["RUNTIME_OPERATIONAL_REVIEW_REQUIRED", "Mode pilot membutuhkan keputusan go atau conditional go yang masih valid.", 409],
@@ -288,7 +316,7 @@ export async function PATCH(req: NextRequest) {
   const input = parsed.data;
   let result;
   if (input.action === "save_plan") {
-    result = await db.rpc("save_pilot_release_plan", {
+    result = await db.rpc("save_pilot_release_plan_with_audience", {
       p_release_id: input.releaseId || null,
       p_actor: admin.email,
       p_release_key: input.releaseKey,
@@ -304,6 +332,7 @@ export async function PATCH(req: NextRequest) {
       p_rollback_triggers: input.rollbackTriggers,
       p_rollback_plan: input.rollbackPlan || null,
       p_is_mock: input.isMock,
+      p_recipient_emails: input.recipientEmails,
     });
   } else if (input.action === "transition_plan") {
     result = await db.rpc("transition_pilot_release_plan", {
