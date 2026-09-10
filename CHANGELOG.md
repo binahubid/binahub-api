@@ -5,6 +5,12 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-09-10
+
+### Fixed — AI Smoke Runtime Compatibility
+
+- Memuat `@next/env` melalui default import agar smoke runner ESM kompatibel dengan ekspor CommonJS pada Node.js 22.
+
 ## [0.23.0] - 2026-09-09
 
 ### Added — AI Provider Routing & Pilot Safety Hardening
