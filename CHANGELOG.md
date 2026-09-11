@@ -5,6 +5,13 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.23.2] - 2026-09-12
+
+### Improved — AI Provider Smoke
+
+- Menguji completion melalui fallback CodeCraft secara berurutan sehingga kegagalan sementara model utama tidak menyembunyikan jalur runtime yang sehat.
+- Menampilkan panduan scope CodeCraft yang aman saat provider menolak key dengan HTTP 403, tanpa mencetak secret.
+
 ## [0.23.1] - 2026-09-10
 
 ### Fixed — AI Smoke Runtime Compatibility

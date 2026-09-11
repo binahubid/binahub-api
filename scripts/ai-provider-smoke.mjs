@@ -19,6 +19,17 @@ function fail(message) {
   process.exitCode = 1;
 }
 
+function smokeFailureMessage(error) {
+  const status = error instanceof Error && "status" in error ? error.status : null;
+  if (status === 403) {
+    return "CodeCraft menolak key dengan HTTP 403. Di Dashboard → API Keys, aktifkan scope models:read dan inference untuk key ini, atau buat key baru dengan kedua scope tersebut.";
+  }
+  if (status === 402) {
+    return "CodeCraft menolak request dengan HTTP 402. Periksa allowance atau saldo akun provider.";
+  }
+  return error instanceof Error ? error.message : "Smoke CodeCraft gagal.";
+}
+
 async function codeCraft(path, init = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
@@ -30,11 +41,38 @@ async function codeCraft(path, init = {}) {
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const error = new Error(`CodeCraft ${path} gagal — HTTP ${response.status}`);
+    const providerCode = typeof payload?.error?.code === "string"
+      ? payload.error.code.replace(/[^a-z0-9_-]/gi, "").slice(0, 80)
+      : "";
+    const error = new Error(`CodeCraft ${path} gagal — HTTP ${response.status}${providerCode ? ` (${providerCode})` : ""}`);
     error.status = response.status;
     throw error;
   }
   return payload;
+}
+
+async function completeWithFallback({ label, models, messages }) {
+  const failures = [];
+  for (const model of Array.from(new Set(models))) {
+    try {
+      const result = await codeCraft("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({ model, messages, max_tokens: 2048 }),
+      });
+      if (!result?.choices?.[0]?.message?.content) {
+        throw new Error("respons kosong");
+      }
+      if (failures.length) {
+        console.warn(`[WARN] ${label} menggunakan fallback ${model}; percobaan sebelumnya gagal: ${failures.join(", ")}`);
+      }
+      console.log(`[PASS] ${label} aktif melalui ${model}`);
+      return { model, result };
+    } catch (error) {
+      const status = error instanceof Error && "status" in error ? error.status : null;
+      failures.push(`${model}${status ? ` (HTTP ${status})` : ""}`);
+    }
+  }
+  throw new Error(`${label} gagal pada seluruh model: ${failures.join(", ")}`);
 }
 
 if (!apiKey) {
@@ -74,40 +112,29 @@ if (!apiKey) {
     }
 
     if (catalogValid && process.env.AI_SMOKE_SKIP_COMPLETIONS !== "true") {
-      const textResult = await codeCraft("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: primaryModel,
-          messages: [{ role: "user", content: "Balas tepat dengan teks: BINAHUB_AI_SMOKE_OK" }],
-          max_tokens: 2048,
-        }),
+      await completeWithFallback({
+        label: "chat completion",
+        models: configured,
+        messages: [{ role: "user", content: "Balas tepat dengan teks: BINAHUB_AI_SMOKE_OK" }],
       });
-      if (!textResult?.choices?.[0]?.message?.content) throw new Error("Respons teks CodeCraft kosong.");
-      console.log(`[PASS] chat completion aktif melalui ${primaryModel}`);
-
       const onePixelPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-      const visionResult = await codeCraft("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: visionModel,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: "Konfirmasi singkat bahwa gambar berhasil dibaca." },
-              { type: "image_url", image_url: { url: onePixelPng } },
-            ],
-          }],
-          max_tokens: 2048,
-        }),
+      await completeWithFallback({
+        label: "vision input",
+        models: [visionModel, ...configured],
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Konfirmasi singkat bahwa gambar berhasil dibaca." },
+            { type: "image_url", image_url: { url: onePixelPng } },
+          ],
+        }],
       });
-      if (!visionResult?.choices?.[0]?.message?.content) throw new Error("Respons vision CodeCraft kosong.");
-      console.log(`[PASS] vision input aktif melalui ${visionModel}`);
     }
 
     if (catalogValid) {
       console.log("\nCodeCraft primary, tiga fallback, reasoning, dan vision siap. OpenRouter tetap menjadi fallback provider terakhir di runtime.");
     }
   } catch (error) {
-    fail(error instanceof Error ? error.message : "Smoke CodeCraft gagal.");
+    fail(smokeFailureMessage(error));
   }
 }
