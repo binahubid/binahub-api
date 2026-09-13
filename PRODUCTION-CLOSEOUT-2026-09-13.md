@@ -5,15 +5,16 @@ internal observability deployment. Times are Asia/Jakarta unless explicitly UTC.
 
 ## Deployment evidence
 
-- API source: `binahubid/binahub-api@ec1122ed933e`
+- API source: `binahubid/binahub-api@40aa6f90e820`
 - API deployment provider: Vercel
 - GitHub deployment status: `success` (`Deployment has completed`)
 - Production verification: `GET https://api.binahub.id/api/health` returned HTTP
-  200, version `0.24.0`, revision `ec1122ed933e`, and observability provider
-  `supabase` at 21:10 WIB.
+  200, version `0.24.0`, revision `40aa6f90e820`, and observability provider
+  `supabase`.
 - Admin application source pushed to both configured GitHub remotes:
-  `app-binahub@d28a088`. Hostinger deployment/cache publication remains managed
-  by the site owner and was not yet visible in public assets at final verification.
+  `app-binahub@d28a088`. After the site owner completed the Hostinger deployment
+  and cache flush, an authenticated browser verification confirmed the runtime
+  observability panel was present in the production admin workspace.
 - Supabase migrations applied over verified TLS: `0045`, `0046`, and `0047`.
 
 ## Verification evidence
@@ -25,6 +26,9 @@ internal observability deployment. Times are Asia/Jakarta unless explicitly UTC.
 - Production-domain E2E against the currently published Hostinger build: 43
   passed and 1 intentionally skipped across desktop and mobile projects,
   including authenticated admin navigation and anonymous access boundaries.
+- Authenticated Hostinger UI verification passed: admin login succeeded, the
+  runtime observability panel rendered, a UI-origin synthetic event persisted
+  through the production API, and no uncaught browser page error was observed.
 - Phase 19 production smoke: all checks passed, including canonical release
   audiences, safe effective modes, and closed pilot/live master switches.
 - Full production readiness SQL after incident closure: 389/389 boolean checks
@@ -65,6 +69,19 @@ pilot incidents.
 ## Current release decision
 
 This evidence closes the historical defects; it does not authorize a live
-workflow. There is no active release. A new restricted pilot needs a new release,
-fresh dry-run evidence, a healthy snapshot, rehearsal/acceptance, and a human
-go/conditional-go decision before its scheduled change window.
+workflow. A new non-mock release named `Final Acceptance Pilot - 5 Internal
+Accounts` was created with release key
+`pilot-final-acceptance-20260914-0800`, an exact five-address allowlist, and a
+window of 14 September 2026, 08:00–09:00 WIB. It is approved for rehearsal only.
+
+Three eligible workflow preflights completed successfully in effective
+`dry_run`: Transformation Event Worker, Client Operations Daily, and Acquisition
+Batch Processor. Follow-up Scheduler evidence must be captured during its Monday
+business window. After preparation, Phase 19 production smoke still passed,
+production readiness remained 389/389, open non-synthetic runtime errors remained
+zero, every runtime control remained effective `dry_run`, and both master switches
+remained off.
+
+The restricted pilot still requires fresh Follow-up Scheduler evidence, a healthy
+snapshot, rehearsal/acceptance, and a human go/conditional-go decision before any
+runtime or environment activation.
