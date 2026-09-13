@@ -74,12 +74,13 @@ try {
     const unsafe = controls.filter((control) => !["disabled", "dry_run"].includes(control.effectiveMode));
     check(unsafe.length === 0, "seluruh workflow tetap disabled atau dry-run", `${unsafe.length} tidak aman`);
     check(
-      controlPlane.body?.pilotMasterSwitchEnabled !== true && controlPlane.body?.liveMasterSwitchEnabled !== true,
+      controls.length === 4 && controls.every((control) =>
+        control.pilotMasterSwitchEnabled === false && control.liveMasterSwitchEnabled === false),
       "master switch pilot dan live tetap tertutup",
     );
   }
 } finally {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 if (failures.length) {

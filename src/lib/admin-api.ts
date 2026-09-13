@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import type { z } from "zod";
 import type { createServerSupabase } from "@/lib/supabase";
+import { recordRuntimeError } from "./runtime-observability";
 
 type AdminDb = ReturnType<typeof createServerSupabase>;
 
@@ -16,6 +17,12 @@ type AuditEvent = {
 };
 
 export function adminError(error: string, status = 400, code?: string) {
+  if (status >= 500) {
+    // after() keeps the serverless invocation alive without delaying its response.
+    try { after(async () => { await recordRuntimeError({
+      message: error, code: code || "ADMIN_INTERNAL_ERROR", route: "/api/admin",
+    }); }); } catch { /* No active request context in isolated tests. */ }
+  }
   return NextResponse.json({ success: false, error, code }, { status });
 }
 
