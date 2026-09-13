@@ -11,7 +11,9 @@ internal observability deployment. Times are Asia/Jakarta unless explicitly UTC.
 - Production verification: `GET https://api.binahub.id/api/health` returned HTTP
   200, version `0.24.0`, revision `ec1122ed933e`, and observability provider
   `supabase` at 21:10 WIB.
-- Admin application source: `binahubid/app-binahub@d28a088`
+- Admin application source pushed to both configured GitHub remotes:
+  `app-binahub@d28a088`. Hostinger deployment/cache publication remains managed
+  by the site owner and was not yet visible in public assets at final verification.
 - Supabase migrations applied over verified TLS: `0045`, `0046`, and `0047`.
 
 ## Verification evidence
@@ -20,6 +22,9 @@ internal observability deployment. Times are Asia/Jakarta unless explicitly UTC.
   generated 93 routes.
 - Admin application gate: 95 passed; lint passed; production build generated 81
   pages.
+- Production-domain E2E against the currently published Hostinger build: 43
+  passed and 1 intentionally skipped across desktop and mobile projects,
+  including authenticated admin navigation and anonymous access boundaries.
 - Phase 19 production smoke: all checks passed, including canonical release
   audiences, safe effective modes, and closed pilot/live master switches.
 - Full production readiness SQL after incident closure: 389/389 boolean checks
