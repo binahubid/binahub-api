@@ -22,6 +22,8 @@ internal observability deployment. Times are Asia/Jakarta unless explicitly UTC.
   pages.
 - Phase 19 production smoke: all checks passed, including canonical release
   audiences, safe effective modes, and closed pilot/live master switches.
+- Full production readiness SQL after incident closure: 389/389 boolean checks
+  true; all issue and pending counters zero.
 - Internal observability production check:
   - anonymous admin access returned HTTP 401;
   - an authenticated synthetic event was persisted as
@@ -50,6 +52,10 @@ Permanent prevention is deployed in the API: idempotency keys are pre-claimed
 before side effects, duplicate replays are immutable, pilot audiences are checked
 against the exact approved allowlist, and runtime errors are persisted in
 Supabase with redaction, grouping, rate limits, access controls, and admin review.
+
+All three incident records were transitioned to `resolved` only after this
+deployment evidence was published. A post-transition query returned zero open
+pilot incidents.
 
 ## Current release decision
 

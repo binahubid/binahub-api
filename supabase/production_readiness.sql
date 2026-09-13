@@ -756,6 +756,31 @@ select
     )
   ) as automation_run_claim_phase19_ready;
 
+-- Durable internal runtime observability. Browser reports enter through the
+-- rate-limited API route; direct table/RPC access stays service-role only.
+select
+  (
+    to_regclass('public.runtime_error_events') is not null
+    and to_regprocedure('public.record_runtime_error(text,boolean,boolean,text,text,text,text,text)') is not null
+    and (
+      select relrowsecurity
+      from pg_class
+      where oid = 'public.runtime_error_events'::regclass
+    )
+    and not has_table_privilege('anon', 'public.runtime_error_events', 'SELECT,INSERT,UPDATE,DELETE')
+    and not has_table_privilege('authenticated', 'public.runtime_error_events', 'SELECT,INSERT,UPDATE,DELETE')
+    and not has_function_privilege(
+      'anon',
+      'public.record_runtime_error(text,boolean,boolean,text,text,text,text,text)',
+      'EXECUTE'
+    )
+    and not has_function_privilege(
+      'authenticated',
+      'public.record_runtime_error(text,boolean,boolean,text,text,text,text,text)',
+      'EXECUTE'
+    )
+  ) as internal_runtime_observability_ready;
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,
