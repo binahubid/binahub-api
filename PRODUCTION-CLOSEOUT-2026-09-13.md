@@ -85,3 +85,24 @@ remained off.
 The restricted pilot still requires fresh Follow-up Scheduler evidence, a healthy
 snapshot, rehearsal/acceptance, and a human go/conditional-go decision before any
 runtime or environment activation.
+
+## Final acceptance control-plane — 14 September 2026
+
+At 08:00 WIB the remaining Follow-up Scheduler evidence was executed in effective
+`dry_run` and returned zero sends. Replaying the same idempotency key returned
+`duplicate: true` without a second execution. The final state is:
+
+- 8/8 required rehearsal steps passed with production evidence;
+- monitoring snapshot `739aa232-6e79-4118-95da-9992ca1be7ab` is real, fresh,
+  `healthy`, and has no blocker;
+- acceptance decision is `accepted`;
+- Operational Assurance decision is `go`;
+- release `pilot-final-acceptance-20260914-0800` is `scheduled` with an exact
+  five-address internal allowlist;
+- all four runtime controls request `pilot` for that release but remain effective
+  `dry_run` because the environment guard and pilot master switch are closed;
+- Phase 19 still passes, readiness remains 389/389, open non-synthetic runtime
+  errors remain zero, and the pilot incident backlog remains zero.
+
+No outbound was sent during this control-plane completion. The next step is the
+separate Vercel environment deployment that opens only the scheduled pilot window.
