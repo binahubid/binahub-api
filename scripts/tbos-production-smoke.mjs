@@ -131,6 +131,28 @@ try {
             && listResult.payload?.teams?.some((team) => team.id === createdTeamId && team.batchName === batchName),
           "tim baru dapat dibaca kembali dengan lineage batch",
         );
+
+        const membersResult = await request("/api/tbos/teams/members", {
+          token,
+          method: "POST",
+          body: {
+            teamId: createdTeamId,
+            members: [
+              { memberName: `Captain ${suffix}`.slice(0, 100), isCaptain: true },
+              { memberName: `Member ${suffix}`.slice(0, 100), isCaptain: false },
+            ],
+          },
+        });
+        const insertedMembers = Array.isArray(membersResult.payload?.members)
+          ? membersResult.payload.members
+          : [];
+        check(
+          membersResult.response.status === 200
+            && insertedMembers.length === 2
+            && insertedMembers.filter((member) => member.is_captain).length === 1,
+          "roster atomik menyimpan dua anggota dengan tepat satu kapten",
+          `HTTP ${membersResult.response.status}`,
+        );
       }
     }
   } else {
