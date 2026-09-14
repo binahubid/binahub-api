@@ -4,9 +4,10 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { requireFacilitator } from "@/lib/facilitator-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
+import { mapTbosTeamMutationError } from "@/lib/tbos-errors";
 
 const teamSchema = z.object({
-  name: z.string().min(1).max(50),
+  name: z.string().trim().min(1).max(50),
   batchId: z.string().uuid(),
   organizationId: z.string().uuid().optional(),
   programId: z.string().uuid(),
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
   const parsed = teamSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -218,10 +219,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    const duplicate = error.code === "23505";
+    console.error("[T-BOS Teams] Team creation failed:", error.code, error.message);
+    const mapped = mapTbosTeamMutationError(error);
     return NextResponse.json(
-      { success: false, error: duplicate ? "Nama tim sudah dipakai, gunakan nama lain." : error.message },
-      { status: duplicate ? 409 : 500 },
+      { success: false, error: mapped.message },
+      { status: mapped.status },
     );
   }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { isProgramModuleEnabled } from "@/lib/program-access";
+import { mapTbosTeamMutationError } from "@/lib/tbos-errors";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(50).optional(),
@@ -50,10 +51,11 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         .eq("program_id", programId)
         .maybeSingle();
 
-      if (batch) {
-        updatePayload.batch_id = batch.id;
-        updatePayload.batch = batch.name;
+      if (!batch) {
+        return NextResponse.json({ success: false, error: "Batch tidak ditemukan untuk program tim ini." }, { status: 400 });
       }
+      updatePayload.batch_id = batch.id;
+      updatePayload.batch = batch.name;
     }
   }
 
@@ -70,7 +72,11 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     .select()
     .single();
 
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[T-BOS Teams] Team update failed:", error.code, error.message);
+    const mapped = mapTbosTeamMutationError(error);
+    return NextResponse.json({ success: false, error: mapped.message }, { status: mapped.status });
+  }
   return NextResponse.json({ success: true, team: data });
 }
 

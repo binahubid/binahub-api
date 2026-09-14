@@ -166,51 +166,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Roster tim sudah dikunci oleh kunjungan pos pertama." }, { status: 409 });
   }
 
-  const { data: existingMembers, error: existingError } = await db
-    .from("tbos_team_members")
-    .select("id, member_name, is_captain")
-    .eq("team_id", teamId);
-  if (existingError) {
-    return NextResponse.json({ success: false, error: existingError.message }, { status: 500 });
-  }
-
-  const existingNames = new Set(
-    (existingMembers || []).map((member) => member.member_name.replace(/\s+/g, " ").trim().toLocaleLowerCase("id-ID")),
-  );
-  const duplicate = requestedMembers.find((member) => existingNames.has(
-    member.memberName.replace(/\s+/g, " ").trim().toLocaleLowerCase("id-ID"),
-  ));
-  if (duplicate) {
-    return NextResponse.json({ success: false, error: `${duplicate.memberName} sudah ada dalam tim.` }, { status: 409 });
-  }
-
-  const hasExistingCaptain = (existingMembers || []).some((member) => member.is_captain);
-  const requestedCaptainIndex = requestedMembers.findIndex((member) => member.isCaptain);
-  const captainIndex = requestedCaptainIndex >= 0
-    ? requestedCaptainIndex
-    : (!hasExistingCaptain && (existingMembers || []).length === 0 ? 0 : -1);
-
-  if (captainIndex >= 0 && hasExistingCaptain) {
-    const { error: captainResetError } = await db
-      .from("tbos_team_members")
-      .update({ is_captain: false })
-      .eq("team_id", teamId);
-    if (captainResetError) {
-      return NextResponse.json({ success: false, error: captainResetError.message }, { status: 500 });
-    }
-  }
-
-  const { data, error } = await db
-    .from("tbos_team_members")
-    .insert(requestedMembers.map((member, index) => ({
-      team_id: teamId,
-      member_name: member.memberName.replace(/\s+/g, " ").trim(),
-      is_captain: index === captainIndex,
-    })))
-    .select("id, profile_id, member_name, is_captain");
+  const { data, error } = await db.rpc("tbos_add_team_members", {
+    p_team_id: teamId,
+    p_members: requestedMembers.map((member) => ({
+      memberName: member.memberName.replace(/\s+/g, " ").trim(),
+      isCaptain: member.isCaptain,
+    })),
+  });
 
   if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    const status = error.code === "23505" ? 409 : error.code === "23503" ? 404 : error.code === "22023" ? 400 : 500;
+    const message = status === 500 ? "Anggota tim belum dapat disimpan." : error.message;
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 
   return NextResponse.json({

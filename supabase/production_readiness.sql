@@ -338,6 +338,31 @@ select
   to_regprocedure('public.replace_facilitator_missions(uuid,uuid,uuid[])') is not null as assignment_rpc_ready,
   to_regprocedure('public.assign_facilitator_program(uuid,uuid,uuid)') is not null as program_assignment_rpc_ready,
   to_regprocedure('public.select_facilitator_program_mission(uuid,uuid,uuid)') is not null as mission_selection_rpc_ready,
+  (
+    not exists (
+      select 1 from pg_constraint
+      where conrelid = 'public.tbos_teams'::regclass
+        and conname = 'tbos_teams_batch_check'
+    )
+    and exists (
+      select 1 from pg_constraint
+      where conrelid = 'public.tbos_teams'::regclass
+        and conname = 'tbos_teams_batch_valid'
+        and pg_get_constraintdef(oid) not ilike '%Batch 1%'
+    )
+    and not exists (
+      select 1 from pg_constraint
+      where conrelid = 'public.tbos_observations'::regclass
+        and conname = 'tbos_observations_batch_check'
+    )
+    and exists (
+      select 1 from pg_constraint
+      where conrelid = 'public.tbos_observations'::regclass
+        and conname = 'tbos_observations_batch_valid'
+        and pg_get_constraintdef(oid) not ilike '%Batch 1%'
+    )
+  ) as tbos_flexible_batch_constraints_ready,
+  to_regprocedure('public.tbos_add_team_members(uuid,jsonb)') is not null as atomic_team_roster_rpc_ready,
   to_regclass('public.tbos_observations_program_team_mission_unique') is not null as unique_team_mission_observation_ready,
   to_regprocedure('public.tbos_submit_observation_v2(uuid,uuid,uuid,uuid,text,uuid,text,text,jsonb,jsonb,boolean)') is not null as observation_rpc_ready,
   to_regprocedure('public.submit_lep_response(uuid,uuid,integer,integer,integer,integer,text,text,text,jsonb)') is not null as lep_rpc_ready,
@@ -392,6 +417,16 @@ select count(*) as team_batch_program_mismatch_issues
 from public.tbos_teams team
 join public.batches batch on batch.id = team.batch_id
 where team.engagement_id is distinct from batch.program_id;
+
+select count(*) as invalid_tbos_batch_snapshot_issues
+from (
+  select batch from public.tbos_teams
+  union all
+  select batch from public.tbos_observations
+) snapshot
+where batch is null
+  or btrim(batch) = ''
+  or char_length(batch) > 50;
 
 select count(*) as assignment_program_module_issues
 from public.facilitator_missions assignment
