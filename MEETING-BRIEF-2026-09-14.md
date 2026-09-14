@@ -6,8 +6,8 @@ BinaHub is deployed and technically ready for a **controlled production launch**
 The public assessment, admin workspace, API, database security, governance, and
 internal monitoring have passed their production gates. The final restricted
 acceptance pilot also passed on 14 September 2026. General autonomous outbound is
-ready to enter gradual production rollout after the temporary pilot environment
-flags are returned to their safe defaults.
+ready to enter gradual production rollout. The temporary pilot environment flags
+have been returned to their safe defaults and verified after redeployment.
 
 ## Evidence already complete
 
@@ -19,8 +19,9 @@ flags are returned to their safe defaults.
 - Admin tests: 95 passed; lint and build passed.
 - Production E2E: 43 passed, 1 intentionally skipped on desktop and mobile.
 - Production readiness SQL: 389/389 boolean checks true; all issue counters zero.
-- Phase 19 smoke passed before activation; its final post-pilot rerun is waiting
-  only for the temporary Vercel pilot flag to be returned to `false`.
+- Final post-pilot Phase 19 smoke passed after the environment was restored:
+  all four workflows are effective `dry_run`, and both pilot and live master
+  switches are closed.
 - Four database runtime controls were restored to effective `dry_run` immediately
   after the pilot.
 - Three prior pilot incidents are resolved after deployment and reconciliation.

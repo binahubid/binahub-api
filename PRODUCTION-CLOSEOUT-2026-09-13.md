@@ -131,7 +131,9 @@ verified. Execution remained bounded by the canonical five-address allowlist.
 - Production readiness remained 389/389 and open non-synthetic runtime errors
   remained zero.
 
-The final Phase 19 rerun is intentionally pending until the temporary Vercel
-environment flags are returned to their safe defaults. Database runtime controls
-already prevent additional sends; restoring the environment flags closes the
-remaining defense-in-depth gate.
+The temporary Vercel environment flags were returned to their safe defaults and
+the API was redeployed. The final post-pilot verification on API version `0.24.0`,
+revision `b2c7136e31fc`, passed completely: Phase 19 was green, production
+readiness remained 389/389, all four workflows were effective `dry_run`, both
+pilot and live master switches were closed, and the open non-synthetic incident
+count remained zero. The defense-in-depth reset is therefore complete.
