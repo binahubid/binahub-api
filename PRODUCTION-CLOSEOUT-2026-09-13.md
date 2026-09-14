@@ -66,7 +66,7 @@ All three incident records were transitioned to `resolved` only after this
 deployment evidence was published. A post-transition query returned zero open
 pilot incidents.
 
-## Current release decision
+## Pre-pilot release decision
 
 This evidence closes the historical defects; it does not authorize a live
 workflow. A new non-mock release named `Final Acceptance Pilot - 5 Internal
@@ -106,3 +106,32 @@ At 08:00 WIB the remaining Follow-up Scheduler evidence was executed in effectiv
 
 No outbound was sent during this control-plane completion. The next step is the
 separate Vercel environment deployment that opens only the scheduled pilot window.
+
+## Final controlled execution — 14 September 2026
+
+The Vercel pilot environment was activated at 08:11 WIB after the scheduled
+release, healthy snapshot, accepted certification, and `go` decision were all
+verified. Execution remained bounded by the canonical five-address allowlist.
+
+- Follow-up run `6e5226cb-4f28-42ac-9cb2-9b25c80c866e` completed with status
+  `succeeded`, effective mode `pilot`, two processed sends, and zero failures.
+- Eleven due records outside the approved release audience were excluded.
+- Exactly two follow-up events were stored; both provider IDs received
+  `email.delivered` webhook evidence.
+- Replaying the identical idempotency key returned `duplicate: true` and zero
+  sends.
+- Transformation Event Worker processed two events with zero failures.
+- Client Operations completed with zero candidates and zero failures.
+- Acquisition Batch Processor promoted three approved internal candidates with
+  zero failures.
+- Post-execution snapshot `d17e7f5d-73bb-4079-a758-c177718a52f1` was real,
+  `healthy`, had no blocker, and materialized no incident.
+- The release was transitioned to `completed`; all four database controls were
+  detached from the release and restored to effective `dry_run`.
+- Production readiness remained 389/389 and open non-synthetic runtime errors
+  remained zero.
+
+The final Phase 19 rerun is intentionally pending until the temporary Vercel
+environment flags are returned to their safe defaults. Database runtime controls
+already prevent additional sends; restoring the environment flags closes the
+remaining defense-in-depth gate.
