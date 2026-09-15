@@ -816,6 +816,32 @@ select
     )
   ) as internal_runtime_observability_ready;
 
+-- Phase 20.1 inbound attribution. Journey data remains service-role only;
+-- public traffic can submit through the rate-limited API, never directly.
+select
+  (
+    to_regclass('public.inbound_journeys') is not null
+    and to_regclass('public.inbound_journey_events') is not null
+    and to_regclass('public.inbound_lead_journeys') is not null
+    and to_regclass('public.inbound_catalog_interests') is not null
+    and to_regprocedure('public.record_inbound_journey_event(uuid,text,text,jsonb,text,text[])') is not null
+    and to_regprocedure('public.link_inbound_journey_to_lead(uuid,uuid,text)') is not null
+    and coalesce(not has_table_privilege('anon', to_regclass('public.inbound_journeys'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('authenticated', to_regclass('public.inbound_journey_events'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_function_privilege('anon', to_regprocedure('public.record_inbound_journey_event(uuid,text,text,jsonb,text,text[])'), 'EXECUTE'), false)
+    and coalesce(not has_function_privilege('authenticated', to_regprocedure('public.link_inbound_journey_to_lead(uuid,uuid,text)'), 'EXECUTE'), false)
+  ) as phase20_inbound_journey_ready;
+
+-- Phase 20.2 manual Apollo outbound links. Token signing is checked by the
+-- API environment; this SQL check only verifies the protected persistence.
+select
+  (
+    to_regclass('public.outbound_campaign_links') is not null
+    and to_regclass('public.outbound_campaign_clicks') is not null
+    and coalesce(not has_table_privilege('anon', to_regclass('public.outbound_campaign_links'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('authenticated', to_regclass('public.outbound_campaign_clicks'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+  ) as phase20_controlled_manual_outbound_ready;
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,

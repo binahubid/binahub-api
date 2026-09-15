@@ -5,6 +5,17 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+### Added — Phase 20 Unified Funnel, Parts 1–2
+
+- Menambahkan journey attribution anonim dengan sumber pertama/terakhir, event funnel, minat katalog, dan tautan journey-ke-lead yang terlindungi RLS.
+- Menambahkan tautan UAT Apollo Manual yang opaque, bertanda tangan HMAC, berakhir masa berlaku, serta mengarah hanya ke landing umum BinaHub.
+- Menambahkan audit klik campaign ke journey tanpa menyimpan alamat IP, user-agent, email, atau ID prospect/lead pada URL.
+- Menambahkan endpoint dan smoke gate Phase 20 untuk memeriksa boundary publik, dashboard admin, dan ketersediaan schema tanpa menjalankan outbound.
+
+### Safety
+
+- Phase 20 tidak mengirim email, memanggil Apollo API, melakukan enrichment, atau membuka provider call. Tautan yang dibuat hanya bertanda UAT dan harus disalin/dikirim manual oleh administrator setelah gate terpisah.
+
 ## [0.23.2] - 2026-09-12
 
 ### Improved — AI Provider Smoke

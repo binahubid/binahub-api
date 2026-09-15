@@ -30,6 +30,7 @@
     "test:phase17": "node scripts/phase17-governance-smoke.mjs",
     "test:phase18": "node scripts/phase18-smoke.mjs",
     "test:phase19": "node scripts/phase19-hardening-smoke.mjs",
+    "test:phase20": "node scripts/phase20-inbound-smoke.mjs",
     "test:tbos": "node scripts/tbos-production-smoke.mjs",
     "test:ai": "node scripts/ai-provider-smoke.mjs"
   },

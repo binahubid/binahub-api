@@ -9,6 +9,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireTransformationActor } from '@/lib/transformation/auth';
 import { isProgramModuleEnabled } from '@/lib/program-access';
 import { qualifyLead } from '@/lib/lead-qualification';
+import { classifyInboundAttribution, compactInboundAttribution } from '@/lib/inbound-journey';
 
 const MAX_ASSESSMENT_BODY_BYTES = 64 * 1024;
 const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9._:-]{16,128}$/;
@@ -158,6 +159,28 @@ export async function POST(req: NextRequest) {
     if (leadError) {
       console.error('[API Error] Supabase Lead error:', leadError);
       throw leadError;
+    }
+
+    // Journey attribution is evidence-only. A missing Phase 20 migration must
+    // never block a public assessment that was otherwise valid.
+    try {
+      const { data: recordedJourneyId, error: journeyError } = await supabase.rpc('record_inbound_journey_event', {
+        p_journey_id: body.journeyId || null,
+        p_event_type: 'assessment_submitted',
+        p_route_path: '/insight',
+        p_attribution: compactInboundAttribution(body.attribution),
+        p_channel: classifyInboundAttribution(body.attribution),
+        p_module_codes: [],
+      });
+      if (journeyError) throw journeyError;
+      if (recordedJourneyId) {
+        const { error: linkError } = await supabase.rpc('link_inbound_journey_to_lead', {
+          p_journey_id: recordedJourneyId, p_lead_id: lead.id, p_link_type: 'assessment',
+        });
+        if (linkError) throw linkError;
+      }
+    } catch (journeyError) {
+      console.warn('[Assessment API] Inbound journey was not recorded:', getErrorMessage(journeyError));
     }
 
     // 3. Save raw assessment

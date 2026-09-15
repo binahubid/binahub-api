@@ -56,6 +56,7 @@ export const AssessmentSchema = z.object({
   businessConsequence: z.string().trim().max(4000).optional(),
   answers: AssessmentAnswersSchema,
   source: z.literal('insight_assessment').optional().default('insight_assessment'),
+  journeyId: z.string().uuid().optional(),
   attribution: AttributionSchema.optional().default({}),
   locale: z.enum(['id', 'en']).optional().default('id'),
 }).strict();

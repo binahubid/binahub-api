@@ -5,6 +5,7 @@ import { createServerSupabase } from "@/lib/supabase";
 import { corsHeadersFromRequest } from "@/lib/cors";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { AttributionSchema } from "@/lib/validations";
+import { classifyInboundAttribution, compactInboundAttribution } from "@/lib/inbound-journey";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -22,6 +23,7 @@ const ContactInquirySchema = z.object({
   whatsapp: z.string().max(50).optional().default(""),
   message: z.string().trim().min(20, "Pesan minimal terdiri dari 20 karakter").max(5000),
   moduleCodes: z.array(z.string().trim().regex(/^[A-Z0-9][A-Z0-9_-]{1,63}$/)).max(20).optional().default([]),
+  journeyId: z.string().uuid().optional(),
   attribution: AttributionSchema.optional().default({}),
   locale: z.enum(["id", "en"]).optional().default("id"),
 }).strict();
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, company, role, email, whatsapp, message, attribution, moduleCodes } = validationResult.data;
+    const { name, company, role, email, whatsapp, message, attribution, moduleCodes, journeyId } = validationResult.data;
     const supabase = createServerSupabase();
 
     let moduleRequestData: Record<string, unknown> = {};
@@ -137,6 +139,27 @@ export async function POST(req: NextRequest) {
         },
         { status: 503, headers },
       );
+    }
+
+    try {
+      const { data: recordedJourneyId, error: journeyError } = await supabase.rpc("record_inbound_journey_event", {
+        p_journey_id: journeyId || null,
+        p_event_type: "inquiry_submitted",
+        p_route_path: "/contact",
+        p_attribution: compactInboundAttribution(attribution),
+        p_channel: classifyInboundAttribution(attribution),
+        p_module_codes: [...new Set(moduleCodes)],
+      });
+      if (journeyError) throw journeyError;
+      if (recordedJourneyId) {
+        const { error: linkError } = await supabase.rpc("link_inbound_journey_to_lead", {
+          p_journey_id: recordedJourneyId, p_lead_id: lead.id,
+          p_link_type: moduleCodes.length > 0 ? "catalog_request" : "inquiry",
+        });
+        if (linkError) throw linkError;
+      }
+    } catch (journeyError) {
+      console.warn("[Contact API] Inbound journey was not recorded:", getErrorMessage(journeyError));
     }
 
     const { error: inquiryError } = await supabase.from("inquiries").insert({
