@@ -5,6 +5,18 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-09-15
+
+### Added — T-BOS Live Score Control Plane
+
+- Menambahkan endpoint admin untuk agregat peringkat T-BOS dari observasi submitted/locked dan kontrol countdown yang tersinkron waktu server.
+- Menambahkan sesi Live Score per program beserta audit konfigurasi, start, pause, reset, finish, perubahan visibilitas nilai, dan timer selesai otomatis.
+- Menambahkan unit test ranking/timer serta pemeriksaan boundary dan privasi Live Score pada smoke gate T-BOS.
+
+### Security — T-BOS Live Score
+
+- Menjaga tabel sesi dan audit tetap service-role only dengan RLS aktif; respons API tidak memuat identitas peserta atau catatan fasilitator.
+
 ### Added — Phase 20 Unified Funnel, Parts 1–2
 
 - Menambahkan journey attribution anonim dengan sumber pertama/terakhir, event funnel, minat katalog, dan tautan journey-ke-lead yang terlindungi RLS.

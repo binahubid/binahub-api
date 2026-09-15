@@ -842,6 +842,28 @@ select
     and coalesce(not has_table_privilege('authenticated', to_regclass('public.outbound_campaign_clicks'), 'SELECT,INSERT,UPDATE,DELETE'), false)
   ) as phase20_controlled_manual_outbound_ready;
 
+-- T-BOS Live Score is admin-only and stores only control state plus audit.
+-- Team aggregates are calculated by the API from submitted/locked observations.
+select
+  (
+    to_regclass('public.tbos_live_score_sessions') is not null
+    and to_regclass('public.tbos_live_score_audit_log') is not null
+    and coalesce((
+      select relrowsecurity
+      from pg_class
+      where oid = to_regclass('public.tbos_live_score_sessions')
+    ), false)
+    and coalesce((
+      select relrowsecurity
+      from pg_class
+      where oid = to_regclass('public.tbos_live_score_audit_log')
+    ), false)
+    and coalesce(not has_table_privilege('anon', to_regclass('public.tbos_live_score_sessions'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('authenticated', to_regclass('public.tbos_live_score_sessions'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('anon', to_regclass('public.tbos_live_score_audit_log'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('authenticated', to_regclass('public.tbos_live_score_audit_log'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+  ) as tbos_live_score_ready;
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,
