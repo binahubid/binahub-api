@@ -21,6 +21,10 @@ interface MissionDimensionRecord {
   tbos_behavioral_dimensions: { code: string } | null;
 }
 
+interface ProgramCompetencyRecord {
+  tbos_behavioral_dimensions: { code: string } | null;
+}
+
 interface ObservationRecord {
   id: string;
   team_id: string;
@@ -38,8 +42,8 @@ interface ObservationRecord {
  * GET /api/tbos/participant/team-info
  * Returns T-BOS team info for the authenticated participant:
  * - Team name & batch
- * - Missions completed count
- * - Overall score, strongest/weakest dimensions
+ * - Completed observation count
+ * - Overall score, strongest/weakest competencies
  * - Rank among scored teams in the participant team's organization
  *
  * No admin role required — any authenticated user can access their own team data.
@@ -146,6 +150,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: missionDimensionsError.message }, { status: 500 });
   }
 
+  const { data: programCompetencies, error: programCompetenciesError } = await db
+    .from("tbos_program_competencies")
+    .select("tbos_behavioral_dimensions(code)")
+    .eq("program_id", programId)
+    .order("order_index");
+  if (programCompetenciesError) {
+    return NextResponse.json({ success: false, error: programCompetenciesError.message }, { status: 500 });
+  }
+  const selectedDimensionCodes = ((programCompetencies || []) as unknown as ProgramCompetencyRecord[])
+    .map((row) => row.tbos_behavioral_dimensions?.code)
+    .filter((code): code is string => Boolean(code));
+
   const missionDimensionMap: Record<string, string[]> = {};
   for (const mapping of (missionDimensions || []) as unknown as MissionDimensionRecord[]) {
     const missionCode = mapping.tbos_missions?.code;
@@ -153,6 +169,9 @@ export async function GET(req: NextRequest) {
     if (!missionCode || !dimensionCode) continue;
     if (!missionDimensionMap[missionCode]) missionDimensionMap[missionCode] = [];
     missionDimensionMap[missionCode].push(dimensionCode);
+  }
+  if (selectedDimensionCodes.length > 0) {
+    missionDimensionMap.program_observation = selectedDimensionCodes;
   }
 
   const observations = allObservations.map((obs) => ({
@@ -173,10 +192,14 @@ export async function GET(req: NextRequest) {
   // 4. Calculate the participant team's canonical scores
   const teamObservations = observations.filter((observation) => observation.teamId === teamId);
 
-  // Count unique missions
-  const missionsCompleted = new Set(teamObservations.map((observation) => observation.missionId)).size;
+  const observationsCompleted = teamObservations.length;
 
-  const teamScore = calculateTbosTeamScore(teamId, observations, missionDimensionMap);
+  const teamScore = calculateTbosTeamScore(
+    teamId,
+    observations,
+    missionDimensionMap,
+    selectedDimensionCodes.length > 0 ? selectedDimensionCodes : undefined,
+  );
   const sortedDimensions = [...teamScore.dimensionScores].sort((a, b) => b.score - a.score);
   const overallScore = teamScore.overallScore;
   const strongestDimension = sortedDimensions[0]?.dimensionName || null;
@@ -187,7 +210,12 @@ export async function GET(req: NextRequest) {
   const scoredCohort = cohortTeams
     .map((cohortTeam) => ({
       teamId: cohortTeam.id,
-      score: calculateTbosTeamScore(cohortTeam.id, observations, missionDimensionMap).overallScore,
+      score: calculateTbosTeamScore(
+        cohortTeam.id,
+        observations,
+        missionDimensionMap,
+        selectedDimensionCodes.length > 0 ? selectedDimensionCodes : undefined,
+      ).overallScore,
     }))
     .filter((entry): entry is { teamId: string; score: number } => entry.score !== null);
   const rankCohortSize = scoredCohort.length;
@@ -204,7 +232,8 @@ export async function GET(req: NextRequest) {
       teamName,
       batch,
       batchName: batch,
-      missionsCompleted,
+      observationsCompleted,
+      missionsCompleted: observationsCompleted,
       overallScore,
       strongestDimension,
       weakestDimension,

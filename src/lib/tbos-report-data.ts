@@ -100,9 +100,18 @@ export function buildTbosProgramReport(input: {
   teams: TbosReportTeamInput[];
   observations: TbosReportObservationInput[];
   generatedAt?: string;
+  dimensionCodes?: string[];
 }): TbosProgramReport {
-  const teamReports = input.teams.map((team) => buildTeamReport(team, input.observations));
-  const dimensions = aggregateTeamDimensions(teamReports);
+  const reportDimensions = input.dimensionCodes?.length
+    ? TBOS_REPORT_DIMENSIONS.filter((dimension) => input.dimensionCodes?.includes(dimension.code))
+    : [...TBOS_REPORT_DIMENSIONS];
+  const allowedDimensionCodes = new Set<string>(reportDimensions.map((dimension) => dimension.code));
+  const reportObservations = input.observations.map((observation) => ({
+    ...observation,
+    scores: observation.scores.filter((score) => allowedDimensionCodes.has(score.dimensionCode)),
+  }));
+  const teamReports = input.teams.map((team) => buildTeamReport(team, reportObservations, reportDimensions));
+  const dimensions = aggregateTeamDimensions(teamReports, reportDimensions);
   const scoredDimensions = dimensions.filter((dimension) => dimension.score !== null);
   const sortedDimensions = [...scoredDimensions].sort((a, b) => (b.score || 0) - (a.score || 0));
   const strengths = sortedDimensions.slice(0, 3);
@@ -122,7 +131,7 @@ export function buildTbosProgramReport(input: {
       const batchScores = batchTeams.map((team) => team.overallScore).filter((score): score is number => score !== null);
       return {
         batch,
-        dimensions: aggregateTeamDimensions(batchTeams),
+        dimensions: aggregateTeamDimensions(batchTeams, reportDimensions),
         overallScore: average(batchScores),
       };
     });
@@ -134,15 +143,19 @@ export function buildTbosProgramReport(input: {
     batches,
     strengths,
     developmentAreas,
-    totalObservations: input.observations.length,
+    totalObservations: reportObservations.length,
     overallScore: average(teamScores),
     generatedAt: input.generatedAt || new Date().toISOString(),
   };
 }
 
-function buildTeamReport(team: TbosReportTeamInput, observations: TbosReportObservationInput[]): TbosTeamReport {
+function buildTeamReport(
+  team: TbosReportTeamInput,
+  observations: TbosReportObservationInput[],
+  reportDimensions: ReadonlyArray<(typeof TBOS_REPORT_DIMENSIONS)[number]>,
+): TbosTeamReport {
   const teamObservations = observations.filter((observation) => observation.teamId === team.id);
-  const dimensions = TBOS_REPORT_DIMENSIONS.map((dimension) => {
+  const dimensions = reportDimensions.map((dimension) => {
     const values = teamObservations.flatMap((observation) =>
       observation.scores
         .filter((score) => score.dimensionCode === dimension.code)
@@ -192,8 +205,11 @@ function buildTeamReport(team: TbosReportTeamInput, observations: TbosReportObse
   };
 }
 
-function aggregateTeamDimensions(teams: TbosTeamReport[]): TbosDimensionResult[] {
-  return TBOS_REPORT_DIMENSIONS.map((dimension) => {
+function aggregateTeamDimensions(
+  teams: TbosTeamReport[],
+  reportDimensions: ReadonlyArray<(typeof TBOS_REPORT_DIMENSIONS)[number]>,
+): TbosDimensionResult[] {
+  return reportDimensions.map((dimension) => {
     const values = teams
       .map((team) => team.dimensions.find((item) => item.code === dimension.code)?.score ?? null)
       .filter((score): score is number => score !== null);

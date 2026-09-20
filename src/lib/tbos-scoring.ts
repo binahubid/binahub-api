@@ -32,8 +32,12 @@ export interface TbosTeamScore {
 export function calculateTbosTeamScore(
   teamId: string,
   observations: TbosObservationInput[],
-  missionDimensionMap: Record<string, string[]>
+  missionDimensionMap: Record<string, string[]>,
+  allowedDimensionCodes?: Iterable<string>
 ): TbosTeamScore {
+  const allowedDimensions = allowedDimensionCodes
+    ? new Set(allowedDimensionCodes)
+    : null;
   const teamObservations = observations.filter(
     (observation) => observation.teamId === teamId && observation.status !== "draft"
   );
@@ -44,6 +48,7 @@ export function calculateTbosTeamScore(
 
   for (const observation of teamObservations) {
     for (const score of observation.scores) {
+      if (allowedDimensions && !allowedDimensions.has(score.dimensionCode)) continue;
       const aggregate = dimensionAggregates.get(score.dimensionCode) || {
         total: 0,
         count: 0,
@@ -65,7 +70,9 @@ export function calculateTbosTeamScore(
   const missionScores: TbosMissionScore[] = [];
 
   for (const missionCode of observedMissions) {
-    const relevantDimensions = missionDimensionMap[missionCode];
+    const relevantDimensions = missionDimensionMap[missionCode]?.filter(
+      (dimensionCode) => !allowedDimensions || allowedDimensions.has(dimensionCode)
+    );
     if (!relevantDimensions) continue;
 
     const missionObservations = teamObservations.filter(

@@ -21,12 +21,14 @@ const controlSchema = z.discriminatedUnion("action", [
     encouragementMessage: z.string().trim().min(3).max(180),
     durationMinutes: z.number().int().min(1).max(240),
     scoresVisible: z.boolean(),
+    displayFocus: z.enum(["leaderboard", "countdown"]),
   }).strict(),
   z.object({ action: z.literal("start"), programId: z.string().uuid() }).strict(),
   z.object({ action: z.literal("pause"), programId: z.string().uuid() }).strict(),
   z.object({ action: z.literal("reset"), programId: z.string().uuid() }).strict(),
   z.object({ action: z.literal("finish"), programId: z.string().uuid() }).strict(),
   z.object({ action: z.literal("set_scores_visible"), programId: z.string().uuid(), scoresVisible: z.boolean() }).strict(),
+  z.object({ action: z.literal("set_display_focus"), programId: z.string().uuid(), displayFocus: z.enum(["leaderboard", "countdown"]) }).strict(),
 ]);
 
 type TeamRow = { id: string; name: string; batch: string; batch_id: string | null };
@@ -52,6 +54,7 @@ type SessionRow = LiveTimerRecord & {
   title: string;
   encouragement_message: string;
   scores_visible: boolean;
+  display_focus: "leaderboard" | "countdown";
   updated_at: string;
 };
 
@@ -87,7 +90,7 @@ export async function GET(req: NextRequest) {
   const [programResult, batchResult, sessionResult] = await Promise.all([
     db.from("engagements").select("id,title").eq("id", parsed.data.programId).maybeSingle(),
     db.from("batches").select("id,name,sort_order").eq("program_id", parsed.data.programId).order("sort_order").order("name"),
-    db.from("tbos_live_score_sessions").select("id,program_id,batch_id,title,encouragement_message,status,duration_seconds,remaining_seconds,ends_at,scores_visible,updated_at").eq("program_id", parsed.data.programId).maybeSingle(),
+    db.from("tbos_live_score_sessions").select("id,program_id,batch_id,title,encouragement_message,status,duration_seconds,remaining_seconds,ends_at,scores_visible,display_focus,updated_at").eq("program_id", parsed.data.programId).maybeSingle(),
   ]);
 
   if (missingLiveScoreTable(sessionResult.error)) {
@@ -103,7 +106,7 @@ export async function GET(req: NextRequest) {
     return errorResponse("Batch tidak termasuk dalam program ini.", 400);
   }
 
-  const [teams, observations, missionsResult, mappingsResult] = await Promise.all([
+  const [teams, observations, missionsResult, mappingsResult, competenciesResult] = await Promise.all([
     collectAllPages<TeamRow>((from, to) => {
       let query = db.from("tbos_teams").select("id,name,batch,batch_id").eq("engagement_id", parsed.data.programId).order("name");
       if (activeBatchId) query = query.eq("batch_id", activeBatchId);
@@ -116,9 +119,10 @@ export async function GET(req: NextRequest) {
     `).eq("program_id", parsed.data.programId).in("status", ["submitted", "locked"]).range(from, to) as never),
     db.from("tbos_missions").select("id,code,name"),
     db.from("tbos_mission_dimensions").select("tbos_missions(code),tbos_behavioral_dimensions(code)"),
-  ]).catch((error) => [null, null, null, { error }] as const);
+    db.from("tbos_program_competencies").select("tbos_behavioral_dimensions(code)").eq("program_id", parsed.data.programId).order("order_index"),
+  ]).catch((error) => [null, null, null, { error }, null] as const);
 
-  if (!teams || !observations || !missionsResult || !mappingsResult || missionsResult.error || mappingsResult.error) {
+  if (!teams || !observations || !missionsResult || !mappingsResult || !competenciesResult || missionsResult.error || mappingsResult.error || competenciesResult.error) {
     const message = missionsResult?.error?.message || mappingsResult?.error?.message || (mappingsResult as { error?: Error } | null)?.error?.message || "Data live score tidak dapat dimuat.";
     return errorResponse(message, 500);
   }
@@ -133,6 +137,10 @@ export async function GET(req: NextRequest) {
     if (!missionDimensionMap[missionCode]) missionDimensionMap[missionCode] = [];
     missionDimensionMap[missionCode].push(dimensionCode);
   }
+  const selectedDimensionCodes = ((competenciesResult.data || []) as unknown as Array<{
+    tbos_behavioral_dimensions: { code: string } | { code: string }[] | null;
+  }>).map((row) => one(row.tbos_behavioral_dimensions)?.code).filter((code): code is string => Boolean(code));
+  if (selectedDimensionCodes.length > 0) missionDimensionMap.program_observation = selectedDimensionCodes;
 
   const scoreInputs: TbosObservationInput[] = scopedObservations.map((observation) => ({
     teamId: observation.team_id,
@@ -147,7 +155,12 @@ export async function GET(req: NextRequest) {
 
   const candidates = teams.map((team) => {
     const teamRows = scopedObservations.filter((observation) => observation.team_id === team.id);
-    const score = calculateTbosTeamScore(team.id, scoreInputs, missionDimensionMap);
+    const score = calculateTbosTeamScore(
+      team.id,
+      scoreInputs,
+      missionDimensionMap,
+      selectedDimensionCodes.length > 0 ? selectedDimensionCodes : undefined,
+    );
     const strongest = [...score.dimensionScores].sort((left, right) => right.score - left.score)[0];
     const latest = teamRows.map((observation) => observation.submitted_at).sort().at(-1) || null;
     return {
@@ -155,13 +168,13 @@ export async function GET(req: NextRequest) {
       teamName: team.name,
       batch: team.batch,
       score: score.overallScore,
-      completedMissions: new Set(teamRows.map((observation) => observation.mission_id)).size,
+      completedMissions: teamRows.length > 0 ? 1 : 0,
       strongestDimension: strongest?.dimensionName || null,
       lastScoredAt: latest,
     };
   });
   const leaderboard = rankLiveTeams(candidates);
-  const totalMissions = (missionsResult.data || []).length;
+  const totalMissions = 1;
   const totalSlots = teams.length * totalMissions;
   const completedSlots = leaderboard.reduce((total, team) => total + team.completedMissions, 0);
   const now = new Date();
@@ -198,12 +211,13 @@ export async function GET(req: NextRequest) {
       configured: Boolean(session),
       id: session?.id || null,
       title: session?.title || "T-BOS Live Score",
-      encouragementMessage: session?.encouragement_message || "Tetap kompak. Setiap misi adalah kesempatan untuk naik bersama.",
+      encouragementMessage: session?.encouragement_message || "Tetap kompak. Setiap kompetensi adalah kesempatan untuk tumbuh bersama.",
       status: timer.status,
       durationSeconds: session?.duration_seconds || 1200,
       remainingSeconds: timer.remainingSeconds,
       endsAt: timer.status === "running" ? session?.ends_at || null : null,
       scoresVisible: session?.scores_visible ?? true,
+      displayFocus: session?.display_focus || "leaderboard",
       updatedAt: session?.updated_at || null,
     },
     summary: {
@@ -253,10 +267,11 @@ export async function POST(req: NextRequest) {
       remaining_seconds: durationSeconds,
       ends_at: null,
       scores_visible: parsed.data.scoresVisible,
+      display_focus: parsed.data.displayFocus,
       updated_by: auth.email,
     }, { onConflict: "program_id" }).select("*").single();
     if (error || !saved) return errorResponse(error?.message || "Konfigurasi tidak dapat disimpan.", 500);
-    await db.from("tbos_live_score_audit_log").insert({ session_id: saved.id, action: "configured", actor: auth.email, previous_status: existing?.status || null, new_status: "ready", metadata: { batchId: parsed.data.batchId, durationSeconds, scoresVisible: parsed.data.scoresVisible } });
+    await db.from("tbos_live_score_audit_log").insert({ session_id: saved.id, action: "configured", actor: auth.email, previous_status: existing?.status || null, new_status: "ready", metadata: { batchId: parsed.data.batchId, durationSeconds, scoresVisible: parsed.data.scoresVisible, displayFocus: parsed.data.displayFocus } });
     return NextResponse.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
   }
 
@@ -264,7 +279,7 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const current = deriveLiveTimer(existing, now.getTime());
   let update: Record<string, unknown>;
-  let auditAction: "started" | "paused" | "reset" | "finished" | "scores_shown" | "scores_hidden";
+  let auditAction: "started" | "paused" | "reset" | "finished" | "scores_shown" | "scores_hidden" | "focus_leaderboard" | "focus_countdown";
 
   if (parsed.data.action === "start") {
     if (existing.status === "running" && current.status === "running") return errorResponse("Countdown sudah berjalan.", 409);
@@ -281,9 +296,12 @@ export async function POST(req: NextRequest) {
   } else if (parsed.data.action === "finish") {
     update = { status: "finished", remaining_seconds: 0, ends_at: null, updated_by: auth.email };
     auditAction = "finished";
-  } else {
+  } else if (parsed.data.action === "set_scores_visible") {
     update = { scores_visible: parsed.data.scoresVisible, updated_by: auth.email };
     auditAction = parsed.data.scoresVisible ? "scores_shown" : "scores_hidden";
+  } else {
+    update = { display_focus: parsed.data.displayFocus, updated_by: auth.email };
+    auditAction = parsed.data.displayFocus === "countdown" ? "focus_countdown" : "focus_leaderboard";
   }
 
   const { error } = await db.from("tbos_live_score_sessions").update(update).eq("id", existing.id);

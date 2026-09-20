@@ -75,7 +75,22 @@ export async function GET(req: NextRequest) {
   const { data: missions, error: missionsError } = await missionQuery;
   if (missionsError) return NextResponse.json({ success: false, error: missionsError.message }, { status: 500 });
 
-  // Get dimension mapping for each mission
+  const { data: programCompetencies, error: programCompetenciesError } = programId
+    ? await db
+        .from("tbos_program_competencies")
+        .select("dimension_id,order_index,tbos_behavioral_dimensions(id,code,name,question,order_index)")
+        .eq("program_id", programId)
+        .order("order_index")
+    : { data: null, error: null };
+  if (programCompetenciesError) {
+    return NextResponse.json({ success: false, error: programCompetenciesError.message }, { status: 500 });
+  }
+  const selectedProgramDimensions = ((programCompetencies || []) as unknown as Array<{
+    tbos_behavioral_dimensions: DimensionRow | null;
+  }>).map((row) => row.tbos_behavioral_dimensions).filter((dimension): dimension is DimensionRow => Boolean(dimension));
+
+  // Get dimension mapping for each internal observation context. Program-level
+  // competency selection overrides the historical mission mapping.
   const missionsWithDimensions = await Promise.all(
     ((missions || []) as MissionRow[]).map(async (mission) => {
       const { data: dims } = await db
@@ -92,13 +107,13 @@ export async function GET(req: NextRequest) {
         `)
         .eq("mission_id", mission.id);
 
-      const dimensions = ((dims || []) as unknown as MissionDimensionRow[])
+      const dimensions = (selectedProgramDimensions.length > 0 ? selectedProgramDimensions : ((dims || []) as unknown as MissionDimensionRow[])
         .map((dimension) => dimension.tbos_behavioral_dimensions)
-        .filter((dimension): dimension is DimensionRow => Boolean(dimension))
+        .filter((dimension): dimension is DimensionRow => Boolean(dimension)))
         .sort((a, b) => a.order_index - b.order_index);
 
       if (dimensions.length === 0) {
-        throw new Error(`Mission ${mission.code} belum memiliki mapping dimensi.`);
+        throw new Error(`Konteks observasi ${mission.code} belum memiliki kompetensi.`);
       }
 
       // Get levels for each dimension

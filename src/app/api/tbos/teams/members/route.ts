@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Anda tidak ditugaskan ke tim ini." }, { status: 403 });
   }
   if (!access.canEditRoster || !(await claimRoster(db, auth.userId, auth.role, teamId))) {
-    return NextResponse.json({ success: false, error: "Roster tim sudah dikunci oleh kunjungan pos pertama." }, { status: 409 });
+    return NextResponse.json({ success: false, error: "Roster tim sudah dikunci setelah observasi pertama." }, { status: 409 });
   }
 
   const { data, error } = await db.rpc("tbos_add_team_members", {
@@ -208,7 +208,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Anda tidak ditugaskan ke tim ini." }, { status: 403 });
   }
   if (!access.canEditRoster) {
-    return NextResponse.json({ success: false, error: "Roster tim sudah dikunci oleh kunjungan pos pertama." }, { status: 409 });
+    return NextResponse.json({ success: false, error: "Roster tim sudah dikunci setelah observasi pertama." }, { status: 409 });
   }
 
   const { error } = await db.rpc("tbos_set_team_captain", {
@@ -245,7 +245,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Anda tidak ditugaskan ke tim ini." }, { status: 403 });
   }
   if (!access.canEditRoster) {
-    return NextResponse.json({ success: false, error: "Roster tim sudah dikunci oleh kunjungan pos pertama." }, { status: 409 });
+    return NextResponse.json({ success: false, error: "Roster tim sudah dikunci setelah observasi pertama." }, { status: 409 });
   }
   const { data: member } = await db
     .from("tbos_team_members")

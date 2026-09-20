@@ -68,6 +68,7 @@ try {
     "/api/tbos/teams/members?teamId=00000000-0000-0000-0000-000000000000",
     "/api/tbos/participant/team-info?programId=00000000-0000-0000-0000-000000000000",
     "/api/tbos/live-score?programId=00000000-0000-0000-0000-000000000000",
+    "/api/tbos/program-competencies?programId=00000000-0000-0000-0000-000000000000",
   ];
   const [anonymousResults, programsResult] = await Promise.all([
     Promise.all(anonymousPaths.map((path) => request(path))),
@@ -90,12 +91,16 @@ try {
   check(programs.length > 0, "minimal satu program T-BOS aktif tersedia", `${programs.length} program`);
 
   if (programs[0]?.id) {
-    const liveScoreResult = await request(`/api/tbos/live-score?programId=${encodeURIComponent(programs[0].id)}`, { token });
+    const [liveScoreResult, competencyResult] = await Promise.all([
+      request(`/api/tbos/live-score?programId=${encodeURIComponent(programs[0].id)}`, { token }),
+      request(`/api/tbos/program-competencies?programId=${encodeURIComponent(programs[0].id)}`, { token }),
+    ]);
     const serializedLiveScore = JSON.stringify(liveScoreResult.payload || {});
     check(
       liveScoreResult.response.status === 200
         && liveScoreResult.payload?.success === true
         && liveScoreResult.payload?.liveScoreReady === true
+        && ["leaderboard", "countdown"].includes(liveScoreResult.payload?.session?.displayFocus)
         && Array.isArray(liveScoreResult.payload?.leaderboard),
       "admin dapat membaca agregat Live Score T-BOS",
       `HTTP ${liveScoreResult.response.status}`,
@@ -106,6 +111,17 @@ try {
         && !serializedLiveScore.includes("member_name")
         && !serializedLiveScore.includes("@"),
       "Live Score tidak mengekspos identitas peserta atau catatan fasilitator",
+    );
+    check(
+      competencyResult.response.status === 200
+        && competencyResult.payload?.success === true
+        && Array.isArray(competencyResult.payload?.dimensions)
+        && competencyResult.payload.dimensions.length === 8
+        && Array.isArray(competencyResult.payload?.selectedDimensionIds)
+        && competencyResult.payload.selectedDimensionIds.length >= 1
+        && competencyResult.payload.selectedDimensionIds.length <= 8,
+      "admin dapat membaca 1-8 kompetensi program",
+      `HTTP ${competencyResult.response.status}`,
     );
   }
 

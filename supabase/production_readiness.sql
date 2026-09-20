@@ -864,6 +864,57 @@ select
     and coalesce(not has_table_privilege('authenticated', to_regclass('public.tbos_live_score_audit_log'), 'SELECT,INSERT,UPDATE,DELETE'), false)
   ) as tbos_live_score_ready;
 
+-- T-BOS default operating model. Competency configuration and observation
+-- submission remain service-role only, every enabled program has 1-8 selected
+-- competencies, and facilitators use the internal observation context.
+select
+  (
+    to_regclass('public.tbos_program_configurations') is not null
+    and to_regclass('public.tbos_program_competencies') is not null
+    and to_regprocedure('public.set_tbos_program_competencies(uuid,uuid[],uuid)') is not null
+    and to_regprocedure('public.tbos_submit_program_observation(uuid,uuid,uuid,text,text,jsonb,jsonb,boolean)') is not null
+    and exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'tbos_live_score_sessions'
+        and column_name = 'display_focus'
+    )
+    and coalesce((
+      select relrowsecurity from pg_class
+      where oid = to_regclass('public.tbos_program_configurations')
+    ), false)
+    and coalesce((
+      select relrowsecurity from pg_class
+      where oid = to_regclass('public.tbos_program_competencies')
+    ), false)
+    and coalesce(not has_table_privilege('anon', to_regclass('public.tbos_program_configurations'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('authenticated', to_regclass('public.tbos_program_configurations'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('anon', to_regclass('public.tbos_program_competencies'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_table_privilege('authenticated', to_regclass('public.tbos_program_competencies'), 'SELECT,INSERT,UPDATE,DELETE'), false)
+    and coalesce(not has_function_privilege('anon', to_regprocedure('public.set_tbos_program_competencies(uuid,uuid[],uuid)'), 'EXECUTE'), false)
+    and coalesce(not has_function_privilege('authenticated', to_regprocedure('public.tbos_submit_program_observation(uuid,uuid,uuid,text,text,jsonb,jsonb,boolean)'), 'EXECUTE'), false)
+    and exists (
+      select 1 from public.tbos_missions where code = 'program_observation'
+    )
+    and not exists (
+      select 1
+      from public.program_modules module
+      left join public.tbos_program_configurations configuration
+        on configuration.program_id = module.program_id
+      where module.module_key = 'tbos'
+        and module.enabled
+        and configuration.program_id is null
+    )
+    and not exists (
+      select configuration.program_id
+      from public.tbos_program_configurations configuration
+      left join public.tbos_program_competencies competency
+        on competency.program_id = configuration.program_id
+      group by configuration.program_id
+      having count(competency.dimension_id) not between 1 and 8
+    )
+  ) as tbos_program_competencies_ready;
+
 select
   cls.relname as table_name,
   cls.relrowsecurity as rls_enabled,

@@ -167,14 +167,24 @@ export async function GET(
 
   const profilesById = new Map((profileRows || []).map((profile) => [profile.id, profile.full_name]));
 
-  // Fetch mission dimensions with levels for edit mode
-  const { data: missionDims } = await db
-    .from("tbos_mission_dimensions")
-    .select(`
-      dimension_id,
-      tbos_behavioral_dimensions (id, code, name, question, order_index)
-    `)
-    .eq("mission_id", observationRecord.mission_id);
+  // The default journey follows the competencies selected at program level.
+  // Historical observations keep using their original mission mapping.
+  const { data: missionDims } = observationRecord.tbos_missions?.code === "program_observation"
+    ? await db
+        .from("tbos_program_competencies")
+        .select(`
+          dimension_id,
+          tbos_behavioral_dimensions (id, code, name, question, order_index)
+        `)
+        .eq("program_id", observationRecord.program_id)
+        .order("order_index", { ascending: true })
+    : await db
+        .from("tbos_mission_dimensions")
+        .select(`
+          dimension_id,
+          tbos_behavioral_dimensions (id, code, name, question, order_index)
+        `)
+        .eq("mission_id", observationRecord.mission_id);
 
   const dimensions = await Promise.all(
     ((missionDims || []) as unknown as MissionDimensionRow[]).map(async (md) => {

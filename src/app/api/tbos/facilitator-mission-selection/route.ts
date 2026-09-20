@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = selectionSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "Program dan misi wajib dipilih." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Program dan konteks observasi wajib dipilih." }, { status: 400 });
   }
 
   const db = createServerSupabase();

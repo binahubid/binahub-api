@@ -5,6 +5,24 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-09-20
+
+### Added — T-BOS configurable competencies
+
+- Menambahkan konfigurasi program untuk memilih 1–8 kompetensi, lengkap dengan RPC fail-closed dan penguncian otomatis saat observasi pertama.
+- Menambahkan konteks observasi internal tunggal agar fasilitator tidak perlu memilih misi serta tetap kompatibel dengan histori T-BOS sebelumnya.
+- Menambahkan penyimpanan fokus tampilan Live Score antara klasemen dan countdown beserta audit aksinya.
+
+### Changed — Reporting and roster controls
+
+- Membatasi skor dashboard, Live Score, tampilan peserta, ekspor CSV, serta laporan grup/individu pada kompetensi program yang dipilih.
+- Memungkinkan admin menyiapkan anggota dan kapten tim sebelum sesi, sedangkan roster fasilitator tetap terkunci setelah observasi pertama.
+- Memperluas smoke gate produksi untuk memeriksa endpoint konfigurasi kompetensi dan state fokus Live Score.
+
+### Safety
+
+- Migrasi tidak menghapus pemetaan misi historis; model baru memakai `program_observation` sebagai identitas teknis internal.
+
 ## [0.25.0] - 2026-09-15
 
 ### Added — T-BOS Live Score Control Plane

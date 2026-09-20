@@ -214,6 +214,16 @@ async function fetchProgramReport(db: Db, programId: string, batch: string | nul
     .order("submitted_at", { ascending: true })
     .range(from, to) as never);
 
+  const { data: configuredCompetencies, error: competencyError } = await db
+    .from("tbos_program_competencies")
+    .select("tbos_behavioral_dimensions(code)")
+    .eq("program_id", programId)
+    .order("order_index", { ascending: true });
+  if (competencyError) throw new Error(`Gagal memuat kompetensi program: ${competencyError.message}`);
+  const dimensionCodes = ((configuredCompetencies || []) as unknown as Array<{
+    tbos_behavioral_dimensions: { code: string } | null;
+  }>).map((row) => row.tbos_behavioral_dimensions?.code).filter((code): code is string => Boolean(code));
+
   const membersByTeam = new Map<string, TbosReportTeamInput["members"]>();
   for (const member of members) {
     const current = membersByTeam.get(member.team_id) || [];
@@ -231,7 +241,7 @@ async function fetchProgramReport(db: Db, programId: string, batch: string | nul
     id: observation.id,
     teamId: observation.team_id,
     missionCode: observation.tbos_missions?.code || "unknown",
-    missionName: observation.tbos_missions?.name || "Misi tidak diketahui",
+    missionName: observation.tbos_missions?.name || "Observasi program",
     facilitatorName: observation.profiles?.full_name || "-",
     observedAt: observation.observed_at,
     submittedAt: observation.submitted_at,
@@ -239,7 +249,7 @@ async function fetchProgramReport(db: Db, programId: string, batch: string | nul
     notes: observation.notes,
     scores: (observation.tbos_observation_scores || []).map((score) => ({
       dimensionCode: score.tbos_behavioral_dimensions?.code || "unknown",
-      dimensionName: score.tbos_behavioral_dimensions?.name || "Dimensi tidak diketahui",
+      dimensionName: score.tbos_behavioral_dimensions?.name || "Kompetensi tidak diketahui",
       levelValue: score.level_value,
     })),
   }));
@@ -257,6 +267,7 @@ async function fetchProgramReport(db: Db, programId: string, batch: string | nul
     observations: batch
       ? observations.filter((observation) => teamIds.includes(observation.teamId))
       : observations,
+    dimensionCodes,
   });
 }
 
@@ -265,7 +276,7 @@ function buildCsv(report: TbosProgramReport, teamId: string | null) {
     .filter((team) => !teamId || team.id === teamId)
     .flatMap((team) => team.observations.map((observation) => ({ team, observation })));
   const rows = [
-    ["Tim", "Batch", "Misi", "Fasilitator", "Tanggal Observasi", "Status", "Dimensi", "Nilai", "Level", "Catatan"],
+    ["Tim", "Batch", "Observasi", "Fasilitator", "Tanggal Observasi", "Status", "Kompetensi", "Nilai", "Level", "Catatan"],
   ];
   for (const { team, observation } of observations) {
     if (observation.scores.length === 0) {

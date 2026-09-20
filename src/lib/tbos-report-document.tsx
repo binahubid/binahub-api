@@ -223,13 +223,13 @@ function TeamDetailPage({ report, team, scopeLabel }: { report: TbosProgramRepor
       </View>
 
       <View style={styles.section} wrap={false}>
-        <Text style={styles.sectionTitle}>Delapan Dimensi Perilaku</Text>
-        <Text style={styles.sectionDescription}>Batang berwarna menunjukkan skor rata-rata pada skala 1-5. Tanda - berarti dimensi belum diobservasi.</Text>
+        <Text style={styles.sectionTitle}>Kompetensi Perilaku Terpilih</Text>
+        <Text style={styles.sectionDescription}>Batang berwarna menunjukkan skor rata-rata pada skala 1-5. Tanda - berarti kompetensi belum diobservasi.</Text>
         <DimensionBars dimensions={team.dimensions} />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Hasil per Misi</Text>
+        <Text style={styles.sectionTitle}>Catatan Observasi</Text>
         {team.missions.length === 0 ? <Text style={styles.calloutText}>Belum ada observasi yang tersimpan.</Text> : team.missions.map((mission) => (
           <View key={mission.code} style={styles.missionCard} wrap={false}>
             <View style={styles.missionHeader}><Text style={styles.missionName}>{mission.name}</Text><Text style={styles.missionScore}>{formatScore(mission.score)}</Text></View>
@@ -277,7 +277,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
           </View>
         </View>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rata-rata Delapan Dimensi</Text>
+          <Text style={styles.sectionTitle}>Rata-rata Kompetensi Terpilih</Text>
           <DimensionBars dimensions={report.dimensions} />
         </View>
         <PageFooter report={report} />
@@ -285,7 +285,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
 
       <Page size="A4" style={styles.page} wrap>
         <ReportHeader eyebrow="Ringkasan" title="Peringkat dan Skor Tim" report={report} scopeLabel={scopeLabel} />
-        <Text style={styles.sectionDescription}>Peringkat memakai skor rata-rata misi yang telah diselesaikan. Misi yang belum diobservasi tidak dihitung sebagai nol.</Text>
+        <Text style={styles.sectionDescription}>Peringkat memakai rata-rata kompetensi yang telah dinilai. Kompetensi yang belum diobservasi tidak dihitung sebagai nol.</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader} fixed>
             <Text style={[styles.tableHeaderText, { width: 25 }]}>No.</Text>
@@ -312,8 +312,8 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
       </Page>
 
       <Page size="A4" style={styles.page} wrap>
-        <ReportHeader eyebrow="Grafik Radar" title="Profil Delapan Dimensi per Tim" report={report} scopeLabel={scopeLabel} />
-        <Text style={styles.sectionDescription}>Setiap grafik menunjukkan pola skor tim pada delapan dimensi perilaku.</Text>
+        <ReportHeader eyebrow="Grafik Radar" title="Profil Kompetensi per Tim" report={report} scopeLabel={scopeLabel} />
+        <Text style={styles.sectionDescription}>Setiap grafik menunjukkan pola skor tim pada kompetensi yang dipilih untuk program.</Text>
         <View style={styles.radarGrid}>
           {alphabeticalTeams.map((team) => (
             <View key={team.id} style={styles.radarCard} wrap={false}>
@@ -330,7 +330,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
       </Page>
 
       <Page size="A4" style={styles.page} wrap>
-        <ReportHeader eyebrow="Heatmap" title="Perbandingan Delapan Dimensi" report={report} scopeLabel={scopeLabel} />
+        <ReportHeader eyebrow="Heatmap" title="Perbandingan Kompetensi" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Warna menunjukkan level skor: merah lebih rendah, kuning menengah, dan hijau lebih tinggi.</Text>
         <View style={{ borderWidth: 0.8, borderColor: BORDER }}>
           <View style={styles.heatmapHeader} fixed>
@@ -353,7 +353,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
 
       <Page size="A4" style={styles.page} wrap>
         <ReportHeader eyebrow="Perbandingan Batch" title="Rata-rata per Batch" report={report} scopeLabel={scopeLabel} />
-        <Text style={styles.sectionDescription}>Perbandingan dihitung dari skor tim yang memiliki data pada dimensi terkait.</Text>
+        <Text style={styles.sectionDescription}>Perbandingan dihitung dari skor tim yang memiliki data pada kompetensi terkait.</Text>
         {report.batches.length === 0 ? <Text style={styles.calloutText}>Belum ada data batch.</Text> : report.batches.map((batch) => (
           <View key={batch.batch} style={styles.batchCard} wrap={false}>
             <View style={styles.batchHeader}><Text style={styles.batchName}>{batch.batch}</Text><Text style={styles.batchScore}>Skor {formatScore(batch.overallScore)}</Text></View>
@@ -376,7 +376,7 @@ function executiveNarrative(report: TbosProgramReport) {
   if (report.totalObservations === 0) return `Belum ada observasi yang tersimpan untuk ${report.program.title}. Laporan akan terisi setelah fasilitator menyelesaikan penilaian.`;
   const strength = report.strengths[0];
   const development = report.developmentAreas[0];
-  return `Berdasarkan ${report.totalObservations} observasi terhadap ${report.teams.length} tim, skor rata-rata program adalah ${formatScore(report.overallScore)} dari 5. Kekuatan utama berada pada ${strength?.name || "dimensi yang belum dapat ditentukan"} dengan skor ${formatScore(strength?.score ?? null)}. Prioritas pengembangan berada pada ${development?.name || "dimensi yang belum dapat ditentukan"} dengan skor ${formatScore(development?.score ?? null)}.`;
+  return `Berdasarkan ${report.totalObservations} observasi terhadap ${report.teams.length} tim, skor rata-rata program adalah ${formatScore(report.overallScore)} dari 5. Kekuatan utama berada pada ${strength?.name || "kompetensi yang belum dapat ditentukan"} dengan skor ${formatScore(strength?.score ?? null)}. Prioritas pengembangan berada pada ${development?.name || "kompetensi yang belum dapat ditentukan"} dengan skor ${formatScore(development?.score ?? null)}.`;
 }
 
 function formatScore(score: number | null) {

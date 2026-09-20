@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Gagal memuat cakupan fasilitator." }, { status: 500 });
     }
     if (assignedMissionIds.length === 0) {
-      return NextResponse.json({ success: false, error: "Pilih dan kunci pos sebelum melihat hasil observasi." }, { status: 409 });
+      return NextResponse.json({ success: false, error: "Anda belum ditugaskan pada program ini." }, { status: 409 });
     }
   }
 
@@ -191,6 +191,19 @@ export async function GET(req: NextRequest) {
     .select("code, name, order_index")
     .order("order_index", { ascending: true });
 
+  const { data: selectedCompetencies } = await db
+    .from("tbos_program_competencies")
+    .select("tbos_behavioral_dimensions(code)")
+    .eq("program_id", programId)
+    .order("order_index", { ascending: true });
+
+  const configuredDimensionCodes = ((selectedCompetencies || []) as unknown as Array<{
+    tbos_behavioral_dimensions: { code: string } | null;
+  }>).map((row) => row.tbos_behavioral_dimensions?.code).filter((code): code is string => Boolean(code));
+  const selectedDimensionCodes = configuredDimensionCodes.length > 0
+    ? configuredDimensionCodes
+    : (dimensions || []).map((dimension) => dimension.code);
+
   // Fetch all missions for reference
   const { data: missions } = await db
     .from("tbos_missions")
@@ -215,6 +228,9 @@ export async function GET(req: NextRequest) {
       missionDimensionMap[mCode].push(dCode);
     }
   }
+  if (selectedDimensionCodes.length > 0) {
+    missionDimensionMap.program_observation = selectedDimensionCodes;
+  }
 
   return NextResponse.json({
     success: true,
@@ -233,6 +249,7 @@ export async function GET(req: NextRequest) {
     dimensions: dimensions || [],
     missions: missions || [],
     missionDimensionMap,
+    selectedDimensionCodes,
     viewerStats,
     generatedAt: new Date().toISOString(),
   });

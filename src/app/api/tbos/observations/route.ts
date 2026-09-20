@@ -98,13 +98,13 @@ export async function POST(req: NextRequest) {
     try {
       const selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, team.engagement_id);
       if (!selectedMissionId) {
-        return NextResponse.json({ success: false, error: "Pilih dan kunci pos sebelum melakukan observasi." }, { status: 409 });
+        return NextResponse.json({ success: false, error: "Anda belum ditugaskan pada program ini." }, { status: 409 });
       }
       if (selectedMissionId !== missionId) {
-        return NextResponse.json({ success: false, error: "Anda hanya dapat menilai misi/pos yang sudah dikunci." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "Konteks observasi tidak sesuai dengan penugasan program." }, { status: 403 });
       }
     } catch (assignmentError) {
-      return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa pos." }, { status: 500 });
+      return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa penugasan." }, { status: 500 });
     }
   }
 
@@ -123,17 +123,14 @@ export async function POST(req: NextRequest) {
   if (existingObservation) {
     return NextResponse.json({
       success: false,
-      error: "Tim ini sudah selesai dinilai pada pos Anda. Buka Hasil Observasi untuk melihat datanya.",
+      error: "Tim ini sudah selesai dinilai. Buka Hasil Observasi untuk melihat datanya.",
       existingObservationId: existingObservation.id,
     }, { status: 409 });
   }
 
-  const { data: observationId, error } = await db.rpc("tbos_submit_observation_v2", {
+  const { data: observationId, error } = await db.rpc("tbos_submit_program_observation", {
     p_facilitator_id: auth.userId,
     p_team_id: teamId,
-    p_program_id: null,
-    p_batch_id: null,
-    p_team_name: null,
     p_mission_id: missionId,
     p_client_submission_id: clientSubmissionId,
     p_notes: notes || null,
@@ -147,20 +144,11 @@ export async function POST(req: NextRequest) {
     const duplicateTeamMission = error.code === "23505"
       && error.message.includes("tbos_observations_program_team_mission_unique");
     const message = duplicateTeamMission
-      ? "Tim ini sudah selesai dinilai pada pos Anda. Buka Hasil Observasi untuk melihat datanya."
+      ? "Tim ini sudah selesai dinilai. Buka Hasil Observasi untuk melihat datanya."
       : error.code === "23505"
       ? "Data yang sama sudah tersimpan. Muat ulang halaman sebelum melanjutkan."
       : error.message;
     return NextResponse.json({ success: false, error: message }, { status });
-  }
-
-  if (auth.role === "facilitator") {
-    await db
-      .from("tbos_teams")
-      .update({ roster_initialized_at: new Date().toISOString() })
-      .eq("id", teamId)
-      .eq("roster_initialized_by", auth.userId)
-      .is("roster_initialized_at", null);
   }
 
   return NextResponse.json({ success: true, observationId });
@@ -189,10 +177,10 @@ export async function GET(req: NextRequest) {
     try {
       selectedMissionId = await getSelectedFacilitatorMission(db, auth.userId, programId);
     } catch (assignmentError) {
-      return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa pos." }, { status: 500 });
+      return NextResponse.json({ success: false, error: assignmentError instanceof Error ? assignmentError.message : "Gagal memeriksa penugasan." }, { status: 500 });
     }
     if (!selectedMissionId) {
-      return NextResponse.json({ success: false, error: "Pilih dan kunci pos untuk melihat hasil observasi." }, { status: 409 });
+      return NextResponse.json({ success: false, error: "Anda belum ditugaskan pada program ini." }, { status: 409 });
     }
   }
   const url = new URL(req.url);
@@ -203,7 +191,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Filter observasi tidak valid." }, { status: 400 });
   }
   if (auth.role === "facilitator" && missionId && missionId !== selectedMissionId) {
-    return NextResponse.json({ success: false, error: "Hasil hanya tersedia untuk misi/pos yang Anda pilih." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "Hasil observasi berada di luar penugasan program Anda." }, { status: 403 });
   }
 
   let typedRows: ObservationListRow[];
