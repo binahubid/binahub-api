@@ -199,7 +199,11 @@ export async function PATCH(req: NextRequest) {
   }
   if (!updatedProfile) return NextResponse.json({ success: false, error: "Pengguna tidak ditemukan." }, { status: 404 });
 
-  // Update auth metadata & force logout
+  // Keep app_metadata aligned with the authoritative profile role. Supabase's
+  // admin.signOut expects an access token, not a user UUID, so session revocation
+  // cannot be performed with that method. Authorization checks read profiles,
+  // making the new role effective immediately while JWT metadata refreshes on
+  // the target user's next token refresh/sign-in.
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseAdmin = createClient(
@@ -219,15 +223,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: `Role tersimpan tetapi metadata auth gagal disinkronkan: ${metadataError.message}` }, { status: 500 });
     }
 
-    const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(id, "global");
-    if (signOutError) {
-      return NextResponse.json({ success: false, error: `Role tersimpan tetapi sesi lama gagal dicabut: ${signOutError.message}` }, { status: 500 });
-    }
   } catch (err) {
     console.error("[PATCH /api/users] Auth sync error:", err);
   }
 
-  return NextResponse.json({ success: true, role });
+  return NextResponse.json({ success: true, role, sessionRefreshRequired: true });
 }
 
 export async function DELETE(req: NextRequest) {

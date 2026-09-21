@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     assignment: data,
-    message: "Fasilitator ditugaskan ke program. Fasilitator akan memilih dan mengunci satu pos.",
+    message: "Fasilitator ditugaskan ke program dan dapat langsung mengobservasi tim sesuai kompetensi program.",
   });
 }
 

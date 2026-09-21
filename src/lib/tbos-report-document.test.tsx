@@ -49,6 +49,14 @@ const report = buildTbosProgramReport({
   generatedAt: "2026-08-15T10:00:00+07:00",
 });
 
+const fourCompetencyReport = buildTbosProgramReport({
+  program: report.program,
+  teams,
+  observations,
+  generatedAt: "2026-08-15T10:00:00+07:00",
+  dimensionCodes: TBOS_REPORT_DIMENSIONS.slice(0, 4).map((dimension) => dimension.code),
+});
+
 describe("T-BOS PDF documents", () => {
   it("renders the complete group report", async () => {
     const buffer = await renderToBuffer(<TbosGroupReportDocument report={report} />);
@@ -62,6 +70,14 @@ describe("T-BOS PDF documents", () => {
     expect(buffer.subarray(0, 4).toString()).toBe("%PDF");
     expect(buffer.length).toBeGreaterThan(3_000);
     writeQaOutput(process.env.TBOS_TEAM_PDF_QA_OUTPUT, buffer);
+  });
+
+  it("renders a full-width heatmap for four selected competencies", async () => {
+    const buffer = await renderToBuffer(<TbosGroupReportDocument report={fourCompetencyReport} />);
+    expect(fourCompetencyReport.dimensions).toHaveLength(4);
+    expect(buffer.subarray(0, 4).toString()).toBe("%PDF");
+    expect(buffer.length).toBeGreaterThan(8_000);
+    writeQaOutput(process.env.TBOS_GROUP_FOUR_COMPETENCY_PDF_QA_OUTPUT, buffer);
   });
 });
 

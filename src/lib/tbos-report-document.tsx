@@ -69,11 +69,12 @@ const styles = StyleSheet.create({
   radarLegendRow: { flexDirection: "row", justifyContent: "space-between", gap: 4, marginBottom: 2 },
   radarLegendLabel: { flex: 1, fontSize: 5.6, color: SLATE },
   radarLegendScore: { fontSize: 5.8, fontWeight: 700, color: BLUE },
-  heatmapHeader: { flexDirection: "row", minHeight: 34, alignItems: "flex-end", paddingVertical: 5, backgroundColor: NAVY },
+  heatmapHeader: { flexDirection: "row", minHeight: 40, alignItems: "stretch", backgroundColor: NAVY },
   heatmapRow: { flexDirection: "row", minHeight: 24, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: BORDER },
-  heatmapTeam: { width: 92, paddingHorizontal: 5, fontSize: 6.4, fontWeight: 700, color: NAVY },
-  heatmapBatch: { width: 44, paddingHorizontal: 3, fontSize: 6, color: SLATE },
-  heatmapCell: { width: 45, height: 18, marginHorizontal: 1.5, borderRadius: 3, alignItems: "center", justifyContent: "center" },
+  heatmapTeam: { width: 105, paddingHorizontal: 5, fontSize: 6.4, fontWeight: 700, color: NAVY },
+  heatmapBatch: { width: 50, paddingHorizontal: 3, fontSize: 6, color: SLATE },
+  heatmapDimensionHeader: { flex: 1, paddingHorizontal: 2, paddingVertical: 6, textAlign: "center", alignSelf: "stretch" },
+  heatmapCell: { flex: 1, height: 18, marginHorizontal: 1.5, borderRadius: 3, alignItems: "center", justifyContent: "center" },
   heatmapCellText: { fontSize: 6, fontWeight: 700 },
   batchCard: { marginBottom: 9, borderWidth: 0.8, borderColor: BORDER, borderRadius: 7, padding: 9, backgroundColor: PAPER },
   batchHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 7 },
@@ -277,7 +278,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
           </View>
         </View>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rata-rata Kompetensi Terpilih</Text>
+          <Text style={styles.sectionTitle}>Rata-rata Kompetensi</Text>
           <DimensionBars dimensions={report.dimensions} />
         </View>
         <PageFooter report={report} />
@@ -334,9 +335,20 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
         <Text style={styles.sectionDescription}>Warna menunjukkan level skor: merah lebih rendah, kuning menengah, dan hijau lebih tinggi.</Text>
         <View style={{ borderWidth: 0.8, borderColor: BORDER }}>
           <View style={styles.heatmapHeader} fixed>
-            <Text style={[styles.tableHeaderText, { width: 92, paddingHorizontal: 5 }]}>Tim</Text>
-            <Text style={[styles.tableHeaderText, { width: 44, paddingHorizontal: 3 }]}>Batch</Text>
-            {report.dimensions.map((dimension) => <Text key={dimension.code} style={[styles.tableHeaderText, { width: 45, textAlign: "center", fontSize: 5.5 }]}>{shortDimensionName(dimension.code)}</Text>)}
+            <Text style={[styles.tableHeaderText, { width: 105, paddingHorizontal: 5, paddingVertical: 14 }]}>Tim</Text>
+            <Text style={[styles.tableHeaderText, { width: 50, paddingHorizontal: 3, paddingVertical: 14 }]}>Batch</Text>
+            {report.dimensions.map((dimension) => (
+              <Text
+                key={dimension.code}
+                style={[
+                  styles.tableHeaderText,
+                  styles.heatmapDimensionHeader,
+                  { fontSize: report.dimensions.length <= 4 ? 6.2 : report.dimensions.length <= 6 ? 5.5 : 4.8 },
+                ]}
+              >
+                {dimension.name}
+              </Text>
+            ))}
           </View>
           {alphabeticalTeams.map((team, index) => (
             <View key={team.id} style={[styles.heatmapRow, ...(index % 2 ? [styles.tableRowAlt] : [])]} wrap={false}>
@@ -408,18 +420,4 @@ function heatmapTone(score: number | null) {
   if (score >= 3) return { background: "#FEF3C7", text: "#92400E" };
   if (score >= 2) return { background: "#FFEDD5", text: "#9A3412" };
   return { background: "#FEE2E2", text: "#991B1B" };
-}
-
-function shortDimensionName(code: string) {
-  const names: Record<string, string> = {
-    goal_alignment: "Goal Align.",
-    communication: "Communication",
-    data_based_decision: "Data Decision",
-    execution_discipline: "Execution",
-    accountability: "Accountability",
-    adaptability: "Adaptability",
-    collaboration: "Collaboration",
-    org_ownership: "Org. Ownership",
-  };
-  return names[code] || code;
 }

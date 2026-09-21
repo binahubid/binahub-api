@@ -5,6 +5,23 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-09-21
+
+### Fixed — T-BOS group reporting
+
+- Membuat kolom heatmap laporan grup fleksibel mengikuti jumlah kompetensi agar nama kompetensi terbaca utuh dan tabel memenuhi lebar halaman.
+- Mengganti judul “Rata-rata Kompetensi Terpilih” menjadi “Rata-rata Kompetensi”.
+- Menambahkan pengujian render khusus laporan dengan empat kompetensi terpilih.
+
+### Fixed — Role synchronization
+
+- Menghapus pemanggilan `admin.signOut` yang keliru mengirim UUID pengguna sebagai JWT dan menyebabkan role tersimpan tetapi respons berakhir error.
+- Mempertahankan role profil sebagai sumber otoritatif serta menyelaraskan `app_metadata` untuk token berikutnya tanpa memunculkan kegagalan sesi palsu.
+
+### Changed — T-BOS facilitator assignment
+
+- Menyesuaikan pesan penugasan fasilitator dengan alur observasi berbasis kompetensi program tanpa pemilihan pos/misi.
+
 ## [0.26.0] - 2026-09-20
 
 ### Added — T-BOS configurable competencies

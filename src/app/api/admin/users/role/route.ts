@@ -44,7 +44,9 @@ export async function POST(req: NextRequest) {
   }
   if (!updatedProfile) return NextResponse.json({ success: false, error: "Pengguna tidak ditemukan." }, { status: 404 });
 
-  // Sync role to app_metadata BEFORE force logout, so new JWT has correct role
+  // Sync role to app_metadata. Supabase admin.signOut expects an access token,
+  // not a user UUID; profile-based authorization applies this change now and
+  // JWT metadata catches up on the user's next token refresh/sign-in.
   const { data: targetUser, error: userError } = await db.auth.admin.getUserById(userId);
   if (userError || !targetUser.user) {
     return NextResponse.json({ success: false, error: "Akun autentikasi tidak ditemukan." }, { status: 404 });
@@ -56,10 +58,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: `Role tersimpan tetapi metadata auth gagal disinkronkan: ${metadataError.message}` }, { status: 500 });
   }
 
-  const { error: signOutError } = await db.auth.admin.signOut(userId, "global");
-  if (signOutError) {
-    return NextResponse.json({ success: false, error: `Role tersimpan tetapi sesi lama gagal dicabut: ${signOutError.message}` }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true, role });
+  return NextResponse.json({ success: true, role, sessionRefreshRequired: true });
 }
