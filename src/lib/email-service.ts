@@ -5,6 +5,7 @@ import type { Locale } from '@/i18n/config';
 import { createProposalToken } from '@/lib/secure-token';
 import { createServerSupabase } from '@/lib/supabase';
 import { createUnsubscribeToken, normalizeRecipientEmail } from '@/lib/unsubscribe-token';
+import { renderApprovedOutreachHtml } from '@/lib/email-template-renderer';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -105,10 +106,41 @@ function getConsultationUrl() {
 function appendUnsubscribeFooter(html: string, unsubscribeUrl: string) {
   const footer = `
   <div style="max-width:640px;margin:14px auto 0;padding:0 20px;text-align:center;color:#64748B;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;">
+    PT Binahub Solusi Transformasi · <a href="https://www.binahub.id" style="color:#0B2C6B;">www.binahub.id</a><br>
     Email ini merupakan follow-up dari BinaHub. Jika Anda tidak ingin menerima follow-up berikutnya,
     <a href="${escapeHtml(unsubscribeUrl)}" style="color:#0B2C6B;text-decoration:underline;">atur preferensi email</a>.
   </div>`;
   return html.includes('</body>') ? html.replace('</body>', `${footer}</body>`) : `${html}${footer}`;
+}
+
+export async function sendReviewedInquiryReply(input: {
+  to: string;
+  name: string;
+  subject: string;
+  body: string;
+}) {
+  const normalizedTo = normalizeRecipientEmail(input.to);
+  const consultationUrl = escapeHtml(getConsultationUrl());
+  const safeBody = escapeHtml(input.body)
+    .replace(/^•\s+(.+)$/gm, '<span style="display:block;padding-left:16px;">• $1</span>')
+    .replace(/\n/g, '<br>');
+  const html = renderApprovedOutreachHtml(`
+    <p style="margin-top:0;">Yth. Bapak/Ibu ${escapeHtml(input.name)},</p>
+    <div>${safeBody}</div>
+    <p style="margin:26px 0 0;color:#475569;">Jika Bapak/Ibu lebih nyaman berdiskusi langsung, silakan <a href="${consultationUrl}" style="color:#0B2C6B;font-weight:700;">pilih waktu konsultasi melalui Cal.com</a>.</p>
+    <p style="margin:26px 0 0;">Salam hangat,</p>
+    <p style="margin:8px 0 0;"><strong>BinaHub</strong><br>Consultant | BinaHub<br><em>People. Learning. Elevated.</em></p>
+  `);
+  const response = await resend.emails.send({
+    from: `${COMPANY_NAME} <${FROM}>`,
+    to: normalizedTo,
+    replyTo: REPLY_TO,
+    subject: safeHeader(input.subject),
+    html,
+    tags: [{ name: 'category', value: 'inquiry_human_reviewed_reply' }],
+  });
+  if (response.error) throw new Error(`Resend gagal mengirim balasan inquiry: ${response.error.message}`);
+  return response;
 }
 
 export async function sendAssessmentEmail(
@@ -125,46 +157,70 @@ export async function sendAssessmentEmail(
   const safeWhatsapp = escapeHtml(formData.whatsapp || '-');
   const safeCategory = escapeHtml(String(result.category));
   const safeArchetype = result.archetype ? escapeHtml(result.archetype) : '';
+  const dimensionLabels: Record<string, { id: string; en: string }> = {
+    strategy: { id: 'Strategi', en: 'Strategy' },
+    people: { id: 'People', en: 'People' },
+    process: { id: 'Proses', en: 'Process' },
+    technology: { id: 'Teknologi', en: 'Technology' },
+    culture: { id: 'Budaya', en: 'Culture' },
+    leadership: { id: 'Kepemimpinan', en: 'Leadership' },
+    customer: { id: 'Pelanggan', en: 'Customer' },
+  };
+  const rankedDimensions = Object.entries(result.scores)
+    .filter(([key, score]) => key !== 'overall' && Number.isFinite(Number(score)))
+    .map(([key, score]) => ({
+      label: dimensionLabels[key]?.[isEnglish ? 'en' : 'id'] || key.replace(/_/g, ' '),
+      score: Number(score),
+    }))
+    .sort((a, b) => b.score - a.score);
+  const strengthItems = rankedDimensions.slice(0, 2);
+  const developmentItems = [...rankedDimensions].reverse().slice(0, 2);
   const copy = isEnglish
     ? {
-        title: 'Executive Report',
-        preheader: 'BinaHub Insight Diagnostic',
-        heading: 'Confidential Executive Assessment',
+        title: 'Team/Organization Effectiveness Diagnostic Result',
+        preheader: 'BinaHub Diagnostic Result',
+        heading: 'Your Initial Diagnostic Result',
         greeting: `Dear <strong>${safeName}</strong>,`,
-        intro: `Thank you for completing the BinaHub Insight diagnostic process. Your initial report has been processed and attached as a PDF so it can be reviewed more fully by the internal team at ${safeCompany}.`,
+        intro: `Thank you for completing BinaHub's <strong>Team/Organization Effectiveness Diagnostic</strong>. The summary below provides an initial view of your team, while the complete analysis is included in the attached PDF report.`,
         overallScore: 'Overall Score',
-        stage: 'Stage',
-        noteTitle: 'Introductory Note',
-        noteBody: 'This email serves as the official introduction to the completed diagnostic result. The full analysis, development priorities, cross-dimensional reasoning, and initial recommendations are available in the attached PDF.',
-        referenceTitle: 'Reference Document',
-        pdfNote: '<strong>The full PDF report</strong> contains visualization details, diagnostic insights, strategic priorities, and an initial roadmap. This email is intentionally brief so the main document remains the official reference.',
-        proposalIntro: 'If you would like to understand the program format, scope, and investment direction most relevant to this diagnostic result, you can request an initial proposal from our team.',
-        proposalCta: 'Request Proposal',
-        chatCta: 'Ask an initial question through the BinaHub assistant',
-        footer: 'People Transformation & Future Capability Partner',
-        auto: 'This email was sent automatically. If you need assistance, reply to',
-        subject: safeHeader(`Confidential Executive Assessment · ${formData.company}`),
-        fileName: `Diagnostic_Report_${safeFilenamePart(formData.company)}.pdf`,
+        stage: 'Result Level',
+        strengthTitle: 'Visible strengths',
+        developmentTitle: 'Areas that can be strengthened',
+        noteTitle: 'How to read this result',
+        noteBody: 'This result is an initial view designed to help identify areas that may require attention as your organization responds to change and evolving work demands.',
+        referenceTitle: 'Complete report attached',
+        pdfNote: '<strong>The attached PDF report</strong> contains the detailed scores, analysis, insights, and initial priorities. Please use the PDF as the primary reference for this diagnostic result.',
+        proposalIntro: 'If you would like to explore relevant development approaches and an initial budget estimate, we can prepare a <strong>Preliminary Recommendation</strong> based on this diagnostic result.',
+        proposalCta: 'Request a Preliminary Recommendation',
+        chatCta: 'Learn more about BinaHub',
+        closing: 'Warm regards,',
+        footer: 'CEO | BinaHub<br><em>People. Learning. Elevated.</em><br><a href="https://www.binahub.id" style="color:#0B2C6B;">www.binahub.id</a>',
+        auto: 'This email was sent automatically. For assistance, reply to',
+        subject: safeHeader(`Your BinaHub Diagnostic Result · ${formData.company}`),
+        fileName: `BinaHub_Diagnostic_Result_${safeFilenamePart(formData.company)}.pdf`,
       }
     : {
-        title: 'Laporan Eksekutif',
-        preheader: 'Diagnostik BinaHub Insight',
-        heading: 'Asesmen Eksekutif Rahasia',
+        title: 'Hasil Diagnosa Efektivitas Tim/Organisasi',
+        preheader: 'Hasil Diagnosa BinaHub',
+        heading: 'Gambaran Awal Kondisi Tim Anda',
         greeting: `Yth. <strong>Bapak/Ibu ${safeName}</strong>,`,
-        intro: `Terima kasih telah menyelesaikan proses diagnostik BinaHub Insight. Laporan awal Anda telah kami proses dan kami lampirkan dalam bentuk PDF agar dapat ditinjau secara lebih utuh oleh tim internal ${safeCompany}.`,
+        intro: `Terima kasih telah mengikuti <strong>Diagnosa Efektivitas Tim/Organisasi dari BinaHub</strong>. Ringkasan berikut memberikan gambaran awal kondisi tim Anda, sedangkan analisis lengkap tersedia dalam laporan PDF terlampir.`,
         overallScore: 'Skor Keseluruhan',
-        stage: 'Tahap',
-        noteTitle: 'Catatan Pendahuluan',
-        noteBody: 'Email ini bersifat sebagai pengantar resmi atas hasil diagnostik yang telah diselesaikan. Seluruh detail analisis, prioritas pengembangan, penalaran lintas dimensi, dan rekomendasi awal tersedia dalam PDF terlampir.',
-        referenceTitle: 'Dokumen Rujukan',
-        pdfNote: '<strong>Laporan lengkap (PDF)</strong> berisi detail visualisasi, insight diagnostik, prioritas strategis, dan roadmap awal. Badan email ini kami buat ringkas agar dokumen utama tetap menjadi rujukan resmi.',
-        proposalIntro: 'Jika Bapak/Ibu ingin mengetahui bentuk program, ruang lingkup, dan arah investasi yang paling relevan dengan hasil diagnostik ini, silakan minta penawaran awal dari tim kami.',
-        proposalCta: 'Minta Penawaran',
-        chatCta: 'Ajukan pertanyaan awal melalui asisten BinaHub',
-        footer: 'Mitra Transformasi Manusia & Kapabilitas Masa Depan',
-        auto: 'Email ini dikirim secara otomatis. Jika butuh bantuan, balas ke',
-        subject: safeHeader(`Asesmen Eksekutif Rahasia · ${formData.company}`),
-        fileName: `Laporan_Diagnostik_${safeFilenamePart(formData.company)}.pdf`,
+        stage: 'Level Hasil',
+        strengthTitle: 'Kekuatan yang terlihat',
+        developmentTitle: 'Area yang masih dapat diperkuat',
+        noteTitle: 'Cara membaca hasil',
+        noteBody: 'Hasil ini merupakan gambaran awal untuk membantu melihat area yang perlu mendapat perhatian dalam menghadapi perubahan dan tuntutan pekerjaan.',
+        referenceTitle: 'Laporan lengkap terlampir',
+        pdfNote: '<strong>Laporan PDF terlampir</strong> memuat rincian skor, analisis, insight, dan prioritas awal. Gunakan PDF tersebut sebagai rujukan utama hasil diagnosa ini.',
+        proposalIntro: 'Jika Bapak/Ibu ingin mengetahui <strong>pendekatan pengembangan yang mungkin relevan beserta estimasi budget awal</strong>, kami dapat menyiapkan <strong>Preliminary Recommendation</strong> berdasarkan hasil diagnosa ini.',
+        proposalCta: 'Minta Preliminary Recommendation',
+        chatCta: 'Kenali BinaHub lebih jauh',
+        closing: 'Salam hangat,',
+        footer: 'CEO | BinaHub<br><em>People. Learning. Elevated.</em><br><a href="https://www.binahub.id" style="color:#0B2C6B;">www.binahub.id</a>',
+        auto: 'Email ini dikirim secara otomatis. Jika membutuhkan bantuan, balas ke',
+        subject: safeHeader(`Hasil Diagnosa BinaHub · ${formData.company}`),
+        fileName: `Hasil_Diagnosa_BinaHub_${safeFilenamePart(formData.company)}.pdf`,
       };
   // Brand Colors
   const navy = '#0B2C6B';
@@ -174,7 +230,6 @@ export async function sendAssessmentEmail(
   const crossInsights: string[] = [];
   const appUrl = getAppUrl();
   const apiUrl = (process.env.NEXT_PUBLIC_BINAHUB_API_URL || '').replace(/\/$/, '');
-  const localizedAppUrl = appUrl ? `${appUrl}${isEnglish ? '/en' : ''}` : '';
   const proposalUrl = assessmentId && apiUrl
     ? `${apiUrl}/api/proposal/request?assessmentId=${encodeURIComponent(assessmentId)}&token=${encodeURIComponent(createProposalToken(assessmentId))}`
     : `${appUrl || '#'}?proposal=request`;
@@ -226,6 +281,21 @@ export async function sendAssessmentEmail(
         ` : ''}
       </div>
 
+      <div style="display:flex;gap:14px;margin:0 0 34px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:20px;">
+          <h2 style="color:${navy};font-size:15px;margin:0 0 12px;">${copy.strengthTitle}</h2>
+          <ul style="margin:0;padding-left:20px;color:#475569;font-size:14px;line-height:1.7;">
+            ${strengthItems.map((item) => `<li>${escapeHtml(item.label)} — ${item.score}</li>`).join('') || `<li>${safeCategory}</li>`}
+          </ul>
+        </div>
+        <div style="flex:1;min-width:220px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:20px;">
+          <h2 style="color:${navy};font-size:15px;margin:0 0 12px;">${copy.developmentTitle}</h2>
+          <ul style="margin:0;padding-left:20px;color:#475569;font-size:14px;line-height:1.7;">
+            ${developmentItems.map((item) => `<li>${escapeHtml(item.label)} — ${item.score}</li>`).join('') || `<li>${isEnglish ? 'See the attached PDF for details.' : 'Lihat rincian pada PDF terlampir.'}</li>`}
+          </ul>
+        </div>
+      </div>
+
       <!-- Analysis -->
       <h2 style="color:${navy};font-size:18px;font-weight:600;margin:0 0 15px;border-left:3px solid ${gold};padding-left:12px;">${copy.noteTitle}</h2>
       <div style="background:#FFFFFF;padding:0 0 35px 0;">
@@ -275,19 +345,23 @@ export async function sendAssessmentEmail(
           ${copy.proposalCta}
         </a>
         <div style="margin-top:25px;">
-          <a href="${localizedAppUrl || appUrl || '#'}?chat=open&name=${encodeURIComponent(formData.name)}&company=${encodeURIComponent(formData.company)}&score=${result.scores.overall}" 
+          <a href="https://binahub.id"
              style="color:${navy};font-size:13px;font-weight:600;text-decoration:underline;">
             ${copy.chatCta}
           </a>
         </div>
       </div>
+
+      <div style="margin-top:42px;color:#334155;font-size:14px;line-height:1.65;">
+        <p style="margin:0 0 16px;">${copy.closing}</p>
+        <p style="margin:0;"><strong>Bilal Dwi Nugraha</strong><br>${copy.footer}</p>
+      </div>
     </div>
 
     <!-- Footer -->
     <div style="padding:30px 40px;border-top:1px solid #E2E8F0;text-align:center;background-color:${offWhite};">
-      <p style="color:${navy};font-size:12px;margin:0;font-weight:600;letter-spacing:1px;text-transform:uppercase;">${COMPANY_NAME}</p>
+      <p style="color:#64748B;font-size:11px;margin:0;">PT Binahub Solusi Transformasi · www.binahub.id</p>
       <p style="color:#94A3B8;font-size:11px;margin:8px 0 0;">
-        ${copy.footer}<br>
         ${copy.auto} ${process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'hello@binahub.id'}
       </p>
     </div>
@@ -371,10 +445,11 @@ export async function sendOutreachEmail(
   if (!apiUrl) throw new Error('NEXT_PUBLIC_BINAHUB_API_URL belum dikonfigurasi.');
   const unsubscribeToken = createUnsubscribeToken(normalizedTo);
   const unsubscribeUrl = `${apiUrl}/api/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
-  const renderedHtml = renderGeneratedEmailSafely(htmlContent, {
-    '{{name}}': name,
-    '{{company}}': company || 'Perusahaan Anda',
-  });
+  const renderedHtml = renderApprovedOutreachHtml(
+    htmlContent
+      .replaceAll('{{name}}', escapeHtml(name))
+      .replaceAll('{{company}}', escapeHtml(company || 'Perusahaan Anda')),
+  );
   const response = await resend.emails.send({
     from: `${COMPANY_NAME} <${FROM}>`,
     to: normalizedTo,
@@ -429,18 +504,57 @@ export async function sendProposalEmail(
     nextStep?: string;
   },
   pdfBuffer?: Buffer,
-  assessmentId?: string
+  assessmentId?: string,
+  locale: Locale = 'id',
 ) {
+  const isEnglish = locale === 'en';
   const navy = '#0B2C6B';
   const gold = '#D9A441';
-  const subject = safeHeader(proposal.subject || `Proposal Penawaran BinaHub untuk ${company}`);
-  const appUrl = getAppUrl();
+  const subject = safeHeader(isEnglish
+    ? `Preliminary Recommendation for ${company}`
+    : `Preliminary Recommendation untuk ${company}`);
   const safeName = escapeHtml(name);
   const safeCompany = escapeHtml(company);
-  const safeProgram = escapeHtml(proposal.proposedProgram || 'Program Transformasi Organisasi');
-  const safeOpening = escapeHtml(proposal.opening || 'Berdasarkan hasil diagnostik yang telah Anda selesaikan, kami menyusun penawaran awal yang dapat menjadi bahan diskusi internal dan tindak lanjut bersama tim BinaHub.');
-  const safeNextStep = escapeHtml(proposal.nextStep || 'Langkah berikutnya adalah menyelaraskan prioritas program, ruang lingkup, peserta, dan paket yang paling sesuai.');
+  const safeProgram = escapeHtml(proposal.proposedProgram || (isEnglish ? 'Organization Development Program' : 'Program Pengembangan Organisasi'));
+  const safeApproach = escapeHtml(proposal.opening || proposal.nextStep || (isEnglish
+    ? 'A focused development approach aligned with the priorities identified in your diagnostic result.'
+    : 'Pendekatan pengembangan terarah yang diselaraskan dengan prioritas pada hasil diagnosa Anda.'));
+  const safeInvestment = escapeHtml(proposal.investmentNote || (isEnglish
+    ? 'Please refer to the attached PDF for the initial investment estimate.'
+    : 'Lihat laporan PDF terlampir untuk estimasi investasi awal.'));
+  const areas = (proposal.scope || []).slice(0, 3).map((item) => escapeHtml(item));
   const consultationUrl = escapeHtml(getConsultationUrl());
+  const copy = isEnglish
+    ? {
+        eyebrow: 'BinaHub Preliminary Recommendation',
+        greeting: `Dear <strong>${safeName}</strong>,`,
+        intro: `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. The complete recommendation is included in the attached PDF.`,
+        areaTitle: 'Areas that can be strengthened',
+        approachTitle: 'A potentially relevant approach',
+        formatTitle: 'Indicative format',
+        investmentTitle: 'Initial investment estimate',
+        attachment: 'The attached PDF contains the recommended approach, indicative scope, assumptions, and initial investment range. The final scope and investment can be adjusted after we understand the organization context, number of participants, duration, and delivery format in greater detail.',
+        question: 'Have a quick question? Simply reply to this email and we will be happy to help.',
+        schedule: 'Prefer a deeper discussion?',
+        cta: 'Choose a convenient discussion time',
+        closing: 'Warm regards,',
+        fileName: `BinaHub_Preliminary_Recommendation_${safeFilenamePart(company)}.pdf`,
+      }
+    : {
+        eyebrow: 'Preliminary Recommendation BinaHub',
+        greeting: `Yth. Bapak/Ibu <strong>${safeName}</strong>,`,
+        intro: `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Rekomendasi lengkap kami lampirkan dalam bentuk PDF.`,
+        areaTitle: 'Area yang dapat diperkuat',
+        approachTitle: 'Gambaran pendekatan yang mungkin relevan',
+        formatTitle: 'Format indikatif',
+        investmentTitle: 'Estimasi investasi awal',
+        attachment: 'PDF terlampir memuat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. Pendekatan dan investasi dapat disesuaikan setelah konteks organisasi, jumlah peserta, durasi, dan format program dipahami lebih lanjut.',
+        question: 'Ada pertanyaan singkat? Cukup balas email ini dan kami akan dengan senang hati membantu.',
+        schedule: 'Ingin berdiskusi lebih mendalam?',
+        cta: 'Pilih waktu diskusi yang nyaman',
+        closing: 'Salam hangat,',
+        fileName: `Preliminary_Recommendation_${safeFilenamePart(company)}.pdf`,
+      };
 
   const html = `
 <!DOCTYPE html>
@@ -448,26 +562,41 @@ export async function sendProposalEmail(
 <body style="margin:0;padding:0;background:#EAF0F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:640px;margin:36px auto;background:#FFFFFF;border-radius:10px;overflow:hidden;border:1px solid #DDE5F0;">
     <div style="background:${navy};padding:34px 38px;border-bottom:4px solid ${gold};">
-      <p style="margin:0 0 10px;color:${gold};font-size:10px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;">Proposal Penawaran BinaHub</p>
+      <p style="margin:0 0 10px;color:${gold};font-size:10px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;">${copy.eyebrow}</p>
       <h1 style="margin:0;color:#FFFFFF;font-size:25px;font-weight:600;line-height:1.25;">${safeProgram}</h1>
       <p style="margin:12px 0 0;color:rgba(255,255,255,0.72);font-size:14px;">${safeCompany}</p>
     </div>
     <div style="padding:36px 38px;color:#334155;">
-      <p style="margin:0 0 18px;color:${navy};font-size:16px;">Yth. <strong>${safeName}</strong>,</p>
-      <p style="margin:0 0 22px;line-height:1.7;font-size:15px;">${safeOpening}</p>
-      <p style="margin:0 0 26px;line-height:1.7;font-size:15px;">Detail ruang lingkup, estimasi timeline, pilihan paket A/B/C, dan catatan investasi kami lampirkan dalam PDF proposal. Email ini kami buat sebagai pengantar agar dokumen utama tetap menjadi rujukan resmi.</p>
+      <p style="margin:0 0 18px;color:${navy};font-size:16px;">${copy.greeting}</p>
+      <p style="margin:0 0 24px;line-height:1.7;font-size:15px;">${copy.intro}</p>
+
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:22px;margin-bottom:22px;">
+        <p style="margin:0 0 8px;color:${navy};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">${copy.areaTitle}</p>
+        <ul style="margin:0;padding-left:20px;line-height:1.7;font-size:14px;">
+          ${(areas.length ? areas : [safeProgram]).map((area) => `<li>${area}</li>`).join('')}
+        </ul>
+      </div>
+
+      <p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.approachTitle}</p>
+      <p style="margin:0 0 20px;line-height:1.7;font-size:15px;">${safeApproach}</p>
+      <p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.formatTitle}</p>
+      <p style="margin:0 0 20px;line-height:1.7;font-size:15px;">${safeProgram}</p>
+      <p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.investmentTitle}</p>
+      <p style="margin:0 0 22px;line-height:1.7;font-size:15px;font-weight:600;">${safeInvestment}</p>
+      <p style="margin:0 0 28px;line-height:1.7;font-size:14px;color:#64748B;">${copy.attachment}</p>
 
       <div style="border-top:1px solid #E2E8F0;padding-top:24px;text-align:center;">
-        <p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.6;">${safeNextStep}</p>
-        <a href="${consultationUrl}" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:700;font-size:14px;">Jadwalkan Diskusi Lanjutan</a>
-        <div style="margin-top:22px;">
-          <a href="${appUrl || '#'}?chat=open&name=${encodeURIComponent(name)}&company=${encodeURIComponent(company)}"
-             style="color:${navy};font-size:13px;font-weight:600;text-decoration:underline;">
-            Ajukan pertanyaan awal melalui asisten BinaHub
-          </a>
-        </div>
+        <p style="margin:0 0 10px;color:#475569;font-size:14px;line-height:1.6;">${copy.question}</p>
+        <p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.6;">${copy.schedule}</p>
+        <a href="${consultationUrl}" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:700;font-size:14px;">${copy.cta}</a>
+      </div>
+
+      <div style="margin-top:36px;font-size:14px;line-height:1.65;">
+        <p style="margin:0 0 14px;">${copy.closing}</p>
+        <p style="margin:0;"><strong>Bilal Dwi Nugraha</strong><br>CEO | BinaHub<br><em>People. Learning. Elevated.</em><br><a href="https://www.binahub.id" style="color:${navy};">www.binahub.id</a></p>
       </div>
     </div>
+    <div style="padding:20px 38px;background:#F8FAFC;border-top:1px solid #E2E8F0;color:#64748B;font-size:11px;text-align:center;">PT Binahub Solusi Transformasi · www.binahub.id</div>
   </div>
 </body>
 </html>
@@ -484,7 +613,7 @@ export async function sendProposalEmail(
     ],
     attachments: pdfBuffer
       ? [{
-          filename: `Proposal_Penawaran_${safeFilenamePart(company)}.pdf`,
+          filename: copy.fileName,
           content: pdfBuffer.toString('base64'),
         }]
       : [],

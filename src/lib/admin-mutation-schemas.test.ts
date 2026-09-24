@@ -14,6 +14,7 @@ import {
   deliveryMilestoneSchema,
   deliveryProjectUpdateSchema,
   inquiryUpdateSchema,
+  inquiryReplyActionSchema,
   operationalTaskUpdateSchema,
   pilotCertificationMutationSchema,
   pilotOperationsMutationSchema,
@@ -29,6 +30,13 @@ describe("admin mutation schemas", () => {
   it("accepts known dashboard mutations", () => {
     expect(contactUpdateSchema.safeParse({ id, status: "Qualified", notes: "Siap dihubungi" }).success).toBe(true);
     expect(inquiryUpdateSchema.safeParse({ id, status: "Dibalas", notes: "Sudah dibalas" }).success).toBe(true);
+    expect(inquiryReplyActionSchema.safeParse({ action: "generate_reply_draft", id }).success).toBe(true);
+    expect(inquiryReplyActionSchema.safeParse({
+      action: "save_reply_review", id, subject: "Tindak lanjut kebutuhan", body: "Isi balasan sudah diperiksa oleh admin BinaHub.",
+    }).success).toBe(true);
+    expect(inquiryReplyActionSchema.safeParse({
+      action: "send_reviewed_reply", id, confirmation: "SEND_REVIEWED_INQUIRY_REPLY",
+    }).success).toBe(true);
     expect(assessmentStatusUpdateSchema.safeParse({
       id,
       assessmentStatus: "Result Email Terkirim",
@@ -40,6 +48,7 @@ describe("admin mutation schemas", () => {
   it("rejects arbitrary statuses, actions, IDs, and oversized notes", () => {
     expect(contactUpdateSchema.safeParse({ id, status: "super-admin", notes: "" }).success).toBe(false);
     expect(inquiryUpdateSchema.safeParse({ id, status: "drop table", notes: "" }).success).toBe(false);
+    expect(inquiryReplyActionSchema.safeParse({ action: "send_reviewed_reply", id, confirmation: "SEND_NOW" }).success).toBe(false);
     expect(assessmentActionSchema.safeParse({ id, action: "delete_everything" }).success).toBe(false);
     expect(contactUpdateSchema.safeParse({ id: "not-a-uuid", status: "Qualified", notes: "" }).success).toBe(false);
     expect(contactUpdateSchema.safeParse({ id, status: "Qualified", notes: "x".repeat(4001) }).success).toBe(false);

@@ -119,7 +119,8 @@ export async function POST(req: NextRequest) {
 
     if (action === "resend_result") {
       const pdfBuffer = await generatePDFBuffer(formData, result);
-      const emailIds = await sendAssessmentEmail(formData, result, pdfBuffer, id);
+      const locale = formData.locale === "en" ? "en" : "id";
+      const emailIds = await sendAssessmentEmail(formData, result, pdfBuffer, id, locale);
       const sentAt = new Date().toISOString();
       await updateAssessmentWithEmailIds(
         db,
@@ -172,7 +173,8 @@ export async function POST(req: NextRequest) {
       }
 
       const proposalPdf = await generateProposalPDFBuffer(formData, proposal);
-      const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, proposalPdf, id);
+      const locale = formData.locale === "en" ? "en" : "id";
+      const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, proposalPdf, id, locale);
       const sentAt = new Date().toISOString();
       await updateAssessmentWithEmailIds(
         db,

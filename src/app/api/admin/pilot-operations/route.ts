@@ -3,6 +3,7 @@ import { adminError, parseValidatedBody } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/admin-auth";
 import { pilotOperationsMutationSchema } from "@/lib/admin-mutation-schemas";
 import { evaluateAutomationActivation, type AutomationRequestedMode } from "@/lib/automation-runtime-control";
+import { REQUIRED_OUTREACH_TEMPLATE_KEYS } from "@/lib/outreach-template";
 import { createServerSupabase } from "@/lib/supabase";
 
 type RuntimeRow = {
@@ -189,6 +190,10 @@ export async function GET(req: NextRequest) {
       .filter((item) => item.status === "approved" && item.is_mock === false)
       .map((item) => `${item.template_key}:${item.locale}`),
   );
+  const requiredTemplateKeys = ["id", "en"].flatMap((locale) =>
+    REQUIRED_OUTREACH_TEMPLATE_KEYS.map((key) => `${key}:${locale}`),
+  );
+  const approvedRequiredTemplateCount = requiredTemplateKeys.filter((key) => approvedTemplateKeys.has(key)).length;
   const activeRule = (rules.data || [])[0] || null;
   const activeRuleDocument = activeRule?.rules && typeof activeRule.rules === "object"
     ? activeRule.rules as Record<string, unknown>
@@ -203,7 +208,7 @@ export async function GET(req: NextRequest) {
     && activation.blockers.length === 0,
   );
   const uatReady = requiredUat.length >= 12 && passedUat.length === requiredUat.length;
-  const templatesReady = approvedTemplateKeys.size >= 18;
+  const templatesReady = approvedRequiredTemplateCount === requiredTemplateKeys.length;
   const releaseRows = (releases.data || []) as ReleaseRow[];
   const recipientsByRelease = new Map<string, string[]>();
   for (const recipient of (recipients.data || []) as RecipientRow[]) {
@@ -231,7 +236,7 @@ export async function GET(req: NextRequest) {
     state: gatesReady ? "eligible_for_pilot_review" : "construction_locked",
     gates: {
       uat: { ready: uatReady, required: requiredUat.length, passed: passedUat.length },
-      templates: { ready: templatesReady, approvedNonMock: approvedTemplateKeys.size, required: 18 },
+      templates: { ready: templatesReady, approvedNonMock: approvedRequiredTemplateCount, required: requiredTemplateKeys.length },
       businessRules: {
         ready: businessRulesReady,
         activeVersion: activeRule?.version || null,

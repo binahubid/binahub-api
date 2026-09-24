@@ -5,6 +5,30 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.26.2] - 2026-09-24
+
+### Added — CEO-approved bilingual email journey
+
+- Menambahkan migration `0054_ceo_email_templates.sql` berisi copy Bahasa Indonesia dari CEO dan terjemahan Bahasa Inggris untuk marketing blast, follow-up marketing, tiga follow-up inquiry, tiga follow-up hasil diagnosa, follow-up pertama preliminary recommendation, dan konfirmasi konsultasi.
+- Menambahkan template marketing dan konfirmasi konsultasi ke kontrak pengelolaan template admin tanpa menjadikannya syarat baru activation gate yang sedang berjalan.
+- Menambahkan alur balasan inquiry berbantuan AI dengan human gate: draf tersimpan, dapat diedit, wajib disimpan sebagai hasil review manusia, lalu dikirim melalui konfirmasi terpisah.
+- Menambahkan migration `0055_inquiry_human_review_gate.sql` untuk menyimpan status draf, reviewer, waktu kirim, dan ID email secara persisten.
+
+### Changed — Assessment and preliminary recommendation
+
+- Menyesuaikan email hasil diagnosa dengan ringkasan skor, dua kekuatan, dua area pengembangan, CTA signed untuk meminta Preliminary Recommendation, tautan BinaHub, penutup Bilal Dwi Nugraha, serta keterangan tegas bahwa rincian tersedia pada PDF terlampir.
+- Menyesuaikan email Preliminary Recommendation dengan area yang diperkuat, pendekatan, format, estimasi investasi, CTA konsultasi, penutup resmi, dan lampiran PDF; versi Inggris mengikuti locale assessment.
+- Menambahkan URL proposal signed, URL konsultasi, dan URL website sebagai variabel template follow-up yang diisi server-side dan di-escape sebelum dikirim.
+- Membatasi follow-up Preliminary Recommendation menjadi satu pesan; tiga follow-up hasil diagnosa dan tiga follow-up inquiry tetap tersedia sesuai journey masing-masing.
+- Menggunakan nama pengirim `BinaHub` untuk korespondensi konsultan, menjadikan Cal.com sumber utama konfirmasi jadwal, dan menyeragamkan identitas legal menjadi PT Binahub Solusi Transformasi serta www.binahub.id.
+
+### Security and Quality
+
+- Mempertahankan struktur paragraf, daftar, penekanan, dan tombol HTTPS pada template approved sambil menghapus script, embedded content, event handler, serta protokol URL berbahaya.
+- Menambahkan unit test agar format approved tetap tampil dan konten executable tidak ikut terkirim.
+- Mengunci klaim pengiriman balasan inquiry agar klik atau request paralel tidak menghasilkan email ganda, serta menjeda follow-up otomatis setelah balasan manusia terkirim.
+- Menambahkan shell email profesional yang ringan, responsif, email-safe, serta tetap dapat dibaca ketika gambar diblokir.
+
 ## [0.26.1] - 2026-09-21
 
 ### Fixed — T-BOS group reporting

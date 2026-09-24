@@ -7,6 +7,11 @@ loadEnvConfig(process.cwd());
 const baseUrl = String(process.env.PHASE17_API_URL || "").trim().replace(/\/$/, "");
 const decisionActor = String(process.env.PHASE17_DECISION_ACTOR || "admin@binahub.id").trim().toLowerCase();
 const failures = [];
+const requiredOutreachKeys = [
+  "inquiry_follow_up_1", "inquiry_follow_up_2", "inquiry_follow_up_3",
+  "assessment_result_follow_up_1", "assessment_result_follow_up_2", "assessment_result_follow_up_3",
+  "assessment_proposal_follow_up_1",
+];
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -102,14 +107,13 @@ try {
     )).length === 2,
     "wording proposal dan invoice approved interim",
   );
+  const approvedOutreachKeys = new Set((outreach.body?.templates || [])
+    .filter((item) => item.is_mock === false && item.status === "approved" && item.approved_by)
+    .map((item) => `${item.locale}:${item.template_key}`));
+  const requiredApprovedKeys = ["id", "en"].flatMap((locale) => requiredOutreachKeys.map((key) => `${locale}:${key}`));
   check(
-    outreach.body?.templates?.filter((item) => (
-      item.version === "v1.0-review"
-      && item.is_mock === false
-      && item.status === "approved"
-      && item.approved_by === decisionActor
-    )).length === 18,
-    "18 template outreach approved interim",
+    requiredApprovedKeys.every((key) => approvedOutreachKeys.has(key)),
+    "14 template follow-up wajib memiliki versi approved non-mock",
   );
   const activation = businessRules.body?.selectedRuleSet?.rules?.activation;
   check(

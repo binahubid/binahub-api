@@ -122,6 +122,14 @@ type InquiryRow = {
   follow_up_level?: number | null;
   follow_up_last_sent_at?: string | null;
   follow_up_paused?: boolean | null;
+  reply_subject?: string | null;
+  reply_body?: string | null;
+  reply_status?: string | null;
+  reply_generated_at?: string | null;
+  reply_reviewed_at?: string | null;
+  reply_reviewed_by?: string | null;
+  reply_sent_at?: string | null;
+  reply_email_id?: string | null;
   created_at: string | null;
 };
 
@@ -528,7 +536,7 @@ export async function GET(req: NextRequest) {
         .order("created_at", { ascending: false }),
       db
         .from("inquiries")
-        .select("id, lead_id, name, email, whatsapp, message, source, status, admin_notes, module_request_data, follow_up_level, follow_up_last_sent_at, follow_up_paused, created_at")
+        .select("id, lead_id, name, email, whatsapp, message, source, status, admin_notes, module_request_data, follow_up_level, follow_up_last_sent_at, follow_up_paused, reply_subject, reply_body, reply_status, reply_generated_at, reply_reviewed_at, reply_reviewed_by, reply_sent_at, reply_email_id, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
     ]);
@@ -981,6 +989,14 @@ export async function GET(req: NextRequest) {
       followUpLevel: item.follow_up_level || 0,
       followUpLastSentAt: item.follow_up_last_sent_at || null,
       followUpPaused: item.follow_up_paused === true,
+      replySubject: item.reply_subject || "",
+      replyBody: item.reply_body || "",
+      replyStatus: item.reply_status || "none",
+      replyGeneratedAt: item.reply_generated_at || null,
+      replyReviewedAt: item.reply_reviewed_at || null,
+      replyReviewedBy: item.reply_reviewed_by || null,
+      replySentAt: item.reply_sent_at || null,
+      replyEmailId: item.reply_email_id || null,
       moduleRequest: parseJson<Record<string, unknown>>(item.module_request_data, {}),
       createdAt: item.created_at,
     }))

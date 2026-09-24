@@ -10,8 +10,6 @@ export const REQUIRED_OUTREACH_TEMPLATE_KEYS = [
   "assessment_result_follow_up_2",
   "assessment_result_follow_up_3",
   "assessment_proposal_follow_up_1",
-  "assessment_proposal_follow_up_2",
-  "assessment_proposal_follow_up_3",
 ] as const;
 const REQUIRED_OUTREACH_LOCALES = ["id", "en"] as const;
 

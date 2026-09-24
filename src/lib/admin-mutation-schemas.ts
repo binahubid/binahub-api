@@ -72,6 +72,24 @@ export const inquiryUpdateSchema = z.object({
   followUpPaused: z.boolean().optional(),
 }).strict();
 
+export const inquiryReplyActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("generate_reply_draft"),
+    id: z.string().uuid("ID inquiry tidak valid."),
+  }).strict(),
+  z.object({
+    action: z.literal("save_reply_review"),
+    id: z.string().uuid("ID inquiry tidak valid."),
+    subject: z.string().trim().min(3, "Subjek minimal 3 karakter.").max(300),
+    body: z.string().trim().min(20, "Isi balasan minimal 20 karakter.").max(12_000),
+  }).strict(),
+  z.object({
+    action: z.literal("send_reviewed_reply"),
+    id: z.string().uuid("ID inquiry tidak valid."),
+    confirmation: z.literal("SEND_REVIEWED_INQUIRY_REPLY"),
+  }).strict(),
+]);
+
 export const assessmentStatusUpdateSchema = z.object({
   id: z.string().uuid("ID assessment tidak valid."),
   assessmentStatus: assessmentStatusSchema,
@@ -455,6 +473,8 @@ export const acquisitionBatchReviewSchema = z.object({
 }).strict();
 
 export const outreachTemplateKeySchema = z.enum([
+  "marketing_blast_initial",
+  "marketing_blast_follow_up_1",
   "inquiry_follow_up_1",
   "inquiry_follow_up_2",
   "inquiry_follow_up_3",
@@ -462,8 +482,7 @@ export const outreachTemplateKeySchema = z.enum([
   "assessment_result_follow_up_2",
   "assessment_result_follow_up_3",
   "assessment_proposal_follow_up_1",
-  "assessment_proposal_follow_up_2",
-  "assessment_proposal_follow_up_3",
+  "consultation_confirmation",
 ]);
 
 export const outreachTemplateMutationSchema = z.object({

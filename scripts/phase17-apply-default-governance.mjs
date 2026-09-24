@@ -8,6 +8,11 @@ const baseUrl = String(process.env.PHASE17_API_URL || "").trim().replace(/\/$/, 
 const confirmed = process.env.PHASE17_CONFIRM_DEFAULT_GOVERNANCE === "true";
 const decisionActor = String(process.env.PHASE17_DECISION_ACTOR || "admin@binahub.id").trim().toLowerCase();
 const templateVersion = "v1.0-review";
+const requiredOutreachKeys = new Set([
+  "inquiry_follow_up_1", "inquiry_follow_up_2", "inquiry_follow_up_3",
+  "assessment_result_follow_up_1", "assessment_result_follow_up_2", "assessment_result_follow_up_3",
+  "assessment_proposal_follow_up_1",
+]);
 const decisionNote = "Disetujui sebagai konfigurasi default interim oleh decision actor end-to-end; CEO melakukan post-implementation review.";
 const failures = [];
 
@@ -240,10 +245,12 @@ try {
   }
 
   const targetTemplates = (outreach.templates || []).filter((template) => (
-    template.version === templateVersion && template.is_mock === false
+    template.version === templateVersion
+    && template.is_mock === false
+    && requiredOutreachKeys.has(template.template_key)
   ));
-  check(targetTemplates.length === 18, "18 template outreach target ditemukan", `ditemukan ${targetTemplates.length}`);
-  if (targetTemplates.length !== 18) throw new Error("Template outreach target belum lengkap; hentikan approval.");
+  check(targetTemplates.length === 14, "14 template outreach wajib ditemukan", `ditemukan ${targetTemplates.length}`);
+  if (targetTemplates.length !== 14) throw new Error("Template outreach wajib belum lengkap; hentikan approval.");
 
   for (const template of targetTemplates) {
     if (template.status === "approved" && template.approved_by === decisionActor) {
@@ -306,11 +313,12 @@ try {
   check(
     verifiedOutreach.templates?.filter((item) => (
       item.version === templateVersion
+      && requiredOutreachKeys.has(item.template_key)
       && item.is_mock === false
       && item.status === "approved"
       && item.approved_by === decisionActor
-    )).length === 18,
-    "18 template outreach approved interim",
+    )).length === 14,
+    "14 template outreach wajib approved interim",
   );
 
   if (failures.length) throw new Error(`Verifikasi governance gagal (${failures.length} pemeriksaan).`);

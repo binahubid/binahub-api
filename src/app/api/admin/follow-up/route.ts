@@ -15,11 +15,18 @@ import {
   isOutboundAutomationActive,
   loadApprovedOutreachTemplate,
 } from "@/lib/outreach-template";
+import { createProposalToken } from "@/lib/secure-token";
 
 type FollowUpLevel = 1 | 2 | 3;
 type AssessmentFollowUpChannel = "result" | "proposal";
 type FollowUpContent = { subject: string; html: string; templateVersion: string | null };
-type FollowUpTemplateVariables = { name: string; company: string };
+type FollowUpTemplateVariables = {
+  name: string;
+  company: string;
+  consultation_url?: string;
+  proposal_url?: string;
+  website_url?: string;
+};
 
 const FOLLOW_UP_STATUS: Record<FollowUpLevel, string> = {
   1: "Follow Up 1 Terkirim",
@@ -145,11 +152,40 @@ function appendHistory(current: unknown, entry: Record<string, unknown>) {
   return [...(Array.isArray(history) ? history : []), entry];
 }
 
-function applyTemplate(value: string, variables: FollowUpTemplateVariables) {
-  return value.replace(/\{\{\s*(name|company)\s*\}\}/g, (_match, key: keyof FollowUpTemplateVariables) => {
-    const resolved = variables[key] || (key === "name" ? "Bapak/Ibu" : "organisasi Anda");
-    return resolved.replace(/[\r\n]+/g, " ");
-  });
+function escapeTemplateHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function applyTemplate(value: string, variables: FollowUpTemplateVariables, html = false) {
+  return value.replace(
+    /\{\{\s*(name|company|consultation_url|proposal_url|website_url)\s*\}\}/g,
+    (_match, key: keyof FollowUpTemplateVariables) => {
+      const fallback = key === "name" ? "Bapak/Ibu" : key === "company" ? "organisasi Anda" : "#";
+      const resolved = String(variables[key] || fallback).replace(/[\r\n]+/g, " ");
+      return html ? escapeTemplateHtml(resolved) : resolved;
+    },
+  );
+}
+
+function normalizePublicUrl(value: string | undefined, fallback: string) {
+  const candidate = String(value || "").trim().replace(/\/$/, "");
+  if (/^https:\/\//i.test(candidate)) return candidate;
+  return fallback;
+}
+
+function commonTemplateUrls() {
+  return {
+    consultation_url: normalizePublicUrl(
+      process.env.CALCOM_BOOKING_URL || process.env.NEXT_PUBLIC_CALCOM_BOOKING_URL,
+      "https://cal.com/binahub/konsultasi",
+    ),
+    website_url: "https://binahub.id",
+  };
 }
 
 async function resolveFollowUpContent(
@@ -162,7 +198,7 @@ async function resolveFollowUpContent(
   const template = await loadApprovedOutreachTemplate(db, templateKey, locale);
   if (template) return {
     subject: applyTemplate(template.subject, variables),
-    html: applyTemplate(template.html, variables),
+    html: applyTemplate(template.html, variables, true),
     templateVersion: template.version,
   };
   if (process.env.FOLLOW_UP_REQUIRE_APPROVED_TEMPLATE !== "false") {
@@ -295,6 +331,7 @@ function getAssessmentFieldPrefix(channel: AssessmentFollowUpChannel) {
 
 function getDueAssessmentLevel(assessment: AssessmentForFollowUp, channel: AssessmentFollowUpChannel) {
   const currentLevel = channel === "result" ? assessment.result_follow_up_level : assessment.proposal_follow_up_level;
+  if (channel === "proposal" && Number(currentLevel || 0) >= 1) return null;
   const candidate = nextLevel(currentLevel);
   if (!candidate) return null;
   if (assessment.follow_up_paused) return null;
@@ -353,6 +390,7 @@ async function sendFollowUpForInquiry(
     const generated = await resolveFollowUpContent(db, `inquiry_follow_up_${level}`, "id", {
       name: String(inquiry.name || "Bapak/Ibu"),
       company: String(inquiry.company || ""),
+      ...commonTemplateUrls(),
     }, () => generateInquiryFollowUp({
       name: String(inquiry.name || "Bapak/Ibu"),
       email,
@@ -451,9 +489,13 @@ async function sendFollowUpForAssessment(
 
   try {
     const locale = form.locale === "en" ? "en" : "id";
+    const apiUrl = normalizePublicUrl(process.env.NEXT_PUBLIC_BINAHUB_API_URL, "https://api.binahub.id");
+    const proposalUrl = `${apiUrl}/api/proposal/request?assessmentId=${encodeURIComponent(assessment.id)}&token=${encodeURIComponent(createProposalToken(assessment.id))}`;
     const generated = await resolveFollowUpContent(db, `assessment_${channel}_follow_up_${level}`, locale, {
       name: form.name || "Bapak/Ibu",
       company: form.company || "",
+      ...commonTemplateUrls(),
+      proposal_url: proposalUrl,
     }, () => generateAssessmentFollowUp({
       name: form.name || "Bapak/Ibu",
       email,
@@ -562,6 +604,7 @@ function validateAssessmentFollowUp(
   channel: AssessmentFollowUpChannel,
   level: FollowUpLevel,
 ) {
+  if (channel === "proposal" && level !== 1) return "Preliminary Recommendation hanya memiliki satu follow up.";
   if (assessment.follow_up_paused) return "Follow up assessment sedang dijeda.";
   if (channel === "result") {
     if (
@@ -581,6 +624,7 @@ function validateAssessmentFollowUp(
   }
 
   const currentLevel = channel === "result" ? assessment.result_follow_up_level : assessment.proposal_follow_up_level;
+  if (channel === "proposal" && Number(currentLevel || 0) >= 1) return "Follow up Preliminary Recommendation sudah terkirim.";
   const expected = nextLevel(currentLevel);
   if (!expected) return `Seluruh level follow up ${channel} sudah terkirim.`;
   if (level !== expected) return `Level berikutnya harus ${expected}, bukan ${level}.`;
