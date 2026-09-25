@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServerSupabase } from "@/lib/supabase";
+import { resolvePublicAppUrl } from "@/lib/public-app-url";
 import { z } from "zod";
 
 const associateSchema = z.object({
@@ -245,7 +246,7 @@ export async function createAmsAccessTicket(identity: AmsAssociateIdentity, next
   });
   if (error) throw new Error("Gagal membuat tautan masuk APP.");
 
-  const appUrl = (process.env.APP_PUBLIC_URL || "https://app.binahub.id").replace(/\/$/, "");
+  const appUrl = resolvePublicAppUrl();
   return { url: `${appUrl}/auth/ams?ticket=${encodeURIComponent(token)}`, expiresAt };
 }
 

@@ -5,6 +5,10 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+### Fixed
+
+- Menolak konfigurasi URL APP yang masih menunjuk `localhost`, `127.0.0.1`, atau `0.0.0.0` pada production agar tautan workspace AMS selalu kembali ke domain publik `app.binahub.id`.
+
 ## [0.27.0] - 2026-09-25
 
 ### Added — AMS identity and assignment bridge

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/admin-auth";
 import { callAms, createAssignmentRequestId } from "@/lib/ams-client";
 import { createServerSupabase } from "@/lib/supabase";
+import { resolvePublicAppUrl } from "@/lib/public-app-url";
 
 const schema = z.object({
   programId: z.string().uuid(),
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (error || !program) return NextResponse.json({ success: false, error: "Program tidak ditemukan." }, { status: 404 });
   const organization = Array.isArray(program.organization) ? program.organization[0] : program.organization;
-  const appUrl = (process.env.APP_PUBLIC_URL || "https://app.binahub.id").replace(/\/$/, "");
+  const appUrl = resolvePublicAppUrl();
 
   try {
     const result = await callAms<{ success: true; data: unknown }>("/api/integrations/app/assignments", {
