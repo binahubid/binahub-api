@@ -5,6 +5,23 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-09-25
+
+### Added — AMS identity and assignment bridge
+
+- Menambahkan endpoint bertanda tangan HMAC untuk menerima sinkronisasi identitas associate dan status assignment dari AMS secara idempoten.
+- Menambahkan proxy admin untuk mencari associate aktif di AMS dan membuat penawaran assignment dari program APP.
+- Menambahkan provisioning akun APP berdasarkan email, pemetaan identitas lintas sistem, assignment staf generik, akses fasilitator T-BOS, serta pemetaan pembicara LEP.
+- Menambahkan tiket login sekali pakai agar associate dapat berpindah dari AMS ke APP tanpa login atau akun kedua.
+- Menangani klaim tiket dan pembuatan token sesi hanya di API tepercaya, sehingga frontend APP tidak memerlukan service-role key.
+- Menambahkan migration `0056_ams_assignment_integration.sql` untuk identity links, staff assignments, integration ledger, dan login tickets.
+- Menambahkan `npm run test:ams-integration` untuk smoke test produksi read-only pada health, HMAC, otorisasi admin, dan penolakan tiket acak.
+
+### Security
+
+- Menandatangani seluruh payload lintas sistem dengan HMAC SHA-256, membatasi umur request lima menit, dan menggunakan perbandingan signature tahan timing attack.
+- Menjaga admin tetap admin ketika identitas diselaraskan; associate lain memperoleh shell fasilitator tetapi hanya dapat mengakses program yang memiliki assignment aktif.
+
 ## [0.26.2] - 2026-09-24
 
 ### Added — CEO-approved bilingual email journey

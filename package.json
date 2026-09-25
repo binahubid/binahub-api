@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.26.2",
+  "version": "0.27.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -32,6 +32,7 @@
     "test:phase19": "node scripts/phase19-hardening-smoke.mjs",
     "test:phase20": "node scripts/phase20-inbound-smoke.mjs",
     "test:tbos": "node scripts/tbos-production-smoke.mjs",
+    "test:ams-integration": "node scripts/ams-app-integration-smoke.mjs",
     "test:ai": "node scripts/ai-provider-smoke.mjs"
   },
   "dependencies": {
