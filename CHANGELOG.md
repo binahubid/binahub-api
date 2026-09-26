@@ -3,7 +3,11 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.27.1] - 2026-09-27
+
+### Added
+
+- Menambahkan katalog program T-BOS/LEP bertanda tangan HMAC agar admin dapat membuat assignment terhubung langsung dari AMS, tanpa menyalin ID program atau identitas admin APP secara manual.
 
 ### Fixed
 

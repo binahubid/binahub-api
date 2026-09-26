@@ -48,6 +48,7 @@ check(amsHealth.response.status === 200, "health AMS API tersedia", `HTTP ${amsH
 const unsignedChecks = await Promise.all([
   request(appApiUrl, "/api/integrations/ams/assignments", { method: "POST", body: {} }),
   request(appApiUrl, "/api/integrations/ams/access-link", { method: "POST", body: {} }),
+  request(appApiUrl, "/api/integrations/ams/programs", { method: "POST", body: {} }),
   request(amsApiUrl, "/api/integrations/app/associates/search", { method: "POST", body: {} }),
   request(amsApiUrl, "/api/integrations/app/assignments", { method: "POST", body: {} }),
 ]);
@@ -68,6 +69,7 @@ const anonymousAdminChecks = await Promise.all([
       associateIds: [crypto.randomUUID()],
     },
   }),
+  request(amsApiUrl, "/api/admin/app-programs"),
 ]);
 check(
   anonymousAdminChecks.every(({ response }) => response.status === 401),
@@ -82,9 +84,10 @@ const invalidSession = await request(appApiUrl, "/api/integrations/ams/session",
 check(invalidSession.response.status === 401, "tiket masuk acak ditolak", `HTTP ${invalidSession.response.status}`);
 
 if (sharedSecret) {
-  const [signedInvalidAssignment, signedSearch] = await Promise.all([
+  const [signedInvalidAssignment, signedSearch, signedPrograms] = await Promise.all([
     request(appApiUrl, "/api/integrations/ams/assignments", { method: "POST", body: {}, signed: true }),
     request(amsApiUrl, "/api/integrations/app/associates/search", { method: "POST", body: { query: "", limit: 1 }, signed: true }),
+    request(appApiUrl, "/api/integrations/ams/programs", { method: "POST", body: { requesterEmail: "admin@binahub.id" }, signed: true }),
   ]);
   check(
     signedInvalidAssignment.response.status === 400,
@@ -95,6 +98,11 @@ if (sharedSecret) {
     signedSearch.response.status === 200 && signedSearch.payload?.success === true && Array.isArray(signedSearch.payload?.data),
     "AMS menerima tanda tangan bersama dan merespons pencarian aman",
     `HTTP ${signedSearch.response.status}`,
+  );
+  check(
+    signedPrograms.response.status === 200 && signedPrograms.payload?.success === true && Array.isArray(signedPrograms.payload?.data?.programs),
+    "AMS dapat membaca katalog program APP melalui HMAC",
+    `HTTP ${signedPrograms.response.status}`,
   );
 } else {
   console.log("[SKIP] verifikasi secret bersama; isi AMS_INTEGRATION_SMOKE_SECRET untuk menguji HMAC lintas deployment.");

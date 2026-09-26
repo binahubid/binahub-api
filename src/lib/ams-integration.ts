@@ -37,8 +37,29 @@ export const amsAccessRequestSchema = z.object({
   nextPath: z.string().trim().max(300).optional(),
 });
 
+export const amsProgramCatalogRequestSchema = z.object({
+  requesterEmail: z.string().trim().email().max(320),
+});
+
 export type AmsIntegrationEvent = z.infer<typeof amsIntegrationEventSchema>;
 export type AmsAssociateIdentity = z.infer<typeof associateSchema>;
+
+type AmsAssignableModule = {
+  key: "tbos" | "lep";
+  label: string;
+  defaultRole: string;
+  workspaceUrl: string;
+};
+
+type AmsAssignableProgram = {
+  id: string;
+  title: string;
+  clientName: string;
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  modules: AmsAssignableModule[];
+};
 
 export function verifyAmsSignature(rawBody: string, timestamp: string | null, signature: string | null) {
   const secret = process.env.AMS_INTEGRATION_SECRET;
@@ -72,6 +93,91 @@ async function findAuthUserByEmail(email: string) {
     if (data.users.length < 1000) break;
   }
   return null;
+}
+
+export async function listAmsAssignablePrograms(requesterEmail: string) {
+  const db = createServerSupabase();
+  const normalizedEmail = requesterEmail.trim().toLowerCase();
+  const requester = await findAuthUserByEmail(normalizedEmail);
+  const { data: requesterProfile, error: requesterProfileError } = requester
+    ? await db.from("profiles").select("id, role").eq("id", requester.id).maybeSingle()
+    : { data: null, error: null };
+  if (requesterProfileError) throw new Error("Gagal memeriksa admin APP untuk penugasan.");
+
+  let actorProfileId = requesterProfile?.role === "admin" ? requesterProfile.id as string : null;
+  let actorMode: "matched_admin" | "system_admin" = "matched_admin";
+  if (!actorProfileId) {
+    const { data: fallbackAdmins, error: fallbackAdminError } = await db
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin")
+      .limit(1);
+    if (fallbackAdminError || !fallbackAdmins?.[0]?.id) {
+      throw new Error("Admin APP pemberi assignment belum tersedia.");
+    }
+    actorProfileId = fallbackAdmins[0].id as string;
+    actorMode = "system_admin";
+  }
+
+  const { data: engagements, error: engagementsError } = await db
+    .from("engagements")
+    .select("id, title, status, start_date, end_date, organization:organizations(name)")
+    .in("status", ["active", "in_progress"])
+    .order("start_date", { ascending: false, nullsFirst: false })
+    .limit(200);
+  if (engagementsError) throw new Error("Gagal membaca program APP yang tersedia.");
+
+  const programIds = (engagements || []).map((program) => program.id as string);
+  if (programIds.length === 0) {
+    return { actorProfileId, actorMode, programs: [] as AmsAssignableProgram[] };
+  }
+
+  const { data: enabledModules, error: modulesError } = await db
+    .from("program_modules")
+    .select("program_id, module_key")
+    .in("program_id", programIds)
+    .in("module_key", ["tbos", "lep"])
+    .eq("enabled", true);
+  if (modulesError) throw new Error("Gagal membaca modul program APP yang tersedia.");
+
+  const appUrl = resolvePublicAppUrl();
+  const moduleDefinitions: Record<"tbos" | "lep", Omit<AmsAssignableModule, "key">> = {
+    tbos: {
+      label: "T-BOS",
+      defaultRole: "Fasilitator T-BOS",
+      workspaceUrl: `${appUrl}/fasilitator/tbos`,
+    },
+    lep: {
+      label: "LEP",
+      defaultRole: "Pembicara LEP",
+      workspaceUrl: appUrl,
+    },
+  };
+  const modulesByProgram = new Map<string, AmsAssignableModule[]>();
+  for (const row of enabledModules || []) {
+    if (row.module_key !== "tbos" && row.module_key !== "lep") continue;
+    const moduleKey = row.module_key as "tbos" | "lep";
+    const modules = modulesByProgram.get(row.program_id) || [];
+    modules.push({ key: moduleKey, ...moduleDefinitions[moduleKey] });
+    modulesByProgram.set(row.program_id, modules);
+  }
+
+  const programs = (engagements || []).flatMap((program) => {
+    const modules = modulesByProgram.get(program.id) || [];
+    if (modules.length === 0) return [];
+    const organization = Array.isArray(program.organization) ? program.organization[0] : program.organization;
+    return [{
+      id: program.id as string,
+      title: program.title as string,
+      clientName: organization?.name || "Klien BinaHub",
+      status: program.status as string,
+      startDate: program.start_date as string | null,
+      endDate: program.end_date as string | null,
+      modules,
+    } satisfies AmsAssignableProgram];
+  });
+
+  return { actorProfileId, actorMode, programs };
 }
 
 export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurredAt = new Date().toISOString()) {
