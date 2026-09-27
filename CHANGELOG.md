@@ -3,6 +3,23 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.2] - 2026-09-27
+
+### Added
+
+- Menambahkan pemeriksaan kelayakan proposal assessment dan inquiry agar AI hanya menyusun draf ketika identitas, konteks, hasil assessment, serta rekomendasi sumber sudah cukup lengkap.
+- Menambahkan alur Preliminary Recommendation otomatis untuk permintaan hasil assessment: memilih modul katalog resmi yang relevan, menyusun narasi dengan AI, menghitung rentang investasi dari harga katalog, membuat PDF, dan mengirimkannya secara idempoten.
+
+### Changed
+
+- Menjadikan waktu balasan awal BinaHub sebagai titik awal follow-up inquiry; balasan tersebut tidak lagi menghentikan follow-up, sedangkan respons prospek tetap menghentikannya.
+- Memperluas catatan observasi fasilitator T-BOS dari 50 menjadi maksimum 2.000 karakter.
+- Memperhalus halaman konfirmasi permintaan Preliminary Recommendation dan menjelaskan langkah berikutnya tanpa istilah teknis pemindai email.
+
+### Security
+
+- Membatasi pengiriman Preliminary Recommendation otomatis pada assessment lengkap serta modul katalog aktif, siap, bukan data mock, dan memiliki harga resmi; kegagalan otomatis kembali ke antrean tinjauan manusia.
+
 ## [0.27.1] - 2026-09-27
 
 ### Added

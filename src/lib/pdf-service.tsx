@@ -49,6 +49,7 @@ export interface ProposalPackage {
 }
 
 export interface ProposalResult {
+  documentKind?: 'preliminary' | 'commercial';
   subject?: string;
   opening?: string;
   proposedProgram?: string;
@@ -641,8 +642,9 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
     maximumFractionDigits: 0,
   }).format(amount);
 
+  const isPreliminary = proposal.documentKind === 'preliminary';
   return (
-    <Document title={`Proposal Penawaran - ${formData.company}`}>
+    <Document title={`${isPreliminary ? 'Preliminary Recommendation' : 'Proposal Penawaran'} - ${formData.company}`}>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Svg style={styles.headerMotif} width="200" height="200">
@@ -651,7 +653,7 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
           </Svg>
           <PdfWordmark inverse />
           <View style={styles.headerTitleBlock}>
-            <Text style={styles.headerLabel}>Proposal Penawaran Strategis</Text>
+            <Text style={styles.headerLabel}>{isPreliminary ? 'Preliminary Recommendation' : 'Proposal Penawaran Strategis'}</Text>
             <Text style={styles.headerTitle}>{proposal.proposedProgram || 'Program Transformasi Organisasi'}</Text>
             <Text style={styles.headerSubtitle}>{formData.company}</Text>
           </View>
@@ -700,7 +702,7 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <CompactHeader title="Rincian Modul Penawaran" subtitle={`Snapshot katalog · ${proposal.rulesVersion || 'versi belum ditetapkan'}`} />
+        <CompactHeader title={isPreliminary ? "Rekomendasi & Estimasi Awal" : "Rincian Modul Penawaran"} subtitle={`Snapshot katalog · ${proposal.rulesVersion || 'versi belum ditetapkan'}`} />
         <View style={styles.content}>
           {proposal.isSimulation && (
             <View style={{ backgroundColor: '#FFF3CD', borderWidth: 1, borderColor: GOLD, padding: 10, marginBottom: 14 }} wrap={false}>
@@ -712,7 +714,7 @@ const ProposalPDF = ({ formData, proposal }: { formData: AssessmentData; proposa
           <View style={styles.sectionHeader}>
             <View style={styles.sectionBar} />
             <View>
-              <Text style={styles.sectionTitle}>Modul dan Nilai Berdasarkan Katalog</Text>
+              <Text style={styles.sectionTitle}>{isPreliminary ? 'Pendekatan dan Estimasi Indikatif' : 'Modul dan Nilai Berdasarkan Katalog'}</Text>
               <Text style={styles.sectionSubtitle}>Angka berasal dari snapshot katalog, bukan hasil estimasi model AI</Text>
             </View>
           </View>

@@ -41,7 +41,6 @@ const FOLLOW_UP_DAYS: Record<FollowUpLevel, number> = {
 };
 
 const INQUIRY_STOP_STATUSES = new Set([
-  "Dibalas",
   "Lanjut Diskusi",
   "Qualified",
   "Client",
@@ -96,6 +95,7 @@ type InquiryForFollowUp = {
   follow_up_last_sent_at?: string | null;
   follow_up_history?: unknown;
   follow_up_paused?: boolean | null;
+  reply_sent_at?: string | null;
   created_at?: string | null;
 };
 
@@ -318,11 +318,12 @@ function getDueInquiryLevel(inquiry: InquiryForFollowUp) {
   const candidate = nextLevel(inquiry.follow_up_level);
   if (!candidate) return null;
   if (inquiry.follow_up_paused) return null;
+  if (!inquiry.reply_sent_at) return null;
 
   const status = String(inquiry.status || "");
   if (INQUIRY_STOP_STATUSES.has(status) || status === FOLLOW_UP_STATUS[3]) return null;
 
-  return daysSince(inquiry.created_at) >= FOLLOW_UP_DAYS[candidate] ? candidate : null;
+  return daysSince(inquiry.reply_sent_at) >= FOLLOW_UP_DAYS[candidate] ? candidate : null;
 }
 
 function getAssessmentFieldPrefix(channel: AssessmentFollowUpChannel) {
@@ -590,6 +591,7 @@ async function sendFollowUpForAssessment(
 
 function validateInquiryFollowUp(inquiry: InquiryForFollowUp, level: FollowUpLevel) {
   if (inquiry.follow_up_paused) return "Follow up inquiry sedang dijeda.";
+  if (!inquiry.reply_sent_at) return "Balasan awal BinaHub belum terkirim; jadwal follow up belum dimulai.";
   if (INQUIRY_STOP_STATUSES.has(String(inquiry.status || ""))) {
     return `Status ${inquiry.status} tidak boleh menerima follow up otomatis.`;
   }

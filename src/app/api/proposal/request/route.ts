@@ -2,9 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { verifyProposalToken } from '@/lib/secure-token';
+import { createAndSendAutomaticPreliminary } from '@/lib/automatic-preliminary';
 
 const NAVY = '#0B2C6B';
 const GOLD = '#D9A441';
+const EXISTING_PROPOSAL_STATUSES = new Set([
+  'Diminta',
+  'Sedang Disusun',
+  'Draft Simulasi',
+  'Menunggu Approval',
+  'Disetujui',
+  'Terkirim',
+  'Proposal Follow Up 1 Terkirim',
+  'Proposal Follow Up 2 Terkirim',
+  'Proposal Follow Up 3 Terkirim',
+  'Revisi',
+  'Lanjut Diskusi',
+  'Deal',
+  'Lost',
+  'Closed',
+]);
 
 function escapeHtml(value: string) {
   return value
@@ -15,7 +32,12 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#039;');
 }
 
-function successHtml(name: string, company: string, confirmation?: { assessmentId: string; token: string }) {
+function successHtml(
+  name: string,
+  company: string,
+  confirmation?: { assessmentId: string; token: string },
+  delivery: 'sent' | 'queued' = 'queued',
+) {
   const isPending = Boolean(confirmation);
   const formAction = confirmation
     ? `/api/proposal/request?assessmentId=${encodeURIComponent(confirmation.assessmentId)}&token=${encodeURIComponent(confirmation.token)}`
@@ -157,16 +179,18 @@ function successHtml(name: string, company: string, confirmation?: { assessmentI
       <h1>${isPending ? 'Konfirmasi Permintaan Proposal' : 'Permintaan Proposal Diterima'}</h1>
       <p>Terima kasih, <span class="highlight">${name}</span> dari <span class="highlight">${company}</span>.</p>
       ${isPending
-        ? `<p>Klik tombol berikut untuk mengonfirmasi permintaan. Halaman ini tidak akan memproses permintaan hanya karena link dibuka oleh pemindai email.</p><form method="post" action="${formAction}"><button class="confirm-button" type="submit">Konfirmasi Permintaan</button></form>`
-        : '<p>Tim kami akan menyusun proposal penawaran dan mengirimkannya ke email Anda dalam waktu dekat.</p>'}
+        ? `<p>Silakan klik tombol berikut untuk mengonfirmasi bahwa Anda ingin menerima Preliminary Recommendation dari BinaHub. Permintaan baru akan diproses setelah Anda menekan tombol konfirmasi.</p><form method="post" action="${formAction}"><button class="confirm-button" type="submit">Konfirmasi Permintaan</button></form>`
+        : delivery === 'sent'
+          ? '<p>Preliminary Recommendation telah disusun berdasarkan hasil diagnosa dan dikirim ke email Anda. Silakan periksa kotak masuk atau folder spam.</p>'
+          : '<p>Permintaan Anda sudah diterima. Jika data diagnosa sudah lengkap, sistem akan menyiapkan Preliminary Recommendation secara otomatis. Tim BinaHub akan meninjau apabila masih ada informasi yang perlu dilengkapi.</p>'}
 
       <div class="divider"></div>
 
       <div class="info-box">
         <p><strong>Yang terjadi selanjutnya:</strong></p>
-        <p>1. Tim BinaHub menyusun proposal sesuai hasil diagnostik</p>
-        <p>2. Proposal dikirim ke email Anda</p>
-        <p>3. Kami akan menghubungi untuk diskusi lebih lanjut</p>
+        <p>1. Hasil diagnosa digunakan untuk menyusun rekomendasi awal</p>
+        <p>2. Preliminary Recommendation dikirim ke email Anda</p>
+        <p>3. Anda dapat membalas email atau memilih waktu konsultasi jika ingin berdiskusi</p>
       </div>
     </div>
     <div class="footer">
@@ -270,12 +294,11 @@ export async function GET(req: NextRequest) {
     ), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
 
-  const terminalStatuses = ['Diminta', 'Sedang Disusun', 'Terkirim', 'Revisi', 'Lanjut Diskusi', 'Deal', 'Lost', 'Closed'];
-  if (terminalStatuses.includes(assessment.proposal_status || '')) {
+  if (EXISTING_PROPOSAL_STATUSES.has(assessment.proposal_status || '')) {
     const formData = assessment.form_data as Record<string, string> | null;
     const name = escapeHtml(formData?.name || 'Bapak/Ibu');
     const company = escapeHtml(formData?.company || 'Perusahaan Anda');
-    return new NextResponse(successHtml(name, company), {
+    return new NextResponse(successHtml(name, company, undefined, assessment.proposal_status === 'Terkirim' ? 'sent' : 'queued'), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
   }
@@ -317,14 +340,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const terminalStatuses = ['Diminta', 'Sedang Disusun', 'Terkirim', 'Revisi', 'Lanjut Diskusi', 'Deal', 'Lost', 'Closed'];
-  if (!terminalStatuses.includes(assessment.proposal_status || '')) {
+  const requestedAt = new Date().toISOString();
+  if (!EXISTING_PROPOSAL_STATUSES.has(assessment.proposal_status || '')) {
     const { error: updateError } = await supabase
       .from('assessments')
       .update({
         assessment_status: 'Minta Proposal',
         proposal_status: 'Diminta',
-        proposal_requested_at: new Date().toISOString(),
+        proposal_requested_at: requestedAt,
       })
       .eq('id', assessmentId);
 
@@ -337,11 +360,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  let delivery: 'sent' | 'queued' = assessment.proposal_status === 'Terkirim' ? 'sent' : 'queued';
+  if (delivery !== 'sent') {
+    try {
+      const result = await createAndSendAutomaticPreliminary(assessmentId, requestedAt);
+      if (result.outcome === 'sent' || result.outcome === 'already_sent') delivery = 'sent';
+    } catch (automaticError) {
+      console.error('[Proposal Request] Automatic Preliminary Recommendation failed:', automaticError);
+      // The request itself remains recorded as "Diminta" so the admin can complete it manually.
+    }
+  }
+
   const formData = assessment.form_data as Record<string, string> | null;
   const name = escapeHtml(formData?.name || 'Bapak/Ibu');
   const company = escapeHtml(formData?.company || 'Perusahaan Anda');
 
-  return new NextResponse(successHtml(name, company), {
+  return new NextResponse(successHtml(name, company, undefined, delivery), {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 }

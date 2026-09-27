@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { adminError, logAdminEvent, parseValidatedBody } from "@/lib/admin-api";
 import { proposalDraftSchema } from "@/lib/admin-mutation-schemas";
 import { generateAssessmentProposal } from "@/lib/ai-service";
+import { evaluateAssessmentProposalEligibility } from "@/lib/proposal-eligibility";
 import {
   addBusinessDays,
   applyCommercialPolicy,
@@ -81,6 +82,22 @@ export async function POST(req: NextRequest) {
   if (assessmentError || !assessment) return adminError(assessmentError?.message || "Assessment tidak ditemukan.", 404, "ASSESSMENT_NOT_FOUND");
   if (rulesError) return adminError(rulesError.message, 500, "BUSINESS_RULES_READ_FAILED");
   if (commercialPolicyError) return adminError(commercialPolicyError.message, 500, "COMMERCIAL_POLICY_READ_FAILED");
+
+  const proposalEligibility = evaluateAssessmentProposalEligibility({
+    formData: (assessment as AssessmentRow).form_data,
+    scores: (assessment as AssessmentRow).scores,
+    category: (assessment as AssessmentRow).category,
+    aiAnalysis: (assessment as AssessmentRow).ai_analysis,
+    recommendations: (assessment as AssessmentRow).recommendations,
+    overallScore: (assessment as AssessmentRow).overall_score,
+  });
+  if (!proposalEligibility.eligible) {
+    return adminError(
+      `Draf AI belum dapat dibuat. Lengkapi: ${proposalEligibility.missing.join(", ")}.`,
+      422,
+      "PROPOSAL_NOT_ELIGIBLE",
+    );
+  }
 
   const selectedRuleSet = ruleSets?.find((rule) => rule.status === "active") || ruleSets?.find((rule) => rule.status === "mock") || null;
   const rules = applyCommercialPolicy(normalizeProposalRules(selectedRuleSet), commercialPolicy);

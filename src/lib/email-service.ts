@@ -506,6 +506,7 @@ export async function sendProposalEmail(
   pdfBuffer?: Buffer,
   assessmentId?: string,
   locale: Locale = 'id',
+  idempotencyKey?: string,
 ) {
   const isEnglish = locale === 'en';
   const navy = '#0B2C6B';
@@ -617,7 +618,7 @@ export async function sendProposalEmail(
           content: pdfBuffer.toString('base64'),
         }]
       : [],
-  });
+  }, idempotencyKey ? { idempotencyKey } : undefined);
   if (response.error) throw new Error(`Resend gagal mengirim proposal: ${response.error.message}`);
   return response;
 }

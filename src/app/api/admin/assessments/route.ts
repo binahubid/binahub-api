@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
 
       const proposalPdf = await generateProposalPDFBuffer(formData, proposal);
       const locale = formData.locale === "en" ? "en" : "id";
-      const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, proposalPdf, id, locale);
+      const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, proposalPdf, id, locale, `assessment-${id}-approved-proposal-v1`);
       const sentAt = new Date().toISOString();
       await updateAssessmentWithEmailIds(
         db,

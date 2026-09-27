@@ -153,7 +153,6 @@ export async function POST(req: NextRequest) {
       reply_sent_at: sentAt,
       reply_email_id: emailId,
       status: "Dibalas",
-      follow_up_paused: true,
     }).eq("id", inquiry.id).eq("reply_status", "sending").select("id").maybeSingle();
     if (updated.error || !updated.data) {
       return adminError("Email terkirim tetapi status pengiriman perlu direkonsiliasi.", 500, "INQUIRY_REPLY_RECONCILIATION_REQUIRED");

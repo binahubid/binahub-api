@@ -7,7 +7,7 @@ import { getSelectedFacilitatorMission } from "@/lib/tbos-assignment";
 
 const patchSchema = z.object({
   action: z.enum(["lock", "unlock", "edit"]),
-  notes: z.string().max(50).optional(),
+  notes: z.string().max(2000).optional(),
   scores: z.array(
     z.object({
       dimensionId: z.string().uuid(),

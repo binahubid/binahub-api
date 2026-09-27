@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
+import { evaluateAssessmentProposalEligibility } from "@/lib/proposal-eligibility";
 
 const DIMENSIONS = ["Insights", "Lab", "Coach", "Play", "Academy", "Works", "Impact"] as const;
 
@@ -738,6 +739,14 @@ export async function GET(req: NextRequest) {
     const lead = row.lead_id ? leadsById.get(row.lead_id) : undefined;
     const scores = getScores(row.scores, row.overall_score);
     const recommendations = getRecommendations(row.recommendations);
+    const proposalEligibility = evaluateAssessmentProposalEligibility({
+      formData: row.form_data,
+      scores: row.scores,
+      category: row.category,
+      aiAnalysis: row.ai_analysis,
+      recommendations: row.recommendations,
+      overallScore: row.overall_score,
+    });
 
     return {
       id: row.id,
@@ -762,6 +771,7 @@ export async function GET(req: NextRequest) {
       category: row.category || "Tidak diketahui",
       aiAnalysis: row.ai_analysis || "",
       recommendations,
+      proposalEligibility,
       answers: form.answers || {},
       overallScore: scores.overall,
       assessmentStatus: row.assessment_status || (row.result_email_sent_at ? "Result Email Terkirim" : "Result Otomatis Terkirim"),

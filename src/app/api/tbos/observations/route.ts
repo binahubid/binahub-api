@@ -11,7 +11,7 @@ const observationSchema = z.object({
   missionId: z.string().uuid(),
   clientSubmissionId: z.string().min(1).max(128),
   batch: z.string().min(1).max(50).optional(),
-  notes: z.string().max(50).optional().default(""),
+  notes: z.string().max(2000).optional().default(""),
   scores: z.array(
     z.object({
       dimensionId: z.string().uuid(),
