@@ -144,12 +144,12 @@ export async function listAmsAssignablePrograms(requesterEmail: string) {
   const moduleDefinitions: Record<"tbos" | "lep", Omit<AmsAssignableModule, "key">> = {
     tbos: {
       label: "T-BOS",
-      defaultRole: "Fasilitator T-BOS",
+      defaultRole: "Observer",
       workspaceUrl: `${appUrl}/fasilitator/tbos`,
     },
     lep: {
       label: "LEP",
-      defaultRole: "Pembicara LEP",
+      defaultRole: "Pembicara",
       workspaceUrl: appUrl,
     },
   };
@@ -164,7 +164,6 @@ export async function listAmsAssignablePrograms(requesterEmail: string) {
 
   const programs = (engagements || []).flatMap((program) => {
     const modules = modulesByProgram.get(program.id) || [];
-    if (modules.length === 0) return [];
     const organization = Array.isArray(program.organization) ? program.organization[0] : program.organization;
     return [{
       id: program.id as string,

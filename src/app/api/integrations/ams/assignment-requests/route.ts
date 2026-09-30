@@ -10,6 +10,15 @@ const schema = z.object({
   moduleKey: z.string().regex(/^[a-z][a-z0-9_-]{1,49}$/),
   role: z.string().trim().min(1).max(100),
   associateIds: z.array(z.string().uuid()).min(1).max(100),
+  fee: z.object({
+    compensation: z.number().finite().positive(),
+    transport: z.number().finite().min(0).optional(),
+    preparation: z.number().finite().min(0).optional(),
+  }),
+  invitationExpiresAt: z.string().datetime({ offset: true }).refine((value) => {
+    const remaining = new Date(value).getTime() - Date.now();
+    return remaining >= 5 * 60_000 && remaining <= 30 * 24 * 60 * 60_000;
+  }),
   scope: z.record(z.string(), z.unknown()).default({}),
 });
 
@@ -41,10 +50,12 @@ export async function POST(req: NextRequest) {
       },
       role: parsed.data.role,
       associateIds: parsed.data.associateIds,
+      fee: parsed.data.fee,
+      invitationExpiresAt: parsed.data.invitationExpiresAt,
       startDate: program.start_date,
       endDate: program.end_date,
       scope: { ...parsed.data.scope, assignedByProfileId: auth.userId },
-      description: `Penugasan ${parsed.data.role} untuk program ${program.title}.`,
+      description: `Penugasan ${parsed.data.role} untuk project ${program.title}.`,
     });
     return NextResponse.json(result, { status: 201 });
   } catch (integrationError) {

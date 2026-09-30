@@ -3,6 +3,17 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.3] - 2026-09-30
+
+### Added
+
+- Endpoint integrasi bertanda tangan kini menerima pembuatan project APP beserta modul T-BOS atau LEP secara idempoten, serta pengaktifan modul pada project aktif yang sudah ada dari AMS.
+- Undangan associate yang dimulai dari APP wajib menyertakan kompensasi, komponen transportasi/persiapan jika ada, serta tenggat respons sebelum diteruskan ke AMS.
+
+### Changed
+
+- Peran bawaan dalam katalog integrasi disederhanakan menjadi Observer untuk T-BOS dan Pembicara untuk LEP; kontrak teknis modul dan rute lama tetap kompatibel.
+
 ## [0.27.2] - 2026-09-27
 
 ### Added
