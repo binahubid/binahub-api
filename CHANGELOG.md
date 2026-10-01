@@ -12,6 +12,7 @@ Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/
 
 ### Changed
 
+- Permintaan penugasan APP ke AMS memakai ulang ID yang sama saat jaringan timeout, sehingga respons hasil undangan tersimpan dapat dipulihkan tanpa mengirim penawaran ganda.
 - PDF proposal memakai desain laporan korporat BinaHub, struktur 12 bagian, dan salinan Bahasa Indonesia/Inggris.
 - Proposal otomatis menyimpan snapshot solusi dan nilai katalog dalam dokumen serta menyesuaikan narasi dengan bahasa penerima.
 - Menyiapkan 27 Signature Solutions CEO sebagai snapshot katalog versi 2026 melalui migrasi `0057`; semuanya belum aktif dan belum dipublikasikan hingga review konten serta komersial selesai. Endpoint publik mendukung lokal Bahasa Indonesia dan Inggris dari metadata yang telah diizinkan.
