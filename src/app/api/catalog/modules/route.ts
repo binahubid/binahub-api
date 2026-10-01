@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       .order("display_order", { ascending: true })
       .order("name", { ascending: true }),
     db.from("catalog_modules")
-      .select("id, product_id, module_code, slug, name, description, standard_scope, deliverables, out_of_scope, pricing_unit, base_price, minimum_quantity, currency, duration_label, featured, display_order, catalog_version")
+      .select("id, product_id, module_code, slug, name, description, standard_scope, deliverables, out_of_scope, duration_label, featured, display_order, catalog_version, metadata")
       .eq("active", true)
       .eq("is_mock", false)
       .eq("readiness_status", "ready")
@@ -46,12 +46,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       success: true,
-      products: buildPublicCatalog(products || [], modules || []),
+      products: buildPublicCatalog(products || [], modules || [], req.nextUrl.searchParams.get("locale") === "en" ? "en" : "id"),
       policy: {
         onlyPublishedModules: true,
         mockDataExcluded: true,
-        pricesExcludeTax: null,
-        taxPolicyFinalized: false,
+        pricesPubliclyVisible: false,
       },
     },
     { headers: { ...headers, "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },

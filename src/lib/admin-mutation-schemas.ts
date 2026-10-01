@@ -109,6 +109,8 @@ export const proposalDraftSchema = z.object({
     quantity: z.number().int().min(1).max(1000),
   }).strict()).min(1, "Pilih minimal satu modul.").max(20),
   scopeType: z.enum(["standard", "custom"]),
+  customProjectName: z.string().trim().min(3).max(200).optional(),
+  customInvestment: z.number().int().positive().max(10_000_000_000).optional(),
   discountPercent: z.number().min(0).max(100).default(0),
   aiConfidence: z.number().min(0).max(1).optional(),
   riskFlags: z.array(z.string().trim().min(1).max(100)).max(10).default([]),
@@ -127,7 +129,12 @@ export const proposalDraftSchema = z.object({
     expectedOutcome: z.string().trim().max(4000).optional(),
     nextStep: z.string().trim().max(2000).optional(),
   }).strict().default({}),
-}).strict();
+}).strict().superRefine((value, context) => {
+  if (value.scopeType !== "custom") return;
+  if (!value.customProjectName) context.addIssue({ code: "custom", path: ["customProjectName"], message: "Nama project custom wajib diisi." });
+  if (!value.customInvestment) context.addIssue({ code: "custom", path: ["customInvestment"], message: "Investasi custom wajib ditetapkan oleh admin." });
+  if (value.discountPercent !== 0) context.addIssue({ code: "custom", path: ["discountPercent"], message: "Masukkan nilai akhir setelah diskon langsung sebagai investasi custom." });
+});
 
 export const proposalApprovalSchema = z.object({
   assessmentId: z.string().uuid("ID assessment tidak valid."),

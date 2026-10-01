@@ -130,7 +130,18 @@ export async function POST(req: NextRequest) {
       catalogVersion: row.catalog_version,
     };
   });
-  const commercials = calculateProposalCommercials(modules, input.discountPercent);
+  const catalogCommercials = calculateProposalCommercials(modules, input.discountPercent);
+  const customInvestment = input.scopeType === "custom" ? input.customInvestment || 0 : 0;
+  const commercials = input.scopeType === "custom"
+    ? {
+        ...catalogCommercials,
+        items: [{ ...modules[0], name: input.customProjectName || "Project custom", basePrice: customInvestment, quantity: 1, lineTotal: customInvestment }],
+        subtotal: customInvestment,
+        discountPercent: 0,
+        discountAmount: 0,
+        totalBeforeTax: customInvestment,
+      }
+    : catalogCommercials;
   const form = objectValue((assessment as AssessmentRow).form_data);
   const requiredProposalData = evaluateRequiredProposalData({
     form,
@@ -152,6 +163,7 @@ export async function POST(req: NextRequest) {
   const isSimulation = rules.isMock || modules.some((module) => module.isMock);
 
   const generatedProposal = await generateAssessmentProposal({
+    locale: form.locale === "en" ? "en" : "id",
     name: String(form.name || "-"),
     email: String(form.email || "-"),
     company: String(form.company || "-"),
@@ -165,7 +177,7 @@ export async function POST(req: NextRequest) {
     aiAnalysis: (assessment as AssessmentRow).ai_analysis || "",
     recommendations: arrayValue((assessment as AssessmentRow).recommendations) as Array<{ title?: string; diagnosis?: string; description?: string; service?: string; priority?: string }>,
     commercialContext: {
-      items: modules.map((module) => ({
+      items: commercials.items.map((module) => ({
         name: module.name,
         standardScope: module.standardScope,
         pricingUnit: module.pricingUnit,
@@ -178,6 +190,15 @@ export async function POST(req: NextRequest) {
   });
   const proposal = {
     ...generatedProposal,
+    documentKind: "commercial" as const,
+    proposalType: input.scopeType,
+    ...(input.scopeType === "custom" ? {
+      proposedProgram: input.customProjectName,
+      scope: input.proposalContext.scope?.split(/\n|;/).map((item) => item.trim()).filter(Boolean) || generatedProposal.scope,
+      investmentNote: form.locale === "en"
+        ? "Project-specific scope and investment. Subject to human approval and final agreement."
+        : "Cakupan dan investasi disusun khusus untuk project ini. Berlaku setelah persetujuan manusia dan kesepakatan final.",
+    } : {}),
     isSimulation,
     rulesVersion: rules.version,
     commercialSnapshot: { ...commercials, currency: rules.currency, validityDays: rules.proposalValidityDays },
@@ -188,6 +209,8 @@ export async function POST(req: NextRequest) {
     proposal,
     commercials,
     scopeType: input.scopeType,
+    customProjectName: input.scopeType === "custom" ? input.customProjectName : null,
+    customInvestment: input.scopeType === "custom" ? customInvestment : null,
     notes: input.notes,
     riskFlags: input.riskFlags,
     aiConfidence: input.aiConfidence ?? null,

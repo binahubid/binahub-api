@@ -334,6 +334,7 @@ Output JSON ketat:
 }
 
 export async function generateAssessmentProposal(input: {
+  locale?: 'id' | 'en';
   name: string;
   email: string;
   company: string;
@@ -365,7 +366,18 @@ export async function generateAssessmentProposal(input: {
   const exactDeliverables = input.commercialContext.items
     .map((item) => `${item.name} — ${item.quantity} × ${item.pricingUnit}`)
     .slice(0, 6);
-  const fallbackNarrative = {
+  const english = input.locale === 'en';
+  const fallbackNarrative = english ? {
+    subject: `BinaHub preliminary recommendation for ${input.company}`,
+    opening: `Thank you, ${input.name}. Based on your BinaInsight results, this initial recommendation focuses on ${input.company}'s stated needs.`,
+    proposedProgram: `${input.company} Development Program`,
+    scope: exactScope.length ? exactScope : ['Validate the need', 'Confirm the program scope'],
+    timeline: 'To be confirmed after consultation and scope review',
+    investmentNote: input.commercialContext.isSimulation
+      ? 'SIMULATION / NOT AN OFFICIAL OFFER. Investment requires human confirmation.'
+      : 'The indicative investment follows the selected catalog solutions; changes beyond standard scope require a separate review.',
+    nextStep: 'Contact BinaHub to confirm the needs, scope, schedule, and project owner.',
+  } : {
     subject: `Rancangan Program BinaHub untuk ${input.company}`,
     opening: `Terima kasih, ${input.name}. Berdasarkan hasil BinaInsight, kami menyiapkan rancangan awal yang berfokus pada kebutuhan utama ${input.company}.`,
     proposedProgram: `Program Pengembangan ${input.company}`,
@@ -377,8 +389,8 @@ export async function generateAssessmentProposal(input: {
     nextStep: 'Jadwalkan konsultasi untuk memvalidasi kebutuhan, ruang lingkup, jadwal, dan penanggung jawab program.',
   };
   const prompt = `
-Kamu adalah konsultan senior PT BinaHub. Buat proposal penawaran ringkas berbasis hasil assessment berikut.
-Output harus Bahasa Indonesia, terasa personal, strategis, dan siap dikirim via email.
+  Kamu adalah konsultan senior PT BinaHub. Buat proposal penawaran ringkas berbasis hasil assessment berikut.
+  Output harus dalam bahasa ${english ? 'Inggris' : 'Indonesia'}, terasa personal, strategis, dan siap dikirim via email.
 
 DATA KLIEN:
 Nama: ${input.name}
@@ -417,7 +429,7 @@ Berikan JSON PERSIS:
   let narrative = fallbackNarrative;
   try {
     const text = await callAI([
-      { role: 'system', content: 'Anda adalah konsultan senior PT BinaHub. Jawab hanya JSON Bahasa Indonesia.' },
+      { role: 'system', content: `Anda adalah konsultan senior PT BinaHub. Jawab hanya JSON dalam bahasa ${english ? 'Inggris' : 'Indonesia'}.` },
       { role: 'user', content: prompt },
     ], true, "reasoning");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -432,16 +444,16 @@ Berikan JSON PERSIS:
   return {
     ...narrative,
     investmentNote: input.commercialContext.isSimulation
-      ? narrative.investmentNote.startsWith('SIMULASI')
+      ? narrative.investmentNote.startsWith(english ? 'SIMULATION' : 'SIMULASI')
         ? narrative.investmentNote
-        : `SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI. ${narrative.investmentNote}`
+        : `${english ? 'SIMULATION / NOT AN OFFICIAL OFFER' : 'SIMULASI / BELUM MERUPAKAN PENAWARAN RESMI'}. ${narrative.investmentNote}`
       : narrative.investmentNote,
     packages: [{
-      name: input.commercialContext.isSimulation ? 'Paket Modul Terpilih (Simulasi)' : 'Paket Modul Terpilih',
+      name: english ? (input.commercialContext.isSimulation ? 'Selected Solutions (Simulation)' : 'Selected Solutions') : (input.commercialContext.isSimulation ? 'Paket Modul Terpilih (Simulasi)' : 'Paket Modul Terpilih'),
       price: input.commercialContext.currency === 'IDR'
         ? formatIdr(input.commercialContext.totalBeforeTax)
         : `${input.commercialContext.currency} ${input.commercialContext.totalBeforeTax}`,
-      bestFor: 'Kebutuhan yang telah dikonfirmasi melalui assessment dan review tim BinaHub.',
+      bestFor: english ? 'Needs confirmed through the diagnostic and BinaHub review.' : 'Kebutuhan yang telah dikonfirmasi melalui assessment dan review tim BinaHub.',
       duration: narrative.timeline,
       scope: exactScope.length ? exactScope : narrative.scope,
       deliverables: exactDeliverables,

@@ -3,6 +3,7 @@ import { sendProposalEmail } from "@/lib/email-service";
 import { generateProposalPDFBuffer, type ProposalResult } from "@/lib/pdf-service";
 import { evaluateAssessmentProposalEligibility, type ProposalEligibility } from "@/lib/proposal-eligibility";
 import { formatIdr } from "@/lib/proposal-policy";
+import { automaticPreliminaryCommercialEligibility } from "@/lib/preliminary-commercial-policy";
 import { createServerSupabase } from "@/lib/supabase";
 
 type AssessmentRow = {
@@ -27,6 +28,7 @@ type CatalogModuleRow = {
   base_price: number | string;
   minimum_quantity?: number | string | null;
   catalog_version: string;
+  metadata?: Record<string, unknown> | null;
   catalog_products: { product_key?: string; name?: string } | Array<{ product_key?: string; name?: string }> | null;
 };
 
@@ -75,7 +77,15 @@ function serviceMatchesProduct(service: unknown, module: CatalogModuleRow) {
   const product = productOf(module);
   const productKey = normalizedService(product?.product_key);
   const productName = normalizedService(product?.name);
+  const localized = objectValue(objectValue(module.metadata).localized);
+  const englishName = normalizedService(objectValue(localized.en).name);
+  const indonesianName = normalizedService(objectValue(localized.id).name);
   return Boolean(serviceKey && (
+    normalizedService(module.module_code) === serviceKey
+    || normalizedService(module.name) === serviceKey
+    || englishName === serviceKey
+    || indonesianName === serviceKey
+    ||
     productKey === serviceKey
     || productKey === `bina${serviceKey}`
     || productName === serviceKey
@@ -144,7 +154,7 @@ export async function createAndSendAutomaticPreliminary(
   }
 
   const { data: moduleRows, error: moduleError } = await db.from("catalog_modules")
-    .select("id, module_code, name, standard_scope, pricing_unit, base_price, minimum_quantity, catalog_version, catalog_products(product_key, name)")
+    .select("id, module_code, name, standard_scope, pricing_unit, base_price, minimum_quantity, catalog_version, metadata, catalog_products(product_key, name)")
     .eq("active", true)
     .eq("readiness_status", "ready")
     .eq("is_mock", false)
@@ -158,7 +168,7 @@ export async function createAndSendAutomaticPreliminary(
   for (const recommendation of recommendations) {
     const match = officialModules.find((module) =>
       !selectedModules.some((selected) => selected.id === module.id)
-      && serviceMatchesProduct(recommendation.service, module)
+      && (serviceMatchesProduct(recommendation.service, module) || serviceMatchesProduct(recommendation.title, module))
     );
     if (match) selectedModules.push(match);
     if (selectedModules.length >= 2) break;
@@ -174,6 +184,20 @@ export async function createAndSendAutomaticPreliminary(
     return { outcome: "manual_review", eligibility: catalogEligibility };
   }
 
+  const commercialEligibility = automaticPreliminaryCommercialEligibility(selectedModules.map((module) => ({
+    basePrice: Number(module.base_price || 0),
+    quantity: quantityFor(module),
+  })));
+  if (!commercialEligibility.eligible) {
+    const reviewEligibility = {
+      eligible: false,
+      missing: [commercialEligibility.reason],
+      summary: commercialEligibility.reason,
+    } satisfies ProposalEligibility;
+    await markManualReview(db, assessmentId, reviewEligibility);
+    return { outcome: "manual_review", eligibility: reviewEligibility };
+  }
+
   const claim = await db.from("assessments").update({
     assessment_status: "Minta Proposal",
     proposal_status: "Sedang Disusun",
@@ -187,6 +211,7 @@ export async function createAndSendAutomaticPreliminary(
   if (!claim.data) return { outcome: "already_processing", eligibility };
 
   const form = objectValue(assessment.form_data);
+  const locale = form.locale === "en" ? "en" : "id";
   const modules = selectedModules.map((module) => {
     const quantity = quantityFor(module);
     const basePrice = Number(module.base_price || 0);
@@ -202,9 +227,17 @@ export async function createAndSendAutomaticPreliminary(
   const total = modules.reduce((sum, module) => sum + module.lineTotal, 0);
   const range = indicativeRange(total);
   const catalogVersion = Array.from(new Set(selectedModules.map((module) => module.catalog_version))).join("+");
+  const localizedObjectives = selectedModules.flatMap((module) => {
+    const localized = objectValue(objectValue(module.metadata).localized);
+    const copy = objectValue(localized[locale]);
+    return Array.isArray(copy.learningObjectives)
+      ? copy.learningObjectives.filter((value): value is string => typeof value === "string").slice(0, 4)
+      : [];
+  });
 
   try {
     const generated = await generateAssessmentProposal({
+      locale,
       name: String(form.name || "Bapak/Ibu"),
       email: String(form.email || ""),
       company: String(form.company || "Organisasi Anda"),
@@ -232,13 +265,37 @@ export async function createAndSendAutomaticPreliminary(
     const proposal: ProposalResult = {
       ...generated,
       documentKind: "preliminary",
-      investmentNote: `Estimasi investasi awal ${range}. Nilai ini bersifat indikatif dan dapat disesuaikan setelah jumlah peserta, durasi, format, serta ruang lingkup final dikonfirmasi.`,
+      proposalType: "standard",
+      learningObjectives: localizedObjectives,
+      selectedSolutions: selectedModules.map((module) => {
+        const localized = objectValue(objectValue(module.metadata).localized);
+        const copy = objectValue(localized[locale]);
+        const englishCopy = objectValue(localized.en);
+        return {
+          code: module.module_code,
+          name: typeof copy.name === "string" ? copy.name : module.name,
+          nameEn: typeof englishCopy.name === "string" ? englishCopy.name : module.name,
+          focus: typeof copy.summary === "string" ? copy.summary : module.standard_scope || "",
+          focusEn: typeof englishCopy.summary === "string" ? englishCopy.summary : module.standard_scope || "",
+        };
+      }),
+      commercialSnapshot: {
+        items: modules.map((module) => ({ name: module.name, quantity: module.quantity, pricingUnit: module.pricingUnit, basePrice: module.basePrice, lineTotal: module.lineTotal })),
+        subtotal: total,
+        discountPercent: 0,
+        discountAmount: 0,
+        totalBeforeTax: total,
+        currency: "IDR",
+        validityDays: 14,
+      },
+      investmentNote: locale === "en"
+        ? `Indicative investment ${range}. The final scope and investment depend on the confirmed participant count, duration, format, and delivery requirements.`
+        : `Estimasi investasi awal ${range}. Nilai ini bersifat indikatif dan dapat disesuaikan setelah jumlah peserta, durasi, format, serta ruang lingkup final dikonfirmasi.`,
       packages: generated.packages?.map((item) => ({ ...item, price: range })),
       isSimulation: false,
       rulesVersion: `automatic-preliminary-v1:${catalogVersion}`,
     };
-    const pdf = await generateProposalPDFBuffer(form as Parameters<typeof generateProposalPDFBuffer>[0], proposal);
-    const locale = form.locale === "en" ? "en" : "id";
+    const pdf = await generateProposalPDFBuffer(form as Parameters<typeof generateProposalPDFBuffer>[0], proposal, locale);
     const email = await sendProposalEmail(
       String(form.email),
       String(form.name),

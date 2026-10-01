@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const proposal = draft.proposal as ProposalResult | undefined;
   if (!proposal) return adminError("Draft proposal belum tersedia.", 404, "PROPOSAL_DRAFT_MISSING");
   const formData = parseObject(data.form_data) as unknown as AssessmentData;
-  const pdf = await generateProposalPDFBuffer(formData, proposal);
+  const pdf = await generateProposalPDFBuffer(formData, proposal, formData.locale === "en" ? "en" : "id");
 
   return new NextResponse(new Uint8Array(pdf), {
     headers: {

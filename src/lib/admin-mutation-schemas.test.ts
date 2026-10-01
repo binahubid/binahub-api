@@ -99,6 +99,10 @@ describe("admin mutation schemas", () => {
     };
     expect(proposalDraftSchema.safeParse(base).success).toBe(true);
     expect(proposalDraftSchema.safeParse({ ...base, proposalContext: { ...base.proposalContext, invented: "no" } }).success).toBe(false);
+    const custom = { ...base, scopeType: "custom" as const, customProjectName: "Leadership Acceleration 2026", customInvestment: 75_000_000 };
+    expect(proposalDraftSchema.safeParse(custom).success).toBe(true);
+    expect(proposalDraftSchema.safeParse({ ...custom, customInvestment: undefined }).success).toBe(false);
+    expect(proposalDraftSchema.safeParse({ ...custom, discountPercent: 5 }).success).toBe(false);
   });
 
   it("enforces ownership and risk context for Phase 3 handoff and delivery", () => {

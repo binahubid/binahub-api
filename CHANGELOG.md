@@ -3,6 +3,20 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - 2026-10-01
+
+### Security
+
+- Payload katalog anonim memakai daftar field publik eksplisit dan tidak mengirim harga maupun aturan komersial.
+- Preliminary otomatis memasuki antrean review bila nilai tidak deterministik atau melebihi batas persetujuan Rp100 juta.
+
+### Changed
+
+- PDF proposal memakai desain laporan korporat BinaHub, struktur 12 bagian, dan salinan Bahasa Indonesia/Inggris.
+- Proposal otomatis menyimpan snapshot solusi dan nilai katalog dalam dokumen serta menyesuaikan narasi dengan bahasa penerima.
+- Menyiapkan 27 Signature Solutions CEO sebagai snapshot katalog versi 2026 melalui migrasi `0057`; semuanya belum aktif dan belum dipublikasikan hingga review konten serta komersial selesai. Endpoint publik mendukung lokal Bahasa Indonesia dan Inggris dari metadata yang telah diizinkan.
+- Draf proposal custom menerima nama project dan investasi yang ditetapkan admin, memakai desain PDF yang sama, serta selalu masuk gerbang persetujuan manusia.
+
 ## [0.27.3] - 2026-09-30
 
 ### Added

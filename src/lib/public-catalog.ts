@@ -8,14 +8,11 @@ export type PublicCatalogModuleRow = {
   standard_scope: string | null;
   deliverables: string | null;
   out_of_scope: string | null;
-  pricing_unit: string;
-  base_price: number | string;
-  minimum_quantity: number | string;
-  currency: string;
   duration_label: string | null;
   featured: boolean;
   display_order: number;
   catalog_version: string;
+  metadata?: unknown;
 };
 
 export type PublicCatalogProductRow = {
@@ -34,7 +31,26 @@ export type PublicCatalogProductRow = {
 export function buildPublicCatalog(
   products: PublicCatalogProductRow[],
   modules: PublicCatalogModuleRow[],
+  locale: "id" | "en" = "id",
 ) {
+  const englishCategories: Record<string, { name: string; description: string }> = {
+    "signature-self": { name: "Self Transformation", description: "Individual and leadership development solutions." },
+    "signature-team": { name: "Team Transformation", description: "Solutions for collaboration, trust, and team effectiveness." },
+    "signature-organization": { name: "Organization Transformation", description: "Solutions for organizational capability and change." },
+    "signature-specialized": { name: "Specialized Solutions", description: "Development journeys for specific needs." },
+  };
+  const localizedModule = (module: PublicCatalogModuleRow) => {
+    const metadata = module.metadata && typeof module.metadata === "object" && !Array.isArray(module.metadata)
+      ? module.metadata as Record<string, unknown> : {};
+    const localized = metadata.localized && typeof metadata.localized === "object" && !Array.isArray(metadata.localized)
+      ? metadata.localized as Record<string, unknown> : {};
+    const copy = localized[locale] && typeof localized[locale] === "object" && !Array.isArray(localized[locale])
+      ? localized[locale] as Record<string, unknown> : {};
+    return {
+      name: typeof copy.name === "string" ? copy.name : module.name,
+      description: typeof copy.summary === "string" ? copy.summary : module.description,
+    };
+  };
   const modulesByProduct = new Map<string, PublicCatalogModuleRow[]>();
   for (const catalogModule of modules) {
     const current = modulesByProduct.get(catalogModule.product_id) || [];
@@ -46,25 +62,21 @@ export function buildPublicCatalog(
     .map((product) => ({
       key: product.product_key,
       slug: product.slug,
-      name: product.name,
+      name: locale === "en" ? englishCategories[product.product_key]?.name || product.name : product.name,
       objective: product.objective,
       shortDescription: product.short_description,
-      description: product.public_description,
+      description: locale === "en" ? englishCategories[product.product_key]?.description || product.public_description : product.public_description,
       coverImageUrl: product.cover_image_url,
       featured: product.featured,
       modules: (modulesByProduct.get(product.id) || []).map((catalogModule) => ({
         id: catalogModule.id,
         code: catalogModule.module_code,
         slug: catalogModule.slug,
-        name: catalogModule.name,
-        description: catalogModule.description,
+        name: localizedModule(catalogModule).name,
+        description: localizedModule(catalogModule).description,
         standardScope: catalogModule.standard_scope,
         deliverables: catalogModule.deliverables,
         outOfScope: catalogModule.out_of_scope,
-        pricingUnit: catalogModule.pricing_unit,
-        basePrice: Number(catalogModule.base_price || 0),
-        minimumQuantity: Number(catalogModule.minimum_quantity || 1),
-        currency: catalogModule.currency,
         durationLabel: catalogModule.duration_label,
         featured: catalogModule.featured,
         catalogVersion: catalogModule.catalog_version,

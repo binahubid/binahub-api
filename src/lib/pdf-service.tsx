@@ -4,6 +4,7 @@ import { Document, Page, Text, View, StyleSheet, Font, Svg, Polygon, Circle } fr
 import { AssessmentData, DIMENSIONS } from './validations';
 import type { Locale } from '@/i18n/config';
 import { EnterpriseAssessmentReport } from './assessment-report-enterprise';
+import { SignatureProposalReport } from './signature-proposal-report';
 
 const FONT_DIR = path.resolve(process.cwd(), 'public', 'fonts');
 
@@ -50,6 +51,9 @@ export interface ProposalPackage {
 
 export interface ProposalResult {
   documentKind?: 'preliminary' | 'commercial';
+  proposalType?: 'standard' | 'custom';
+  learningObjectives?: string[];
+  selectedSolutions?: Array<{ code: string; name: string; nameEn?: string; focus: string; focusEn?: string }>;
   subject?: string;
   opening?: string;
   proposedProgram?: string;
@@ -785,9 +789,9 @@ export async function generatePDFBuffer(formData: AssessmentData, result: Assess
   return await renderToBuffer(<ReportDocument formData={formData} result={result} locale={locale} />);
 }
 
-export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult): Promise<Buffer> {
+export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult, locale: Locale = 'id'): Promise<Buffer> {
   const { renderToBuffer } = await import('@react-pdf/renderer');
-  return await renderToBuffer(<ProposalPDF formData={formData} proposal={proposal} />);
+  return await renderToBuffer(<SignatureProposalReport formData={formData} proposal={proposal} locale={locale} />);
 }
 
 

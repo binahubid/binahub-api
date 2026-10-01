@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildPublicCatalog } from "./public-catalog";
 
 describe("buildPublicCatalog", () => {
-  it("groups modules by product and normalizes numeric prices", () => {
+  it("groups published modules without exposing internal prices", () => {
     const result = buildPublicCatalog(
       [
         { id: "p1", product_key: "binainsight", slug: "binainsight", name: "BinaInsight", objective: "Diagnosis", short_description: "Diagnosis", public_description: "Description", cover_image_url: null, featured: true, display_order: 0 },
@@ -18,10 +18,6 @@ describe("buildPublicCatalog", () => {
         standard_scope: "Individual report",
         deliverables: "PDF report",
         out_of_scope: null,
-        pricing_unit: "per respondent",
-        base_price: "0",
-        minimum_quantity: "1",
-        currency: "IDR",
         duration_label: "15 minutes",
         featured: true,
         display_order: 0,
@@ -31,6 +27,28 @@ describe("buildPublicCatalog", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].key).toBe("binainsight");
-    expect(result[0].modules[0].basePrice).toBe(0);
+    expect(result[0].modules[0]).not.toHaveProperty("basePrice");
+    expect(result[0].modules[0]).not.toHaveProperty("pricingUnit");
+    expect(result[0].modules[0]).not.toHaveProperty("currency");
+  });
+
+  it("localizes a Signature Solution without serializing its commercial metadata", () => {
+    const result = buildPublicCatalog([{
+      id: "p1", product_key: "signature-self", slug: "signature-self", name: "Transformasi Diri",
+      objective: null, short_description: null, public_description: "Pengembangan diri", cover_image_url: null,
+      featured: false, display_order: 1,
+    }], [{
+      id: "m1", product_id: "p1", module_code: "SS-01", slug: "ss-01", name: "Kecerdasan Emosional",
+      description: "Kenali diri", standard_scope: null, deliverables: null, out_of_scope: null,
+      duration_label: "1 hari", featured: false, display_order: 1, catalog_version: "signature-2026-ceo-v1",
+      metadata: {
+        localized: { en: { name: "Emotional Intelligence", summary: "Understand yourself" } },
+        commercial: { internalPrice: 25_000_000 },
+      },
+    }], "en");
+    expect(result[0].name).toBe("Self Transformation");
+    expect(result[0].modules[0].name).toBe("Emotional Intelligence");
+    expect(result[0].modules[0].description).toBe("Understand yourself");
+    expect(JSON.stringify(result)).not.toMatch(/commercial|internalPrice|25000000|metadata/i);
   });
 });
