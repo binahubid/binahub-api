@@ -5,6 +5,8 @@ import {
   hashOpaqueToken,
   opaqueTokenMatches,
   verifyProposalToken,
+  createProposalViewToken,
+  verifyProposalViewToken,
 } from "./secure-token";
 
 describe("secure tokens", () => {
@@ -28,5 +30,14 @@ describe("secure tokens", () => {
     expect(verifyProposalToken("assessment-b", token)).toBe(false);
     expect(verifyProposalToken("assessment-a", `${token}tampered`)).toBe(false);
     expect(verifyProposalToken("assessment-a", createProposalToken("assessment-a", -1))).toBe(false);
+  });
+
+  it("keeps proposal-view links scoped to reading, an assessment, and expiry", () => {
+    const token = createProposalViewToken("assessment-a", 60);
+    expect(verifyProposalViewToken("assessment-a", token)).toBe(true);
+    expect(verifyProposalViewToken("assessment-b", token)).toBe(false);
+    expect(verifyProposalToken("assessment-a", token)).toBe(false);
+    expect(verifyProposalViewToken("assessment-a", createProposalViewToken("assessment-a", -1))).toBe(false);
+    expect(verifyProposalViewToken("assessment-a", `${token}tampered`)).toBe(false);
   });
 });

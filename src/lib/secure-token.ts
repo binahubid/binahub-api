@@ -45,3 +45,24 @@ export function verifyProposalToken(assessmentId: string, token: string) {
   }
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
+
+// A delivery link must never authorize the separate request/confirmation action.
+export function createProposalViewToken(assessmentId: string, ttlSeconds = 60 * 60 * 24 * 90) {
+  const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const signature = createHmac("sha256", proposalSecret())
+    .update(`proposal-view:${assessmentId}:${expiresAt}`)
+    .digest("base64url");
+  return `${expiresAt}.${signature}`;
+}
+
+export function verifyProposalViewToken(assessmentId: string, token: string) {
+  const [rawExpiry, rawSignature, extra] = token.split(".");
+  const expiresAt = Number(rawExpiry);
+  if (extra || !rawExpiry || !rawSignature || !Number.isSafeInteger(expiresAt) || expiresAt < Math.floor(Date.now() / 1000)) return false;
+  const expected = createHmac("sha256", proposalSecret())
+    .update(`proposal-view:${assessmentId}:${expiresAt}`)
+    .digest();
+  let supplied: Buffer;
+  try { supplied = Buffer.from(rawSignature, "base64url"); } catch { return false; }
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+}

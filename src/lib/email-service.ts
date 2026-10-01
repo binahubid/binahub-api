@@ -2,7 +2,8 @@ import { Resend } from 'resend';
 import { AssessmentData } from './validations';
 import { AssessmentResult } from './pdf-service';
 import type { Locale } from '@/i18n/config';
-import { createProposalToken } from '@/lib/secure-token';
+import { createProposalToken, createProposalViewToken } from '@/lib/secure-token';
+import { resolvePublicAppUrl } from '@/lib/public-app-url';
 import { createServerSupabase } from '@/lib/supabase';
 import { createUnsubscribeToken, normalizeRecipientEmail } from '@/lib/unsubscribe-token';
 import { renderApprovedOutreachHtml } from '@/lib/email-template-renderer';
@@ -503,17 +504,18 @@ export async function sendProposalEmail(
     investmentNote?: string;
     nextStep?: string;
   },
-  pdfBuffer?: Buffer,
-  assessmentId?: string,
+  assessmentId: string,
   locale: Locale = 'id',
   idempotencyKey?: string,
 ) {
+  const proposalUrl = `${resolvePublicAppUrl()}/proposal/${encodeURIComponent(assessmentId)}?token=${encodeURIComponent(createProposalViewToken(assessmentId))}`;
   const isEnglish = locale === 'en';
   const navy = '#0B2C6B';
   const gold = '#D9A441';
+  const isPreliminary = (proposal as { documentKind?: string }).documentKind === 'preliminary';
   const subject = safeHeader(isEnglish
-    ? `Preliminary Recommendation for ${company}`
-    : `Preliminary Recommendation untuk ${company}`);
+    ? `${isPreliminary ? 'Preliminary Recommendation' : 'Solution Proposal'} for ${company}`
+    : `${isPreliminary ? 'Preliminary Recommendation' : 'Proposal Solusi'} untuk ${company}`);
   const safeName = escapeHtml(name);
   const safeCompany = escapeHtml(company);
   const safeProgram = escapeHtml(proposal.proposedProgram || (isEnglish ? 'Organization Development Program' : 'Program Pengembangan Organisasi'));
@@ -521,40 +523,44 @@ export async function sendProposalEmail(
     ? 'A focused development approach aligned with the priorities identified in your diagnostic result.'
     : 'Pendekatan pengembangan terarah yang diselaraskan dengan prioritas pada hasil diagnosa Anda.'));
   const safeInvestment = escapeHtml(proposal.investmentNote || (isEnglish
-    ? 'Please refer to the attached PDF for the initial investment estimate.'
-    : 'Lihat laporan PDF terlampir untuk estimasi investasi awal.'));
+    ? 'Please review the proposal page for the initial investment estimate.'
+    : 'Lihat halaman proposal untuk estimasi investasi awal.'));
   const areas = (proposal.scope || []).slice(0, 3).map((item) => escapeHtml(item));
   const consultationUrl = escapeHtml(getConsultationUrl());
   const copy = isEnglish
     ? {
-        eyebrow: 'BinaHub Preliminary Recommendation',
+        eyebrow: isPreliminary ? 'BinaHub Preliminary Recommendation' : 'BinaHub Solution Proposal',
         greeting: `Dear <strong>${safeName}</strong>,`,
-        intro: `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. The complete recommendation is included in the attached PDF.`,
+        intro: isPreliminary
+          ? `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. Your personalized proposal is ready to read online.`
+          : `Thank you for the opportunity to support <strong>${safeCompany}</strong>. Your personalized solution proposal is ready to read online.`,
         areaTitle: 'Areas that can be strengthened',
         approachTitle: 'A potentially relevant approach',
         formatTitle: 'Indicative format',
         investmentTitle: 'Initial investment estimate',
-        attachment: 'The attached PDF contains the recommended approach, indicative scope, assumptions, and initial investment range. The final scope and investment can be adjusted after we understand the organization context, number of participants, duration, and delivery format in greater detail.',
+        attachment: 'Open your proposal to review the approach, indicative scope, assumptions, and initial investment range. A PDF download is available on that page. The final scope and investment can be adjusted after we understand your context in greater detail.',
+        proposalCta: 'Read your proposal',
         question: 'Have a quick question? Simply reply to this email and we will be happy to help.',
         schedule: 'Prefer a deeper discussion?',
         cta: 'Choose a convenient discussion time',
         closing: 'Warm regards,',
-        fileName: `BinaHub_Preliminary_Recommendation_${safeFilenamePart(company)}.pdf`,
       }
     : {
-        eyebrow: 'Preliminary Recommendation BinaHub',
+        eyebrow: isPreliminary ? 'Preliminary Recommendation BinaHub' : 'Proposal Solusi BinaHub',
         greeting: `Yth. Bapak/Ibu <strong>${safeName}</strong>,`,
-        intro: `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Rekomendasi lengkap kami lampirkan dalam bentuk PDF.`,
+        intro: isPreliminary
+          ? `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Proposal khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`
+          : `Terima kasih atas kesempatan untuk mendukung <strong>${safeCompany}</strong>. Proposal solusi khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`,
         areaTitle: 'Area yang dapat diperkuat',
         approachTitle: 'Gambaran pendekatan yang mungkin relevan',
         formatTitle: 'Format indikatif',
         investmentTitle: 'Estimasi investasi awal',
-        attachment: 'PDF terlampir memuat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. Pendekatan dan investasi dapat disesuaikan setelah konteks organisasi, jumlah peserta, durasi, dan format program dipahami lebih lanjut.',
+        attachment: 'Buka halaman proposal untuk melihat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. PDF dapat diunduh dari halaman tersebut. Pendekatan dan investasi dapat disesuaikan setelah kebutuhan organisasi dipahami lebih lanjut.',
+        proposalCta: 'Buka proposal Anda',
         question: 'Ada pertanyaan singkat? Cukup balas email ini dan kami akan dengan senang hati membantu.',
         schedule: 'Ingin berdiskusi lebih mendalam?',
         cta: 'Pilih waktu diskusi yang nyaman',
         closing: 'Salam hangat,',
-        fileName: `Preliminary_Recommendation_${safeFilenamePart(company)}.pdf`,
       };
 
   const html = `
@@ -570,6 +576,7 @@ export async function sendProposalEmail(
     <div style="padding:36px 38px;color:#334155;">
       <p style="margin:0 0 18px;color:${navy};font-size:16px;">${copy.greeting}</p>
       <p style="margin:0 0 24px;line-height:1.7;font-size:15px;">${copy.intro}</p>
+      <p style="margin:0 0 26px;"><a href="${escapeHtml(proposalUrl)}" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 24px;border-radius:6px;font-weight:700;font-size:14px;">${copy.proposalCta} →</a></p>
 
       <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:22px;margin-bottom:22px;">
         <p style="margin:0 0 8px;color:${navy};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">${copy.areaTitle}</p>
@@ -612,12 +619,6 @@ export async function sendProposalEmail(
       { name: 'category', value: 'assessment_proposal' },
       { name: 'assessment_id', value: resendTagValue(assessmentId) },
     ],
-    attachments: pdfBuffer
-      ? [{
-          filename: copy.fileName,
-          content: pdfBuffer.toString('base64'),
-        }]
-      : [],
   }, idempotencyKey ? { idempotencyKey } : undefined);
   if (response.error) throw new Error(`Resend gagal mengirim proposal: ${response.error.message}`);
   return response;

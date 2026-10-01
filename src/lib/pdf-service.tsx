@@ -789,9 +789,10 @@ export async function generatePDFBuffer(formData: AssessmentData, result: Assess
   return await renderToBuffer(<ReportDocument formData={formData} result={result} locale={locale} />);
 }
 
-export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult, locale: Locale = 'id'): Promise<Buffer> {
+export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult, locale: Locale = 'id', issuedAt?: string): Promise<Buffer> {
   const { renderToBuffer } = await import('@react-pdf/renderer');
-  return await renderToBuffer(<SignatureProposalReport formData={formData} proposal={proposal} locale={locale} />);
+  const effectiveIssuedAt = issuedAt || new Date().toISOString();
+  return await renderToBuffer(<SignatureProposalReport formData={formData} proposal={proposal} locale={locale} issuedAt={effectiveIssuedAt} />);
 }
 
 

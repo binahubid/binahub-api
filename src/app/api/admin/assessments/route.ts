@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { sendAssessmentEmail, sendProposalEmail } from "@/lib/email-service";
-import { generatePDFBuffer, generateProposalPDFBuffer, AssessmentResult } from "@/lib/pdf-service";
+import { generatePDFBuffer, AssessmentResult, type ProposalResult } from "@/lib/pdf-service";
 import { requireAdmin } from "@/lib/admin-auth";
 import { adminError, logAdminEvent, parseValidatedBody } from "@/lib/admin-api";
 import { assessmentActionSchema, assessmentStatusUpdateSchema } from "@/lib/admin-mutation-schemas";
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
         return adminError("Proposal belum lolos Human Gate. Buat draft dan selesaikan approval terlebih dahulu.", 409, "PROPOSAL_GATE_BLOCKED");
       }
       const draft = parseJson<Record<string, unknown>>(row.proposal_draft_data, {});
-      const proposal = draft.proposal as Parameters<typeof generateProposalPDFBuffer>[1] | undefined;
+      const proposal = draft.proposal as ProposalResult | undefined;
       if (!proposal) {
         return adminError("Snapshot draft proposal tidak ditemukan. Buat ulang draft dari katalog modul.", 409, "PROPOSAL_DRAFT_MISSING");
       }
@@ -173,8 +173,7 @@ export async function POST(req: NextRequest) {
       }
 
       const locale = formData.locale === "en" ? "en" : "id";
-      const proposalPdf = await generateProposalPDFBuffer(formData, proposal, locale);
-      const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, proposalPdf, id, locale, `assessment-${id}-approved-proposal-v1`);
+      const proposalEmail = await sendProposalEmail(formData.email, formData.name, formData.company, proposal, id, locale, `assessment-${id}-approved-proposal-v2`);
       const sentAt = new Date().toISOString();
       await updateAssessmentWithEmailIds(
         db,

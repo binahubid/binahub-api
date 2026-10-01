@@ -1,6 +1,6 @@
 import { generateAssessmentProposal } from "@/lib/ai-service";
 import { sendProposalEmail } from "@/lib/email-service";
-import { generateProposalPDFBuffer, type ProposalResult } from "@/lib/pdf-service";
+import { type ProposalResult } from "@/lib/pdf-service";
 import { evaluateAssessmentProposalEligibility, type ProposalEligibility } from "@/lib/proposal-eligibility";
 import { formatIdr } from "@/lib/proposal-policy";
 import { automaticPreliminaryCommercialEligibility } from "@/lib/preliminary-commercial-policy";
@@ -295,13 +295,11 @@ export async function createAndSendAutomaticPreliminary(
       isSimulation: false,
       rulesVersion: `automatic-preliminary-v1:${catalogVersion}`,
     };
-    const pdf = await generateProposalPDFBuffer(form as Parameters<typeof generateProposalPDFBuffer>[0], proposal, locale);
     const email = await sendProposalEmail(
       String(form.email),
       String(form.name),
       String(form.company),
       proposal,
-      pdf,
       assessmentId,
       locale,
       `assessment-${assessmentId}-automatic-preliminary-v1`,

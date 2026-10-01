@@ -3,7 +3,7 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] - 2026-10-01
+## [0.27.4] - 2026-10-01
 
 ### Security
 

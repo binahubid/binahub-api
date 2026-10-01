@@ -152,12 +152,12 @@ function currency(amount: number, code: string, locale: Locale) {
   return new Intl.NumberFormat(locale === "en" ? "en-US" : "id-ID", { style: "currency", currency: code, maximumFractionDigits: 0 }).format(amount);
 }
 
-export function SignatureProposalReport({ formData, proposal, locale = "id" }: { formData: AssessmentData; proposal: ProposalResult; locale?: Locale }) {
+export function SignatureProposalReport({ formData, proposal, locale = "id", issuedAt }: { formData: AssessmentData; proposal: ProposalResult; locale?: Locale; issuedAt: string }) {
   const copy = translations[locale];
   const preliminary = proposal.documentKind === "preliminary";
   const title = preliminary ? copy.preliminary : copy.commercial;
   const company = formData.company || (locale === "en" ? "Your organization" : "Organisasi Anda");
-  const date = new Date().toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const date = new Date(issuedAt).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "long", year: "numeric" });
   const commercial = proposal.commercialSnapshot;
   const items = commercial?.items || [];
   const objectives = proposal.learningObjectives || [];
