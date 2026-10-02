@@ -42,13 +42,24 @@ describe("buildPublicCatalog", () => {
       description: "Kenali diri", standard_scope: null, deliverables: null, out_of_scope: null,
       duration_label: "1 hari", featured: false, display_order: 1, catalog_version: "signature-2026-ceo-v1",
       metadata: {
-        localized: { en: { name: "Emotional Intelligence", summary: "Understand yourself" } },
+        localized: { en: {
+          name: "Emotional Intelligence", summary: "Understand yourself",
+          tagline: "Understand Yourself. Connect Better.",
+          learningObjectives: ["Build self-awareness."],
+          contentOutline: ["Emotional patterns."],
+          outputs: ["Personal action plan."],
+          bestFor: "Professionals", engagementFormat: "Program", duration: "1 day", capacity: "Up to 30 pax",
+          serviceBrand: "BinaLab", hiddenPrice: "Rp25,000,000",
+        } },
         commercial: { internalPrice: 25_000_000 },
       },
     }], "en");
     expect(result[0].name).toBe("Self Transformation");
     expect(result[0].modules[0].name).toBe("Emotional Intelligence");
     expect(result[0].modules[0].description).toBe("Understand yourself");
-    expect(JSON.stringify(result)).not.toMatch(/commercial|internalPrice|25000000|metadata/i);
+    expect(result[0].modules[0].learningObjectives).toEqual(["Build self-awareness."]);
+    expect(result[0].modules[0].contentOutline).toEqual(["Emotional patterns."]);
+    expect(result[0].modules[0].outputs).toEqual(["Personal action plan."]);
+    expect(JSON.stringify(result)).not.toMatch(/commercial|internalPrice|25000000|hiddenPrice|Rp25|metadata/i);
   });
 });

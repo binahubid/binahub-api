@@ -46,9 +46,23 @@ export function buildPublicCatalog(
       ? metadata.localized as Record<string, unknown> : {};
     const copy = localized[locale] && typeof localized[locale] === "object" && !Array.isArray(localized[locale])
       ? localized[locale] as Record<string, unknown> : {};
+    const details = (key: string) => Array.isArray(copy[key])
+      ? (copy[key] as unknown[]).filter((value): value is string => typeof value === "string")
+      : [];
+    const field = (key: string) => typeof copy[key] === "string" ? copy[key] as string : null;
     return {
-      name: typeof copy.name === "string" ? copy.name : module.name,
-      description: typeof copy.summary === "string" ? copy.summary : module.description,
+      name: field("name") || module.name,
+      description: field("summary") || module.description,
+      tagline: field("tagline"),
+      learningObjectives: details("learningObjectives"),
+      contentOutline: details("contentOutline"),
+      outputs: details("outputs"),
+      bestFor: field("bestFor"),
+      engagementFormat: field("engagementFormat"),
+      duration: field("duration") || module.duration_label,
+      capacity: field("capacity"),
+      serviceBrand: field("serviceBrand"),
+      notes: field("notes"),
     };
   };
   const modulesByProduct = new Map<string, PublicCatalogModuleRow[]>();
@@ -68,19 +82,21 @@ export function buildPublicCatalog(
       description: locale === "en" ? englishCategories[product.product_key]?.description || product.public_description : product.public_description,
       coverImageUrl: product.cover_image_url,
       featured: product.featured,
-      modules: (modulesByProduct.get(product.id) || []).map((catalogModule) => ({
-        id: catalogModule.id,
-        code: catalogModule.module_code,
-        slug: catalogModule.slug,
-        name: localizedModule(catalogModule).name,
-        description: localizedModule(catalogModule).description,
-        standardScope: catalogModule.standard_scope,
-        deliverables: catalogModule.deliverables,
-        outOfScope: catalogModule.out_of_scope,
-        durationLabel: catalogModule.duration_label,
-        featured: catalogModule.featured,
-        catalogVersion: catalogModule.catalog_version,
-      })),
+      modules: (modulesByProduct.get(product.id) || []).map((catalogModule) => {
+        const content = localizedModule(catalogModule);
+        return {
+          id: catalogModule.id,
+          code: catalogModule.module_code,
+          slug: catalogModule.slug,
+          ...content,
+          standardScope: catalogModule.standard_scope,
+          deliverables: catalogModule.deliverables,
+          outOfScope: catalogModule.out_of_scope,
+          durationLabel: catalogModule.duration_label,
+          featured: catalogModule.featured,
+          catalogVersion: catalogModule.catalog_version,
+        };
+      }),
     }))
     .filter((product) => product.modules.length > 0);
 }
