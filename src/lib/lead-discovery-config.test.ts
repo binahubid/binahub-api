@@ -61,4 +61,19 @@ describe("lead discovery config", () => {
     expect(config.blockers).toEqual([]);
     expect(JSON.stringify(publicLeadDiscoveryConfig(config))).not.toContain("codecraft-secret");
   });
+
+  it("accepts LapakVIP as the AI scoring credential without legacy providers", () => {
+    const config = getLeadDiscoveryConfig({
+      LEAD_AGENT_PROVIDER: "apollo",
+      LEAD_AGENT_ENABLED: "true",
+      LEAD_AGENT_PROVIDER_CALLS_ENABLED: "true",
+      LEAD_AGENT_DRY_RUN: "true",
+      LEAD_AGENT_SOURCE_KEY: "ai_lead_discovery_apollo",
+      LEAD_AGENT_AI_SCORING_ENABLED: "true",
+      APOLLO_API_KEY: "apollo-secret",
+      LAPAKVIP_API_KEY: "lapakvip-secret",
+    });
+    expect(config.blockers).toEqual([]);
+    expect(JSON.stringify(publicLeadDiscoveryConfig(config))).not.toContain("lapakvip-secret");
+  });
 });

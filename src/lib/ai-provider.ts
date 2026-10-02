@@ -11,7 +11,7 @@ export type AIRoutedMessage = {
 };
 
 export type AIProviderAttempt = {
-  provider: "codecraft" | "openrouter";
+  provider: "lapakvip" | "codecraft" | "openrouter";
   model: string;
   baseURL: string;
   apiKey: string;
@@ -23,24 +23,56 @@ function commaList(value: string | undefined) {
   return (value || "").split(",").map((item) => item.trim()).filter(Boolean);
 }
 
+function normalizeLapakVipModel(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "-");
+  if (normalized.startsWith("lv/")) return normalized;
+  if (normalized.startsWith("deepseek/")) return `lv/${normalized.slice("deepseek/".length)}`;
+  if (normalized.startsWith("x-ai/")) return `lv/${normalized.slice("x-ai/".length)}`;
+  return `lv/${normalized}`;
+}
+
 export function buildAIProviderAttempts(
   environment: NodeJS.ProcessEnv = process.env,
   purpose: AIPurpose = "general",
 ): AIProviderAttempt[] {
   const attempts: AIProviderAttempt[] = [];
+  const lapakVipKey = environment.LAPAKVIP_API_KEY?.trim();
+  if (lapakVipKey) {
+    const generalModel = environment.LAPAKVIP_MODEL?.trim() || "lv/deepseek-v4.1-flash";
+    const models = purpose === "vision"
+      ? [
+          environment.LAPAKVIP_VISION_MODEL?.trim() || "lv/grok-4.6",
+          ...commaList(environment.LAPAKVIP_VISION_FALLBACK_MODELS || "lv/claude-sonnet-4.5"),
+        ]
+      : [
+          purpose === "reasoning" ? environment.LAPAKVIP_REASONING_MODEL?.trim() || generalModel : generalModel,
+          generalModel,
+          ...commaList(environment.LAPAKVIP_FALLBACK_MODELS || "lv/grok-4.6"),
+        ];
+    for (const model of new Set(models.map(normalizeLapakVipModel))) {
+      attempts.push({
+        provider: "lapakvip",
+        model,
+        baseURL: environment.LAPAKVIP_BASE_URL?.trim() || "https://router.lapakvip.com/api/v1",
+        apiKey: lapakVipKey,
+      });
+    }
+  }
+
+  // Keep the old deployment usable until LAPAKVIP_API_KEY is set, but never
+  // spend time on the known-broken CodeCraft account after LapakVIP is active.
   const codeCraftKey = environment.CODECRAFT_API_KEY?.trim();
-  const generalModels = [
-    environment.CODECRAFT_MODEL?.trim() || "claude-sonnet-5",
-    ...commaList(environment.CODECRAFT_FALLBACK_MODELS || "gpt-5.6-sol,claude-opus-5,qwen3.8-max"),
-  ];
-  const purposeModel = purpose === "vision"
-    ? environment.CODECRAFT_VISION_MODEL?.trim() || "claude-opus-5"
-    : purpose === "reasoning"
-      ? environment.CODECRAFT_REASONING_MODEL?.trim() || "claude-opus-5"
-      : generalModels[0];
-  const codeCraftModels = [purposeModel, ...generalModels];
-  if (codeCraftKey) {
-    for (const model of Array.from(new Set(codeCraftModels))) {
+  if (!lapakVipKey && codeCraftKey) {
+    const generalModels = [
+      environment.CODECRAFT_MODEL?.trim() || "claude-sonnet-5",
+      ...commaList(environment.CODECRAFT_FALLBACK_MODELS || "gpt-5.6-sol,claude-opus-5,qwen3.8-max"),
+    ];
+    const purposeModel = purpose === "vision"
+      ? environment.CODECRAFT_VISION_MODEL?.trim() || "claude-opus-5"
+      : purpose === "reasoning"
+        ? environment.CODECRAFT_REASONING_MODEL?.trim() || "claude-opus-5"
+        : generalModels[0];
+    for (const model of new Set([purposeModel, ...generalModels])) {
       attempts.push({
         provider: "codecraft",
         model,
@@ -75,6 +107,11 @@ function statusCode(error: unknown) {
 function publicFailure(error: unknown) {
   const status = statusCode(error);
   if (status) return `HTTP ${status}`;
+  if (error instanceof SyntaxError || error instanceof Error && /invalid ai response|invalid ai assessment/i.test(error.message)) {
+    return "invalid_output";
+  }
+  if (error instanceof Error && /provider error response/i.test(error.message)) return "provider_error";
+  if (error instanceof Error && /timeout|timed out/i.test(`${error.name} ${error.message}`)) return "timeout";
   return error instanceof Error ? error.name : "unknown error";
 }
 
@@ -83,23 +120,30 @@ export async function callRoutedAI(input: {
   jsonMode?: boolean;
   purpose?: AIPurpose;
   environment?: NodeJS.ProcessEnv;
+  validateContent?: (content: string) => void;
 }) {
   const environment = input.environment || process.env;
   const attempts = buildAIProviderAttempts(environment, input.purpose);
   if (!attempts.length) {
-    throw new Error("AI provider belum dikonfigurasi. Isi CODECRAFT_API_KEY atau OPENROUTER_API_KEY.");
+    throw new Error("AI provider belum dikonfigurasi. Isi LAPAKVIP_API_KEY pada environment API.");
   }
 
   const failures: Array<{ provider: string; model: string; failure: string }> = [];
   const maxTokens = Math.max(2048, Math.min(Number(environment.AI_MAX_TOKENS) || 8192, 32768));
-  let blockedProvider: string | null = null;
+  const perAttemptTimeout = Math.max(5_000, Math.min(Number(environment.AI_REQUEST_TIMEOUT_MS) || 25_000, 45_000));
+  const totalTimeout = Math.max(10_000, Math.min(Number(environment.AI_TOTAL_TIMEOUT_MS) || 55_000, 120_000));
+  const deadline = Date.now() + totalTimeout;
+  const blockedCredentials = new Set<string>();
 
   for (const attempt of attempts) {
-    if (blockedProvider === attempt.provider) continue;
+    const credentialId = `${attempt.baseURL.replace(/\/+$/, "")}|${attempt.apiKey}`;
+    if (blockedCredentials.has(credentialId)) continue;
+    const remaining = deadline - Date.now();
+    if (remaining < 5_000) break;
     const client = new OpenAI({
       apiKey: attempt.apiKey,
       baseURL: attempt.baseURL,
-      timeout: Math.max(5_000, Math.min(Number(environment.AI_REQUEST_TIMEOUT_MS) || 45_000, 120_000)),
+      timeout: Math.min(perAttemptTimeout, remaining),
       maxRetries: 0,
       defaultHeaders: attempt.provider === "openrouter" ? {
         "HTTP-Referer": environment.NEXT_PUBLIC_APP_URL || "",
@@ -113,15 +157,18 @@ export async function callRoutedAI(input: {
         messages: input.messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
         max_tokens: maxTokens,
         response_format: input.jsonMode
-          && attempt.provider === "codecraft"
-          && environment.AI_JSON_MODE_ENABLED === "true"
+          && (attempt.provider === "lapakvip"
+            ? environment.LAPAKVIP_JSON_MODE_ENABLED === "true"
+            : attempt.provider === "codecraft" && environment.AI_JSON_MODE_ENABLED === "true")
           ? { type: "json_object" }
           : undefined,
       });
+      if (!Array.isArray(response.choices)) throw new Error("AI provider error response");
       const message = response.choices[0]?.message as (OpenAI.Chat.Completions.ChatCompletionMessage & {
         reasoning_content?: string | null;
       }) | undefined;
       if (!message?.content) throw new Error("Empty response from AI model");
+      input.validateContent?.(message.content);
       return {
         content: message.content,
         reasoningContent: environment.AI_REASONING_ENABLED === "true" ? message.reasoning_content || null : null,
@@ -136,7 +183,7 @@ export async function callRoutedAI(input: {
       // Authentication, billing, and permission failures apply to the provider
       // account. A 429 may be model-specific, so retain the remaining model
       // fallbacks before crossing the provider boundary.
-      if ([401, 402, 403].includes(status || 0)) blockedProvider = attempt.provider;
+      if ([401, 402, 403].includes(status || 0)) blockedCredentials.add(credentialId);
     }
   }
 

@@ -13,6 +13,18 @@ describe("AssessmentSchema", () => {
     const result = AssessmentSchema.parse(validAssessment);
     expect(Object.keys(result.answers)).toHaveLength(49);
     expect(result.email).toBe("ayu@example.com");
+    expect(result).not.toHaveProperty("budgetStatus");
+    expect(result).not.toHaveProperty("sponsorStatus");
+  });
+
+  it("continues to accept legacy budget and sponsor values", () => {
+    const result = AssessmentSchema.parse({
+      ...validAssessment,
+      budgetStatus: "discussion",
+      sponsorStatus: "champion",
+    });
+    expect(result.budgetStatus).toBe("discussion");
+    expect(result.sponsorStatus).toBe("champion");
   });
 
   it("rejects a missing answer", () => {

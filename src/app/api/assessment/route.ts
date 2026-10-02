@@ -140,8 +140,8 @@ export async function POST(req: NextRequest) {
         employees: body.employees || null,
         role: body.role || null,
         timeline: body.timeline || 'unknown',
-        budgetStatus: body.budgetStatus || 'unknown',
-        sponsorStatus: body.sponsorStatus || 'unknown',
+        ...(body.budgetStatus ? { budgetStatus: body.budgetStatus } : {}),
+        ...(body.sponsorStatus ? { sponsorStatus: body.sponsorStatus } : {}),
         nextStepIntent: body.nextStepIntent || 'explore',
         businessConsequence: body.businessConsequence || null,
       },
@@ -268,8 +268,12 @@ export async function POST(req: NextRequest) {
         industry: body.industry,
         location: body.location,
         timelineKnown: body.timeline !== 'unknown',
-        sponsorKnown: ['sponsor_confirmed', 'decision_maker'].includes(body.sponsorStatus || 'unknown'),
-        budgetKnown: ['range_known', 'allocated'].includes(body.budgetStatus || 'unknown'),
+        sponsorKnown: body.sponsorStatus === undefined
+          ? undefined
+          : ['sponsor_confirmed', 'decision_maker'].includes(body.sponsorStatus),
+        budgetKnown: body.budgetStatus === undefined
+          ? undefined
+          : ['range_known', 'allocated'].includes(body.budgetStatus),
         meetingIntent: ['consultation', 'proposal'].includes(body.nextStepIntent || 'explore'),
         businessConsequenceKnown: Boolean(body.businessConsequence && body.businessConsequence.trim().length >= 20),
       });

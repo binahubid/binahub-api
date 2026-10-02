@@ -54,10 +54,23 @@ const aiProposalSchema = z.object({
   nextStep: z.string().trim().min(1).max(1000),
 }).strict();
 
-async function callAI(messages: AIMessage[], _jsonMode: boolean = false, purpose: AIPurpose = "general") {
-  const response = await callRoutedAI({ messages, jsonMode: _jsonMode, purpose });
+async function callAI(
+  messages: AIMessage[],
+  _jsonMode: boolean = false,
+  purpose: AIPurpose = "general",
+  validateContent?: (content: string) => void,
+) {
+  const response = await callRoutedAI({ messages, jsonMode: _jsonMode, purpose, validateContent });
   console.info(`[AI Router] response served by ${response.provider}/${response.model}.`);
   return response.content;
+}
+
+function parseAssessmentAIResult(text: string) {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Invalid AI response format');
+  const parsed = aiAssessmentResultSchema.safeParse(JSON.parse(jsonMatch[0]));
+  if (!parsed.success) throw new Error('Invalid AI assessment result');
+  return parsed.data;
 }
 
 export async function analyzeAssessment(data: AssessmentData, locale: 'id' | 'en' = data.locale || 'id') {
@@ -206,14 +219,9 @@ Buat 5 rekomendasi yang spesifik dan actionable. Setiap rekomendasi harus diawal
         : 'Anda adalah konsultan bisnis senior manusia dari PT BinaHub. Seluruh output harus berbahasa Indonesia dan berbentuk JSON saja.'
     },
     { role: 'user', content: prompt }
-  ], true, "reasoning");
+  ], true, "reasoning", parseAssessmentAIResult);
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Invalid AI response format');
-
-  const parsedAIResult = aiAssessmentResultSchema.safeParse(JSON.parse(jsonMatch[0]));
-  if (!parsedAIResult.success) throw new Error('Invalid AI assessment result');
-  const aiResult = parsedAIResult.data;
+  const aiResult = parseAssessmentAIResult(text);
   const fallbackArchetype = isEnglish
     ? overallScore > 80 ? 'Growth Transformer' : overallScore >= 61 ? 'Strategic Builder' : overallScore >= 40 ? 'Developing Operator' : 'Early Builder'
     : overallScore > 80 ? 'Transformer Pertumbuhan' : overallScore >= 61 ? 'Pembangun Strategis' : overallScore >= 40 ? 'Operator Berkembang' : 'Pembangun Awal';

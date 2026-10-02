@@ -3,6 +3,35 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.7] - 2026-10-02
+
+### Changed
+
+- Router AI API mengikuti pola AMS: LapakVIP menjadi provider utama melalui endpoint OpenAI-compatible, dengan model utama `lv/deepseek-v4.1-flash`, fallback LapakVIP `lv/grok-4.6`, lalu OpenRouter jika dikonfigurasi. CodeCraft lama tidak dicoba ketika key LapakVIP tersedia.
+- Jalur vision memakai model LapakVIP yang mendukung gambar; nama model dinormalisasi seperti di AMS. AI lead scoring kini mengenali key LapakVIP, dan sanitasi log menyensor key tersebut.
+- Tiap percobaan model dibatasi waktu dan seluruh proses memiliki deadline. Respons asesmen yang tidak lolos skema kini mencoba model berikutnya sebelum mengembalikan kegagalan.
+- `npm run test:ai` memeriksa model dan completion LapakVIP; konfigurasi environment serta panduan deployment diperbarui.
+
+### Deployment
+
+- Tambahkan `LAPAKVIP_API_KEY` pada secret environment **project binahub-api**; key pada project AMS tidak otomatis terbagi. Atur base URL dan model sesuai `.env.example`, lalu deploy ulang API. Tidak ada migrasi SQL.
+- Completion produksi belum dapat diverifikasi dari workspace karena key LapakVIP tidak tersedia pada environment lokal API. Tes router menggunakan server AI simulasi tanpa biaya provider.
+
+## [0.27.6] - 2026-10-02
+
+### Changed
+
+- Endpoint asesmen menerima payload diagnosis gratis tanpa status anggaran atau sponsor, tidak mengisi keduanya dengan nilai `unknown` dalam profil kualifikasi, dan tetap kompatibel dengan payload lama yang menyertakannya.
+- Aturan kualifikasi lead tidak menurunkan kelayakan Hot atau confidence hanya karena pertanyaan anggaran dan sponsor tidak diajukan; sponsor yang secara eksplisit belum terkonfirmasi pada payload lama tetap dipertimbangkan.
+
+### Verification
+
+- Typecheck, 201 tes (2 dilewati), dan production build lulus. Tes regresi mencakup payload baru tanpa dua field serta kompatibilitas payload lama.
+
+### Known issue
+
+- Respons 502 pada analisis AI produksi masih perlu didiagnosis menggunakan log runtime API. Kode saat ini mencoba CodeCraft lalu OpenRouter jika tersedia; belum ada integrasi LapakVIP yang terkonfirmasi.
+
 ## [0.27.5] - 2026-10-02
 
 ### Added

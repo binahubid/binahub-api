@@ -23,8 +23,8 @@ PILOT_MONITOR_SECRET
 UNSUBSCRIBE_SECRET
 CALCOM_WEBHOOK_SECRET
 CALCOM_BOOKING_URL
-OPENROUTER_API_KEY
-OPENROUTER_MODEL
+LAPAKVIP_API_KEY
+LAPAKVIP_MODEL
 RESEND_API_KEY
 RESEND_WEBHOOK_SECRET
 EMAIL_FROM
@@ -38,6 +38,8 @@ FACILITATOR_EMAILS
 ```
 
 `PROPOSAL_LINK_SECRET`, `TRANSFORMATION_WORKER_SECRET`, `FOLLOW_UP_CRON_SECRET`, `OPERATIONS_CRON_SECRET`, `ACQUISITION_CRON_SECRET`, `PILOT_MONITOR_SECRET`, `UNSUBSCRIBE_SECRET`, `CALCOM_WEBHOOK_SECRET`, dan `RESEND_WEBHOOK_SECRET` wajib berupa secret acak yang berbeda khusus production. `UNSUBSCRIBE_SECRET` minimal 32 karakter. Jangan memakai nilai yang diekspos ke browser atau menyimpan service-role key dalam variable berprefix `NEXT_PUBLIC_`.
+
+AI asesmen dan fitur AI lain memakai LapakVIP sebagai provider utama ketika `LAPAKVIP_API_KEY` tersedia. Di environment **project API** production, isi `LAPAKVIP_API_KEY`, `LAPAKVIP_BASE_URL=https://router.lapakvip.com/api/v1`, `LAPAKVIP_MODEL=lv/deepseek-v4.1-flash`, dan `LAPAKVIP_FALLBACK_MODELS=lv/grok-4.6`; model vision memakai `LAPAKVIP_VISION_MODEL=lv/grok-4.6`. Key AMS tidak otomatis tersedia untuk project API ini. `OPENROUTER_API_KEY` opsional sebagai fallback lintas provider. Jika key LapakVIP belum diisi, router sementara memakai konfigurasi CodeCraft lama demi kompatibilitas deployment; karena akun CodeCraft saat ini tidak berfungsi, jangan mengandalkannya untuk production. Batas waktu default 25 detik per model dan 55 detik total. Jalankan `npm run test:ai` setelah key tersedia untuk mengecek katalog model serta satu completion kecil; gunakan `AI_SMOKE_SKIP_COMPLETIONS=true` untuk pemeriksaan katalog tanpa biaya completion.
 
 `AUTOMATION_PILOT_ENABLED` dan `AUTOMATION_LIVE_ENABLED` bukan secret, tetapi merupakan master circuit breaker server-side. Pertahankan keduanya `false` pada deployment normal. Pilot membutuhkan `AUTOMATION_PILOT_ENABLED=true`; live membutuhkan kedua variable `true`. Worker tetap menilai dry-run per workflow, requested mode database, release non-mock berstatus scheduled, dan change window pada setiap invocation, sehingga satu variable saja tidak pernah cukup untuk membuka outbound.
 

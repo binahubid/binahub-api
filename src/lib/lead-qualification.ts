@@ -39,7 +39,7 @@ export type LeadQualificationResult = {
   reasoning: string;
 };
 
-export const CONFIRMED_LEAD_RULE_VERSION = "v1.0-confirmed-partial";
+export const CONFIRMED_LEAD_RULE_VERSION = "v1.1-public-diagnostic";
 export const LEAD_TEMPERATURE_THRESHOLDS = { hot: 75, warm: 50 } as const;
 export const MINIMUM_COMPANY_SIZE = 20;
 export const MINIMUM_BUYING_SIGNALS = 3;
@@ -124,6 +124,8 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
   const outcomeClear = isClearText(input.target);
   const companySize = classifyCompanySize(input.employees);
   const roleLevel = classifyRole(input.role);
+  const sponsorAsked = input.sponsorKnown !== undefined;
+  const budgetAsked = input.budgetKnown !== undefined;
   const sponsorKnown = input.sponsorKnown === true || roleLevel === "decision_maker";
   const timelineKnown = input.timelineKnown === true;
   const budgetKnown = input.budgetKnown === true;
@@ -162,7 +164,7 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
   }
   const eligible = exclusionReasons.length === 0;
 
-  const hotRequirementsMet = problemClear && timelineKnown && sponsorKnown && meetingIntent;
+  const hotRequirementsMet = problemClear && timelineKnown && meetingIntent && (!sponsorAsked || sponsorKnown);
   const temperature: LeadTemperature = !eligible
     ? "cold"
     : score >= LEAD_TEMPERATURE_THRESHOLDS.hot
@@ -181,7 +183,7 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
     Boolean(industry),
     Boolean(normalized(input.location)),
     input.timelineKnown !== undefined,
-    input.budgetKnown !== undefined,
+    ...(budgetAsked ? [true] : []),
     input.meetingIntent !== undefined,
     input.businessConsequenceKnown !== undefined,
   ];
@@ -195,7 +197,7 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
   if (!problemClear) missingData.push("problemOrNeed");
   if (!outcomeClear) missingData.push("objectiveOrExpectedOutcome");
   if (input.timelineKnown === undefined || !timelineKnown) missingData.push("timeline");
-  if (input.budgetKnown === undefined || !budgetKnown) missingData.push("budget");
+  if (budgetAsked && !budgetKnown) missingData.push("budget");
   if (input.meetingIntent === undefined || !meetingIntent) missingData.push("nextStepOrMeeting");
   if (input.businessConsequenceKnown === undefined || !businessConsequenceKnown) missingData.push("businessConsequence");
 

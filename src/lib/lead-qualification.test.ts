@@ -39,6 +39,43 @@ describe("confirmed lead qualification", () => {
     expect(result.buyingSignalCount).toBeGreaterThanOrEqual(3);
   });
 
+  it("does not penalize a public assessment for budget and sponsor questions that were not asked", () => {
+    const result = qualifyLead({
+      assessmentCompleted: true,
+      employees: "50-99",
+      role: "HR Manager",
+      challenge: "Produktivitas tim turun dan menghambat target pertumbuhan perusahaan.",
+      target: "Membangun pola kerja yang lebih konsisten dalam enam bulan.",
+      industry: "Teknologi",
+      location: "Jakarta",
+      timelineKnown: true,
+      meetingIntent: true,
+      businessConsequenceKnown: true,
+    });
+
+    expect(result.temperature).toBe("hot");
+    expect(result.confidence).toBe(1);
+    expect(result.missingData).not.toContain("budget");
+  });
+
+  it("still respects an explicitly unconfirmed sponsor on legacy submissions", () => {
+    const result = qualifyLead({
+      assessmentCompleted: true,
+      employees: "50-99",
+      role: "HR Manager",
+      challenge: "Produktivitas tim turun dan menghambat target pertumbuhan perusahaan.",
+      target: "Membangun pola kerja yang lebih konsisten dalam enam bulan.",
+      timelineKnown: true,
+      sponsorKnown: false,
+      budgetKnown: true,
+      meetingIntent: true,
+      businessConsequenceKnown: true,
+    });
+
+    expect(result.score).toBeGreaterThanOrEqual(75);
+    expect(result.temperature).toBe("warm");
+  });
+
   it("does not guess eligibility from an employee range crossing the minimum", () => {
     const result = qualifyLead({
       assessmentCompleted: true,

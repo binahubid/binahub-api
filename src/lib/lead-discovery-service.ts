@@ -52,6 +52,7 @@ function sanitizeError(error: unknown) {
   const secrets = [
     process.env.APOLLO_API_KEY,
     process.env.HUNTER_API_KEY,
+    process.env.LAPAKVIP_API_KEY,
     process.env.CODECRAFT_API_KEY,
     process.env.OPENROUTER_API_KEY,
     process.env.LEAD_AGENT_SECRET,
