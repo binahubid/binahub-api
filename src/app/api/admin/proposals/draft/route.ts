@@ -24,6 +24,7 @@ type AssessmentRow = {
   ai_analysis: string | null;
   recommendations: unknown;
   overall_score: number | null;
+  proposal_sent_at: string | null;
 };
 
 function objectValue(value: unknown) {
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
   const parsed = await parseValidatedBody(req, proposalDraftSchema);
   if (parsed.error || !parsed.data) return adminError(parsed.error, 400, "INVALID_PROPOSAL_DRAFT");
   const input = parsed.data;
+  if (input.scopeType === "custom") return adminError("Proposal custom disusun manual oleh CEO dari hasil assessment dan percakapan klien; aplikasi hanya membuat proposal standar.", 409, "CUSTOM_PROPOSAL_MANUAL_ONLY");
   const db = createServerSupabase();
 
   const [
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
     { data: commercialPolicy, error: commercialPolicyError },
   ] = await Promise.all([
     db.from("assessments")
-      .select("id, form_data, scores, category, ai_analysis, recommendations, overall_score")
+      .select("id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_sent_at")
       .eq("id", input.assessmentId)
       .single(),
     db.from("business_rule_sets")
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle(),
   ]);
   if (assessmentError || !assessment) return adminError(assessmentError?.message || "Assessment tidak ditemukan.", 404, "ASSESSMENT_NOT_FOUND");
+  if ((assessment as AssessmentRow).proposal_sent_at) return adminError("Proposal standar sudah dikirim. Jangan timpa dokumen yang telah diterima klien; proposal custom disusun manual oleh CEO dari hasil assessment.", 409, "PROPOSAL_ALREADY_SENT");
   if (rulesError) return adminError(rulesError.message, 500, "BUSINESS_RULES_READ_FAILED");
   if (commercialPolicyError) return adminError(commercialPolicyError.message, 500, "COMMERCIAL_POLICY_READ_FAILED");
 
@@ -130,18 +133,7 @@ export async function POST(req: NextRequest) {
       catalogVersion: row.catalog_version,
     };
   });
-  const catalogCommercials = calculateProposalCommercials(modules, input.discountPercent);
-  const customInvestment = input.scopeType === "custom" ? input.customInvestment || 0 : 0;
-  const commercials = input.scopeType === "custom"
-    ? {
-        ...catalogCommercials,
-        items: [{ ...modules[0], name: input.customProjectName || "Project custom", basePrice: customInvestment, quantity: 1, lineTotal: customInvestment }],
-        subtotal: customInvestment,
-        discountPercent: 0,
-        discountAmount: 0,
-        totalBeforeTax: customInvestment,
-      }
-    : catalogCommercials;
+  const commercials = calculateProposalCommercials(modules, input.discountPercent);
   const form = objectValue((assessment as AssessmentRow).form_data);
   const requiredProposalData = evaluateRequiredProposalData({
     form,
@@ -191,14 +183,7 @@ export async function POST(req: NextRequest) {
   const proposal = {
     ...generatedProposal,
     documentKind: "commercial" as const,
-    proposalType: input.scopeType,
-    ...(input.scopeType === "custom" ? {
-      proposedProgram: input.customProjectName,
-      scope: input.proposalContext.scope?.split(/\n|;/).map((item) => item.trim()).filter(Boolean) || generatedProposal.scope,
-      investmentNote: form.locale === "en"
-        ? "Project-specific scope and investment. Subject to human approval and final agreement."
-        : "Cakupan dan investasi disusun khusus untuk project ini. Berlaku setelah persetujuan manusia dan kesepakatan final.",
-    } : {}),
+    proposalType: "standard" as const,
     isSimulation,
     rulesVersion: rules.version,
     commercialSnapshot: { ...commercials, currency: rules.currency, validityDays: rules.proposalValidityDays },
@@ -209,8 +194,8 @@ export async function POST(req: NextRequest) {
     proposal,
     commercials,
     scopeType: input.scopeType,
-    customProjectName: input.scopeType === "custom" ? input.customProjectName : null,
-    customInvestment: input.scopeType === "custom" ? customInvestment : null,
+    customProjectName: null,
+    customInvestment: null,
     notes: input.notes,
     riskFlags: input.riskFlags,
     aiConfidence: input.aiConfidence ?? null,

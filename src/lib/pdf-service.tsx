@@ -53,6 +53,7 @@ export interface ProposalResult {
   documentKind?: 'preliminary' | 'commercial';
   proposalType?: 'standard' | 'custom';
   learningObjectives?: string[];
+  deliverables?: string[];
   selectedSolutions?: Array<{ code: string; name: string; nameEn?: string; focus: string; focusEn?: string }>;
   subject?: string;
   opening?: string;

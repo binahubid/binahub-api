@@ -1,10 +1,11 @@
-import { generateAssessmentProposal } from "@/lib/ai-service";
+import { generateAssessmentProposal, selectStandardCatalogModules } from "@/lib/ai-service";
 import { sendProposalEmail } from "@/lib/email-service";
 import { type ProposalResult } from "@/lib/pdf-service";
 import { evaluateAssessmentProposalEligibility, type ProposalEligibility } from "@/lib/proposal-eligibility";
 import { formatIdr } from "@/lib/proposal-policy";
 import { automaticPreliminaryCommercialEligibility } from "@/lib/preliminary-commercial-policy";
 import { createServerSupabase } from "@/lib/supabase";
+import { isAutoSendableStandardModule } from "@/lib/standard-catalog-policy";
 
 type AssessmentRow = {
   id: string;
@@ -24,12 +25,13 @@ type CatalogModuleRow = {
   module_code: string;
   name: string;
   standard_scope?: string | null;
+  deliverables?: string | null;
+  duration_label?: string | null;
   pricing_unit: string;
   base_price: number | string;
   minimum_quantity?: number | string | null;
   catalog_version: string;
   metadata?: Record<string, unknown> | null;
-  catalog_products: { product_key?: string; name?: string } | Array<{ product_key?: string; name?: string }> | null;
 };
 
 export type AutomaticPreliminaryResult = {
@@ -64,48 +66,21 @@ function arrayValue(value: unknown) {
   return [];
 }
 
-function productOf(module: CatalogModuleRow) {
-  return Array.isArray(module.catalog_products) ? module.catalog_products[0] : module.catalog_products;
-}
-
-function normalizedService(value: unknown) {
-  return String(value || "").toLocaleLowerCase("id-ID").replace(/[^a-z0-9]+/g, "");
-}
-
-function serviceMatchesProduct(service: unknown, module: CatalogModuleRow) {
-  const serviceKey = normalizedService(service);
-  const product = productOf(module);
-  const productKey = normalizedService(product?.product_key);
-  const productName = normalizedService(product?.name);
-  const localized = objectValue(objectValue(module.metadata).localized);
-  const englishName = normalizedService(objectValue(localized.en).name);
-  const indonesianName = normalizedService(objectValue(localized.id).name);
-  return Boolean(serviceKey && (
-    normalizedService(module.module_code) === serviceKey
-    || normalizedService(module.name) === serviceKey
-    || englishName === serviceKey
-    || indonesianName === serviceKey
-    ||
-    productKey === serviceKey
-    || productKey === `bina${serviceKey}`
-    || productName === serviceKey
-    || productName === `bina${serviceKey}`
-  ));
-}
-
 function quantityFor(module: CatalogModuleRow) {
   const minimum = Math.ceil(Number(module.minimum_quantity || 1));
   return Number.isFinite(minimum) && minimum > 0 ? minimum : 1;
 }
 
-function roundUp(amount: number, unit = 500_000) {
-  return Math.ceil(amount / unit) * unit;
+function lines(value: string | null | undefined) {
+  return String(value || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
 }
 
-function indicativeRange(amount: number) {
-  const lower = roundUp(amount);
-  const upper = roundUp(amount * 1.25);
-  return `${formatIdr(lower)}–${formatIdr(upper)}`;
+function localizedList(module: CatalogModuleRow, locale: "id" | "en", field: "contentOutline" | "outputs", fallback: string | null | undefined) {
+  const localized = objectValue(objectValue(module.metadata).localized);
+  const copy = objectValue(localized[locale]);
+  return Array.isArray(copy[field])
+    ? copy[field].filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : lines(fallback);
 }
 
 async function markManualReview(
@@ -154,7 +129,7 @@ export async function createAndSendAutomaticPreliminary(
   }
 
   const { data: moduleRows, error: moduleError } = await db.from("catalog_modules")
-    .select("id, module_code, name, standard_scope, pricing_unit, base_price, minimum_quantity, catalog_version, metadata, catalog_products(product_key, name)")
+    .select("id, module_code, name, standard_scope, deliverables, duration_label, pricing_unit, base_price, minimum_quantity, catalog_version, metadata")
     .eq("active", true)
     .eq("readiness_status", "ready")
     .eq("is_mock", false)
@@ -163,25 +138,51 @@ export async function createAndSendAutomaticPreliminary(
 
   const recommendations = arrayValue(assessment.recommendations);
   const officialModules = ((moduleRows || []) as unknown as CatalogModuleRow[])
-    .filter((module) => Number(module.base_price || 0) > 0);
-  const selectedModules: CatalogModuleRow[] = [];
-  for (const recommendation of recommendations) {
-    const match = officialModules.find((module) =>
-      !selectedModules.some((selected) => selected.id === module.id)
-      && (serviceMatchesProduct(recommendation.service, module) || serviceMatchesProduct(recommendation.title, module))
-    );
-    if (match) selectedModules.push(match);
-    if (selectedModules.length >= 2) break;
-  }
-
-  if (selectedModules.length === 0) {
+    .filter(isAutoSendableStandardModule);
+  if (officialModules.length === 0) {
     const catalogEligibility = {
       eligible: false,
-      missing: ["modul katalog resmi yang siap ditawarkan dan sesuai rekomendasi assessment"],
-      summary: "Belum ada modul katalog resmi yang cocok untuk pengiriman otomatis.",
+      missing: ["modul Signature Solutions berharga tetap yang siap ditawarkan"],
+      summary: "Belum ada modul standar resmi yang aman untuk pengiriman otomatis.",
     } satisfies ProposalEligibility;
     await markManualReview(db, assessmentId, catalogEligibility);
     return { outcome: "manual_review", eligibility: catalogEligibility };
+  }
+
+  const form = objectValue(assessment.form_data);
+  const locale = form.locale === "en" ? "en" : "id";
+  let selectedModules: CatalogModuleRow[];
+  let selectionReason: string;
+  let emailAccepted = false;
+  try {
+    const selection = await selectStandardCatalogModules({
+      locale,
+      challenge: String(form.challenge || ""),
+      target: String(form.target || ""),
+      category: assessment.category || "",
+      scores: objectValue(assessment.scores) as Record<string, number>,
+      recommendations: recommendations as Array<{ title?: string; diagnosis?: string; description?: string; service?: string }>,
+      candidates: officialModules.map((module) => {
+        const localized = objectValue(objectValue(module.metadata).localized);
+        const copy = objectValue(localized[locale]);
+        return {
+          code: module.module_code,
+          name: String(copy.name || module.name),
+          summary: String(copy.summary || ""),
+          scope: localizedList(module, locale, "contentOutline", module.standard_scope).join("; "),
+          objectives: Array.isArray(copy.learningObjectives) ? copy.learningObjectives.filter((value): value is string => typeof value === "string").slice(0, 4) : [],
+          duration: module.duration_label || "",
+          serviceBrand: String(copy.serviceBrand || ""),
+        };
+      }),
+    });
+    selectedModules = selection.moduleCodes.map((code) => officialModules.find((module) => module.module_code === code)!);
+    selectionReason = selection.reasoning;
+  } catch (selectionError) {
+    console.error("[Automatic Standard Proposal] Catalog selection failed:", selectionError);
+    const reviewEligibility = { eligible: false, missing: ["pemilihan solusi katalog belum tervalidasi"], summary: "AI belum dapat memilih modul standar dengan aman; tinjau secara manual." } satisfies ProposalEligibility;
+    await markManualReview(db, assessmentId, reviewEligibility);
+    return { outcome: "manual_review", eligibility: reviewEligibility };
   }
 
   const commercialEligibility = automaticPreliminaryCommercialEligibility(selectedModules.map((module) => ({
@@ -210,8 +211,6 @@ export async function createAndSendAutomaticPreliminary(
   if (claim.error) throw new Error(claim.error.message);
   if (!claim.data) return { outcome: "already_processing", eligibility };
 
-  const form = objectValue(assessment.form_data);
-  const locale = form.locale === "en" ? "en" : "id";
   const modules = selectedModules.map((module) => {
     const quantity = quantityFor(module);
     const basePrice = Number(module.base_price || 0);
@@ -222,10 +221,11 @@ export async function createAndSendAutomaticPreliminary(
       quantity,
       basePrice,
       lineTotal: basePrice * quantity,
+      duration: module.duration_label || "",
+      deliverables: localizedList(module, locale, "outputs", module.deliverables),
     };
   });
   const total = modules.reduce((sum, module) => sum + module.lineTotal, 0);
-  const range = indicativeRange(total);
   const catalogVersion = Array.from(new Set(selectedModules.map((module) => module.catalog_version))).join("+");
   const localizedObjectives = selectedModules.flatMap((module) => {
     const localized = objectValue(objectValue(module.metadata).localized);
@@ -264,8 +264,13 @@ export async function createAndSendAutomaticPreliminary(
     });
     const proposal: ProposalResult = {
       ...generated,
-      documentKind: "preliminary",
+      documentKind: "commercial",
       proposalType: "standard",
+      scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)).slice(0, 12),
+      deliverables: modules.flatMap((module) => module.deliverables).slice(0, 12),
+      timeline: locale === "en"
+        ? `Priced delivery days: ${modules.map((module) => `${module.name}: ${module.quantity} day(s)`).join("; ")}. Catalog duration: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Longer delivery requires a revised quote.`
+        : `Hari pelaksanaan yang dihargai: ${modules.map((module) => `${module.name}: ${module.quantity} hari`).join("; ")}. Durasi katalog: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Pelaksanaan lebih lama memerlukan penawaran ulang.`,
       learningObjectives: localizedObjectives,
       selectedSolutions: selectedModules.map((module) => {
         const localized = objectValue(objectValue(module.metadata).localized);
@@ -289,11 +294,11 @@ export async function createAndSendAutomaticPreliminary(
         validityDays: 14,
       },
       investmentNote: locale === "en"
-        ? `Indicative investment ${range}. The final scope and investment depend on the confirmed participant count, duration, format, and delivery requirements.`
-        : `Estimasi investasi awal ${range}. Nilai ini bersifat indikatif dan dapat disesuaikan setelah jumlah peserta, durasi, format, serta ruang lingkup final dikonfirmasi.`,
-      packages: generated.packages?.map((item) => ({ ...item, price: range })),
+        ? `Standard catalog base price: ${formatIdr(total)} for ${modules.map((module) => `${module.name} (${module.quantity} delivery day(s))`).join(" + ")}. Taxes and changes to participants, location, duration, or scope are confirmed separately.`
+        : `Harga dasar katalog: ${formatIdr(total)} untuk ${modules.map((module) => `${module.name} (${module.quantity} hari pelaksanaan)`).join(" + ")}. Pajak serta perubahan jumlah peserta, lokasi, durasi, atau cakupan dikonfirmasi terpisah.`,
+      packages: generated.packages?.map((item) => ({ ...item, price: formatIdr(total), scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)).slice(0, 12), deliverables: modules.flatMap((module) => module.deliverables).slice(0, 12) })),
       isSimulation: false,
-      rulesVersion: `automatic-preliminary-v1:${catalogVersion}`,
+      rulesVersion: `automatic-standard-v2:${catalogVersion}`,
     };
     const email = await sendProposalEmail(
       String(form.email),
@@ -302,16 +307,18 @@ export async function createAndSendAutomaticPreliminary(
       proposal,
       assessmentId,
       locale,
-      `assessment-${assessmentId}-automatic-preliminary-v1`,
+      `assessment-${assessmentId}-automatic-standard-v2`,
     );
+    emailAccepted = true;
     const sentAt = new Date().toISOString();
     const emailId = email.data?.id || null;
     const draft = {
       proposal,
       automatic: true,
-      kind: "preliminary",
+      kind: "standard",
       selectedModuleIds: selectedModules.map((module) => module.id),
-      indicativeRange: range,
+      selectionReason,
+      basePriceTotal: total,
       generatedAt: sentAt,
       eligibility,
     };
@@ -326,8 +333,8 @@ export async function createAndSendAutomaticPreliminary(
       proposal_gate_reasons: [],
       proposal_catalog_version: catalogVersion,
       proposal_generated_at: sentAt,
-    }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun");
-    if (saved.error) throw new Error(`Email terkirim tetapi status perlu direkonsiliasi: ${saved.error.message}`);
+    }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun").select("id").maybeSingle();
+    if (saved.error || !saved.data) throw new Error(`Email terkirim tetapi status perlu direkonsiliasi: ${saved.error?.message || "baris assessment tidak diperbarui"}`);
     if (assessment.lead_id) {
       await db.from("leads").update({
         lifecycle_stage: "lead",
@@ -338,11 +345,11 @@ export async function createAndSendAutomaticPreliminary(
     return { outcome: "sent", eligibility, emailId };
   } catch (error) {
     await db.from("assessments").update({
-      proposal_status: "Diminta",
+      proposal_status: emailAccepted ? "Perlu Rekonsiliasi" : "Diminta",
       proposal_gate_status: "pending_approval",
       proposal_gate_reasons: [{
-        code: "AUTO_PRELIMINARY_FAILED",
-        message: "Pengiriman otomatis belum selesai; tindak lanjut manusia diperlukan.",
+        code: emailAccepted ? "STANDARD_PROPOSAL_EMAIL_STATE_UNCERTAIN" : "AUTO_STANDARD_PROPOSAL_FAILED",
+        message: emailAccepted ? "Provider menerima email, tetapi status database belum terkonfirmasi. Rekonsiliasi sebelum mengirim ulang." : "Pengiriman proposal standar belum selesai; tindak lanjut manusia diperlukan.",
         severity: "blocking",
       }],
     }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun");

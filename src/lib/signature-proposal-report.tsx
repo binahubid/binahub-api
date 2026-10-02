@@ -203,6 +203,7 @@ export function SignatureProposalReport({ formData, proposal, locale = "id", iss
       <Section number="05" title={copy.delivery}><Text style={styles.body}>{copy.deliveryText}</Text></Section>
       <Section number="06" title={copy.scope}>
         <BulletList items={scope} />
+        {proposal.deliverables?.length ? <View style={{ marginTop: 10 }}><Text style={styles.body}>{locale === "en" ? "Expected outputs" : "Output yang disediakan"}</Text><BulletList items={proposal.deliverables} /></View> : null}
         {proposal.timeline && <Text style={styles.muted}>{locale === "en" ? "Indicative timeline" : "Perkiraan waktu"}: {proposal.timeline}</Text>}
       </Section>
       <Section number="07" title={copy.investment} keepTogether>

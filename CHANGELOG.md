@@ -3,6 +3,26 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.8] - 2026-10-03
+
+### Changed
+
+- Permintaan dari tombol Preliminary Recommendation pada email hasil assessment menyusun dan mengirim proposal standar berbasis hasil assessment dan modul Signature Solutions katalog CEO. AI hanya boleh memilih kode modul yang tersedia; solusi custom, harga non-tetap, atau rincian katalog tidak lengkap masuk tinjauan manusia.
+- Proposal standar menggunakan harga dasar pasti dari snapshot katalog, kuantitas hari pelaksanaan yang tertulis, cakupan, output, tujuan pembelajaran, dan durasi resmi. Perubahan khusus setelah membaca proposal atau konsultasi tetap melalui proposal custom dan persetujuan manusia.
+- Email dan halaman konfirmasi menjelaskan proposal standar serta pemisahan kebutuhan custom. Pengiriman idempoten memakai versi baru, dan status yang tidak pasti setelah provider menerima email ditahan untuk rekonsiliasi agar tidak terkirim ganda.
+- API menolak draf baru di atas proposal yang sudah terkirim agar URL proposal klien tidak menunjuk draf lain. Proposal custom setelah proposal standar disusun manual oleh CEO di luar aplikasi menggunakan hasil assessment.
+- Endpoint draf admin menolak permintaan `scopeType=custom`; jalur aplikasi assessment hanya membuat proposal standar.
+- Email notifikasi internal assessment menyertakan PDF hasil yang sama dengan email klien bila pembuatan PDF berhasil; arsip admin tetap dapat mengambil email/PDF klien melalui Resend berdasarkan ID email yang tersimpan.
+- API tracking inbound mengembalikan aktivitas yang terkait dengan 100 perjalanan terbaru. API outbound menambahkan hitungan pengunjung, assessment, inquiry, dan lead tertaut per tautan untuk dashboard admin.
+
+### Verification
+
+- Typecheck, lint file yang berubah, 212 tes (2 dilewati), dan production build lulus. Pengiriman email produksi serta konversi nyata belum diuji dari workspace.
+
+### Deployment
+
+- Deploy API `0.27.8` bersama app `0.26.8`; migrasi SQL baru tidak diperlukan. Pastikan katalog migrasi `0059`, kredensial AI LapakVIP, Resend, dan secret tautan proposal tersedia di environment API sebelum uji akun internal.
+
 ## [0.27.7] - 2026-10-02
 
 ### Changed

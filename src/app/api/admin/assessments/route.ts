@@ -18,6 +18,7 @@ type AssessmentRow = {
   proposal_draft_data: unknown;
   proposal_gate_status: string | null;
   proposal_catalog_version: string | null;
+  proposal_sent_at: string | null;
 };
 
 function parseJson<T>(value: unknown, fallback: T): T {
@@ -36,7 +37,7 @@ async function getAssessment(id: string) {
   const db = createServerSupabase();
   const { data, error } = await db
     .from("assessments")
-    .select("id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_draft_data, proposal_gate_status, proposal_catalog_version")
+    .select("id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_draft_data, proposal_gate_status, proposal_catalog_version, proposal_sent_at")
     .eq("id", id)
     .single();
 
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "request_proposal") {
+      if (row.proposal_sent_at) return adminError("Proposal sudah dikirim. Jangan membuat permintaan duplikat.", 409, "PROPOSAL_ALREADY_SENT");
       const { error: requestError } = await db
         .from("assessments")
         .update({
@@ -159,6 +161,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "send_proposal") {
+      if (row.proposal_sent_at) return adminError("Proposal sudah dikirim. Periksa riwayat sebelum mengirim ulang.", 409, "PROPOSAL_ALREADY_SENT");
       if (!['approved', 'clear'].includes(row.proposal_gate_status || '')) {
         return adminError("Proposal belum lolos Human Gate. Buat draft dan selesaikan approval terlebih dahulu.", 409, "PROPOSAL_GATE_BLOCKED");
       }

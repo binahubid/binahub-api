@@ -31,9 +31,32 @@ export async function GET(req: NextRequest) {
   if (missing) return NextResponse.json({ success: true, phase20Part2Ready: false, signingReady: outboundLinkSigningReady(), links: [], clicks: [], campaigns: [], prospects: [] });
   const error = links.error || clicks.error || campaigns.error || prospects.error;
   if (error) return adminError(error.message, 500, "OUTBOUND_LINK_LOAD_FAILED");
+  const journeyIds = [...new Set((clicks.data || []).map((click) => click.journey_id))];
+  const [journeyEvents, leadLinks] = journeyIds.length ? await Promise.all([
+    db.from("inbound_journey_events").select("journey_id,event_type").in("journey_id", journeyIds).in("event_type", ["assessment_submitted", "inquiry_submitted"]),
+    db.from("inbound_lead_journeys").select("journey_id,lead_id").in("journey_id", journeyIds),
+  ]) : [{ data: [], error: null }, { data: [], error: null }];
+  if (journeyEvents.error || leadLinks.error) return adminError(journeyEvents.error?.message || leadLinks.error?.message || "Konversi outbound tidak dapat dibaca.", 500, "OUTBOUND_CONVERSION_LOAD_FAILED");
+  const eventTypesByJourney = new Map<string, Set<string>>();
+  for (const event of journeyEvents.data || []) {
+    const types = eventTypesByJourney.get(event.journey_id) || new Set<string>();
+    types.add(event.event_type);
+    eventTypesByJourney.set(event.journey_id, types);
+  }
+  const leadJourneys = new Set((leadLinks.data || []).map((link) => link.journey_id));
+  const outcomes = (links.data || []).map((link) => {
+    const clickedJourneys = new Set((clicks.data || []).filter((click) => click.link_id === link.id).map((click) => click.journey_id));
+    return {
+      linkId: link.id,
+      visitors: clickedJourneys.size,
+      assessments: [...clickedJourneys].filter((id) => eventTypesByJourney.get(id)?.has("assessment_submitted")).length,
+      inquiries: [...clickedJourneys].filter((id) => eventTypesByJourney.get(id)?.has("inquiry_submitted")).length,
+      linkedLeads: [...clickedJourneys].filter((id) => leadJourneys.has(id)).length,
+    };
+  });
   return NextResponse.json({
     success: true, phase20Part2Ready: true, signingReady: outboundLinkSigningReady(),
-    links: links.data || [], clicks: clicks.data || [], campaigns: campaigns.data || [], prospects: prospects.data || [],
+    links: links.data || [], clicks: clicks.data || [], campaigns: campaigns.data || [], prospects: prospects.data || [], outcomes,
     apolloPro: { providerCallsEnabled: false, discoveryEnabled: false, enrichmentEnabled: false, message: "Apollo Pro tetap terkunci; Phase 20.2 tidak memanggil API Apollo." },
   }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -156,6 +156,8 @@ export async function sendAssessmentEmail(
   const safeCompany = escapeHtml(formData.company);
   const safeEmail = escapeHtml(formData.email);
   const safeWhatsapp = escapeHtml(formData.whatsapp || '-');
+  const safeChallenge = escapeHtml(formData.challenge || '-');
+  const safeTarget = escapeHtml(formData.target || '-');
   const safeCategory = escapeHtml(String(result.category));
   const safeArchetype = result.archetype ? escapeHtml(result.archetype) : '';
   const dimensionLabels: Record<string, { id: string; en: string }> = {
@@ -191,7 +193,7 @@ export async function sendAssessmentEmail(
         noteBody: 'This result is an initial view designed to help identify areas that may require attention as your organization responds to change and evolving work demands.',
         referenceTitle: 'Complete report attached',
         pdfNote: '<strong>The attached PDF report</strong> contains the detailed scores, analysis, insights, and initial priorities. Please use the PDF as the primary reference for this diagnostic result.',
-        proposalIntro: 'If you would like to explore relevant development approaches and an initial budget estimate, we can prepare a <strong>Preliminary Recommendation</strong> based on this diagnostic result.',
+        proposalIntro: 'If you would like to explore relevant solutions, request a <strong>Preliminary Recommendation</strong>. We will prepare a standard proposal based on this diagnostic result and the official BinaHub catalog, including a fixed catalog base price and its assumptions when a standard solution is eligible.',
         proposalCta: 'Request a Preliminary Recommendation',
         chatCta: 'Learn more about BinaHub',
         closing: 'Warm regards,',
@@ -214,7 +216,7 @@ export async function sendAssessmentEmail(
         noteBody: 'Hasil ini merupakan gambaran awal untuk membantu melihat area yang perlu mendapat perhatian dalam menghadapi perubahan dan tuntutan pekerjaan.',
         referenceTitle: 'Laporan lengkap terlampir',
         pdfNote: '<strong>Laporan PDF terlampir</strong> memuat rincian skor, analisis, insight, dan prioritas awal. Gunakan PDF tersebut sebagai rujukan utama hasil diagnosa ini.',
-        proposalIntro: 'Jika Bapak/Ibu ingin mengetahui <strong>pendekatan pengembangan yang mungkin relevan beserta estimasi budget awal</strong>, kami dapat menyiapkan <strong>Preliminary Recommendation</strong> berdasarkan hasil diagnosa ini.',
+        proposalIntro: 'Jika Bapak/Ibu ingin melihat solusi yang relevan, mintalah <strong>Preliminary Recommendation</strong>. Kami akan menyiapkan proposal standar berdasarkan hasil diagnosa dan katalog resmi BinaHub, termasuk harga dasar pasti beserta asumsinya bila modul standar memenuhi syarat.',
         proposalCta: 'Minta Preliminary Recommendation',
         chatCta: 'Kenali BinaHub lebih jauh',
         closing: 'Salam hangat,',
@@ -402,7 +404,12 @@ export async function sendAssessmentEmail(
       subject: safeHeader(`[LEAD BARU] Assessment: ${formData.company} (${result.category})`),
       html: `<p>Data diagnostik baru telah diterima dari <strong>${safeName}</strong> (${safeCompany}).<br>
       Email: ${safeEmail}<br>WhatsApp: ${safeWhatsapp}<br>
-      Skor: ${result.scores.overall}/100 — Kategori: ${safeCategory}</p>`,
+      Skor: ${result.scores.overall}/100 — Kategori: ${safeCategory}</p>
+      <p><strong>Tantangan:</strong> ${safeChallenge}<br><strong>Target 3–6 bulan:</strong> ${safeTarget}</p>
+      <p>PDF hasil diagnostik klien terlampir jika pembuatan PDF berhasil. Detail assessment juga dapat dilihat di Assessment Admin.</p>`,
+      attachments: pdfBuffer
+        ? [{ filename: copy.fileName, content: pdfBuffer.toString('base64') }]
+        : [],
     });
 
     if (adminRes.error) {
@@ -513,9 +520,10 @@ export async function sendProposalEmail(
   const navy = '#0B2C6B';
   const gold = '#D9A441';
   const isPreliminary = (proposal as { documentKind?: string }).documentKind === 'preliminary';
+  const isStandard = !isPreliminary && (proposal as { proposalType?: string }).proposalType === 'standard';
   const subject = safeHeader(isEnglish
-    ? `${isPreliminary ? 'Preliminary Recommendation' : 'Solution Proposal'} for ${company}`
-    : `${isPreliminary ? 'Preliminary Recommendation' : 'Proposal Solusi'} untuk ${company}`);
+    ? `${isPreliminary ? 'Preliminary Recommendation' : isStandard ? 'Standard Solution Proposal' : 'Solution Proposal'} for ${company}`
+    : `${isPreliminary ? 'Preliminary Recommendation' : isStandard ? 'Proposal Standar BinaHub' : 'Proposal Solusi'} untuk ${company}`);
   const safeName = escapeHtml(name);
   const safeCompany = escapeHtml(company);
   const safeProgram = escapeHtml(proposal.proposedProgram || (isEnglish ? 'Organization Development Program' : 'Program Pengembangan Organisasi'));
@@ -529,16 +537,18 @@ export async function sendProposalEmail(
   const consultationUrl = escapeHtml(getConsultationUrl());
   const copy = isEnglish
     ? {
-        eyebrow: isPreliminary ? 'BinaHub Preliminary Recommendation' : 'BinaHub Solution Proposal',
+        eyebrow: isPreliminary ? 'BinaHub Preliminary Recommendation' : isStandard ? 'BinaHub Standard Proposal' : 'BinaHub Solution Proposal',
         greeting: `Dear <strong>${safeName}</strong>,`,
         intro: isPreliminary
           ? `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. Your personalized proposal is ready to read online.`
-          : `Thank you for the opportunity to support <strong>${safeCompany}</strong>. Your personalized solution proposal is ready to read online.`,
+          : isStandard
+            ? `Based on your diagnostic result, we selected official BinaHub catalog solutions for <strong>${safeCompany}</strong>. Your standard proposal with the catalog base price and clear assumptions is ready to read online.`
+            : `Thank you for the opportunity to support <strong>${safeCompany}</strong>. Your personalized solution proposal is ready to read online.`,
         areaTitle: 'Areas that can be strengthened',
         approachTitle: 'A potentially relevant approach',
         formatTitle: 'Indicative format',
-        investmentTitle: 'Initial investment estimate',
-        attachment: 'Open your proposal to review the approach, indicative scope, assumptions, and initial investment range. A PDF download is available on that page. The final scope and investment can be adjusted after we understand your context in greater detail.',
+        investmentTitle: isStandard ? 'Standard catalog base price' : 'Initial investment estimate',
+        attachment: isStandard ? 'Open your proposal to review the selected catalog solutions, standard scope, base price, and assumptions. A PDF download is available there. Custom changes require a separate discussion.' : 'Open your proposal to review the approach, indicative scope, assumptions, and initial investment range. A PDF download is available on that page. The final scope and investment can be adjusted after we understand your context in greater detail.',
         proposalCta: 'Read your proposal',
         question: 'Have a quick question? Simply reply to this email and we will be happy to help.',
         schedule: 'Prefer a deeper discussion?',
@@ -546,16 +556,18 @@ export async function sendProposalEmail(
         closing: 'Warm regards,',
       }
     : {
-        eyebrow: isPreliminary ? 'Preliminary Recommendation BinaHub' : 'Proposal Solusi BinaHub',
+        eyebrow: isPreliminary ? 'Preliminary Recommendation BinaHub' : isStandard ? 'Proposal Standar BinaHub' : 'Proposal Solusi BinaHub',
         greeting: `Yth. Bapak/Ibu <strong>${safeName}</strong>,`,
         intro: isPreliminary
           ? `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Proposal khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`
-          : `Terima kasih atas kesempatan untuk mendukung <strong>${safeCompany}</strong>. Proposal solusi khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`,
+          : isStandard
+            ? `Berdasarkan hasil diagnosa, kami memilih solusi katalog resmi yang relevan untuk <strong>${safeCompany}</strong>. Proposal standar beserta harga dasar katalog dan asumsinya kini dapat dibaca secara daring.`
+            : `Terima kasih atas kesempatan untuk mendukung <strong>${safeCompany}</strong>. Proposal solusi khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`,
         areaTitle: 'Area yang dapat diperkuat',
         approachTitle: 'Gambaran pendekatan yang mungkin relevan',
         formatTitle: 'Format indikatif',
-        investmentTitle: 'Estimasi investasi awal',
-        attachment: 'Buka halaman proposal untuk melihat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. PDF dapat diunduh dari halaman tersebut. Pendekatan dan investasi dapat disesuaikan setelah kebutuhan organisasi dipahami lebih lanjut.',
+        investmentTitle: isStandard ? 'Harga dasar katalog' : 'Estimasi investasi awal',
+        attachment: isStandard ? 'Buka proposal untuk melihat modul katalog terpilih, cakupan standar, harga dasar, dan asumsinya. PDF dapat diunduh di halaman tersebut. Perubahan khusus dibahas dalam proses terpisah.' : 'Buka halaman proposal untuk melihat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. PDF dapat diunduh dari halaman tersebut. Pendekatan dan investasi dapat disesuaikan setelah kebutuhan organisasi dipahami lebih lanjut.',
         proposalCta: 'Buka proposal Anda',
         question: 'Ada pertanyaan singkat? Cukup balas email ini dan kami akan dengan senang hati membantu.',
         schedule: 'Ingin berdiskusi lebih mendalam?',

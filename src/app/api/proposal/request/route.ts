@@ -4,11 +4,15 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { verifyProposalToken } from '@/lib/secure-token';
 import { createAndSendAutomaticPreliminary } from '@/lib/automatic-preliminary';
 
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 const NAVY = '#0B2C6B';
 const GOLD = '#D9A441';
 const EXISTING_PROPOSAL_STATUSES = new Set([
   'Diminta',
   'Sedang Disusun',
+  'Perlu Rekonsiliasi',
   'Draft Simulasi',
   'Menunggu Approval',
   'Disetujui',
@@ -179,18 +183,18 @@ function successHtml(
       <h1>${isPending ? 'Konfirmasi Permintaan Proposal' : 'Permintaan Proposal Diterima'}</h1>
       <p>Terima kasih, <span class="highlight">${name}</span> dari <span class="highlight">${company}</span>.</p>
       ${isPending
-        ? `<p>Silakan klik tombol berikut untuk mengonfirmasi bahwa Anda ingin menerima Preliminary Recommendation dari BinaHub. Permintaan baru akan diproses setelah Anda menekan tombol konfirmasi.</p><form method="post" action="${formAction}"><button class="confirm-button" type="submit">Konfirmasi Permintaan</button></form>`
+        ? `<p>Silakan konfirmasi untuk menerima proposal standar yang disusun dari hasil diagnosa dan modul katalog resmi BinaHub. Permintaan baru diproses setelah tombol ditekan.</p><form method="post" action="${formAction}"><button class="confirm-button" type="submit">Konfirmasi Permintaan</button></form>`
         : delivery === 'sent'
-          ? '<p>Preliminary Recommendation telah disusun berdasarkan hasil diagnosa dan dikirim ke email Anda. Silakan periksa kotak masuk atau folder spam.</p>'
-          : '<p>Permintaan Anda sudah diterima. Jika data diagnosa sudah lengkap, sistem akan menyiapkan Preliminary Recommendation secara otomatis. Tim BinaHub akan meninjau apabila masih ada informasi yang perlu dilengkapi.</p>'}
+          ? '<p>Proposal standar telah disusun berdasarkan hasil diagnosa dan katalog resmi, lalu dikirim ke email Anda. Silakan periksa kotak masuk atau folder spam.</p>'
+          : '<p>Permintaan Anda sudah diterima. Jika modul standar yang sesuai dan harga dasarnya tervalidasi, sistem akan mengirim proposal otomatis. Jika belum, tim BinaHub akan meninjaunya sebelum ada penawaran.</p>'}
 
       <div class="divider"></div>
 
       <div class="info-box">
         <p><strong>Yang terjadi selanjutnya:</strong></p>
         <p>1. Hasil diagnosa digunakan untuk menyusun rekomendasi awal</p>
-        <p>2. Preliminary Recommendation dikirim ke email Anda</p>
-        <p>3. Anda dapat membalas email atau memilih waktu konsultasi jika ingin berdiskusi</p>
+        <p>2. Proposal standar dikirim ke email Anda bila lolos validasi katalog</p>
+        <p>3. Kebutuhan khusus dapat dibahas setelah Anda membaca proposal atau melalui konsultasi</p>
       </div>
     </div>
     <div class="footer">

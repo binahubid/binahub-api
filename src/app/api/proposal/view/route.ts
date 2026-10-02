@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
     investmentNote: proposal.investmentNote,
     nextStep: proposal.nextStep,
     learningObjectives: proposal.learningObjectives,
+    deliverables: proposal.deliverables,
     selectedSolutions: proposal.selectedSolutions,
     commercialSnapshot: proposal.commercialSnapshot && {
       items: commercialItems.map(({ name, quantity, pricingUnit }) => ({ name, quantity, pricingUnit })),
