@@ -3,6 +3,22 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.5] - 2026-10-02
+
+### Added
+
+- Migrasi `0058` menghapus modul mock dan UAT dari katalog tanpa menyentuh asesmen publik BinaInsight (`BI-PUBLIC`).
+- Migrasi `0059` melengkapi 27 Signature Solutions dari dokumen CEO dengan tujuan pembelajaran, cakupan konten, hasil, sasaran, format, durasi, kapasitas, merek layanan, dan catatan dalam Bahasa Inggris serta Indonesia, lalu menandainya siap dan publik.
+- Skrip pembangkit migrasi serta berkas terjemahan Indonesia disimpan agar rincian sumber dapat diaudit dan migrasi dapat dibuat ulang.
+
+### Security
+
+- Endpoint katalog publik hanya mengirim field rincian nonkomersial yang diizinkan. Harga dasar, unit harga, dan `metadata.commercial` tetap tersedia untuk proposal internal tetapi tidak ikut dalam respons publik.
+
+### Deployment
+
+- Migrasi `0059` telah dijalankan manual pada database produksi. API, app, dan website perlu memakai kode katalog terbaru untuk menampilkan rincian secara konsisten.
+
 ## [0.27.4] - 2026-10-01
 
 ### Security
