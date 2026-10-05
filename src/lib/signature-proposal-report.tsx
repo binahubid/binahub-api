@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { AssessmentData } from "@/lib/validations";
 import type { ProposalResult } from "@/lib/pdf-service";
+import { clientProposalCopy } from "@/lib/proposal-copy";
 
 const NAVY = "#0B2C6B";
 const INK = "#17212F";
@@ -25,7 +26,7 @@ const styles = StyleSheet.create({
   header: { position: "absolute", top: 27, left: 54, right: 54, flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: LINE, paddingBottom: 9 },
   headerBrand: { color: NAVY, fontSize: 10, fontWeight: 700 },
   headerLabel: { color: MUTED, fontSize: 7.5, textTransform: "uppercase", letterSpacing: 0.6 },
-  footer: { position: "absolute", bottom: 24, left: 54, right: 54, flexDirection: "row", justifyContent: "space-between", color: MUTED, fontSize: 7, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 8 },
+  footer: { position: "absolute", top: 795, left: 54, right: 54, flexDirection: "row", justifyContent: "space-between", color: MUTED, fontSize: 7, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 8 },
   section: { marginBottom: 17 },
   sectionNumber: { color: GOLD, fontSize: 8, fontWeight: 700, letterSpacing: 1.2 },
   heading: { color: NAVY, fontSize: 16, fontWeight: 700, marginTop: 4, marginBottom: 8 },
@@ -60,7 +61,6 @@ const translations = {
     status: "Status",
     indicative: "Indikatif - perlu konfirmasi ruang lingkup",
     simulation: "SIMULASI - bukan penawaran resmi",
-    custom: "Solusi custom - disusun melalui peninjauan manusia",
     confidential: "Disiapkan khusus untuk penerima - BinaHub",
     summary: "Ringkasan keputusan",
     context: "Konteks dan kebutuhan",
@@ -74,9 +74,8 @@ const translations = {
     scope: "Yang disediakan BinaHub",
     quality: "Cakupan dan jaminan mutu",
     qualityText: "Cakupan mengikuti solusi yang tercantum dalam proposal ini. Penyesuaian koordinasi pelaksanaan yang kecil tidak mengubah rancangan solusi; perubahan substansial pada tujuan, peserta, durasi, asesmen, coaching, atau keluaran memerlukan peninjauan ruang lingkup dan investasi.",
-    standardOrCustom: "Solusi standar atau custom",
-    standardText: "Solusi standar mempertahankan tujuan pembelajaran dan rancangan inti katalog. Jika kebutuhan melampaui cakupan tersebut, BinaHub akan menyelaraskan pendekatan custom bersama klien sebelum menetapkan komitmen akhir.",
-    customText: "Ruang lingkup dan investasi proposal custom disusun untuk project ini dan memerlukan persetujuan manusia sebelum dikirim sebagai penawaran final.",
+    alignment: "Penyesuaian kebutuhan",
+    alignmentText: "Program mengikuti tujuan dan cakupan yang tercantum dalam proposal ini. Jika kebutuhan Anda berubah, kami akan menyelaraskan pendekatan, jadwal, dan investasi bersama sebelum pelaksanaan.",
     investment: "Investasi",
     quantity: "Jumlah",
     fee: "Nilai",
@@ -89,7 +88,7 @@ const translations = {
     about: "Tentang BinaHub",
     solutionReason: "Solusi ini dipilih untuk menjawab prioritas yang teridentifikasi dalam diagnosa. Kegiatan memadukan eksplorasi, praktik, refleksi, dan penerapan pada pekerjaan sehari-hari.",
     exclusionsText: "Nilai di atas tidak mencakup tempat kegiatan, perangkat elektronik (termasuk proyektor, layar, dan tata suara), konsumsi peserta, transportasi serta akomodasi tim BinaHub untuk pelaksanaan di luar Jakarta, dan pajak yang berlaku, kecuali dinyatakan lain secara tertulis.",
-    termsText: "Jadwal dan ketersediaan fasilitator menunggu konfirmasi. Pelaksanaan dimulai setelah kesepakatan komersial dan administrasi, termasuk PO/SPK bila relevan. Perubahan jumlah peserta, tanggal, lokasi, format, atau cakupan setelah konfirmasi dapat mengubah investasi. Transaksi di atas Rp100.000.000 memerlukan persetujuan internal BinaHub sebelum komitmen final.",
+    termsText: "Jadwal dan ketersediaan fasilitator menunggu konfirmasi. Pelaksanaan dimulai setelah kesepakatan komersial dan administrasi, termasuk PO/SPK bila relevan. Perubahan jumlah peserta, tanggal, lokasi, format, atau cakupan setelah konfirmasi dapat mengubah investasi.",
     aboutText: "BinaHub membantu organisasi mengembangkan kapabilitas manusia, menjalankan transformasi, dan menghasilkan dampak yang berkelanjutan.",
     closingTitle: "Mari mulai dari kebutuhan yang paling penting.",
     closingText: "Tim BinaHub siap mendiskusikan prioritas, menyesuaikan pelaksanaan, dan membantu Anda menentukan langkah berikutnya.",
@@ -104,7 +103,6 @@ const translations = {
     status: "Status",
     indicative: "Indicative - scope subject to confirmation",
     simulation: "SIMULATION - not an official offer",
-    custom: "Custom solution - prepared with human review",
     confidential: "Prepared exclusively for the recipient - BinaHub",
     summary: "Decision summary",
     context: "Context and need",
@@ -118,9 +116,8 @@ const translations = {
     scope: "What BinaHub delivers",
     quality: "Scope and quality assurance",
     qualityText: "Scope follows the solutions stated in this proposal. Minor delivery coordination does not change their design; material changes to objectives, participants, duration, assessment, coaching, or deliverables require a scope and investment review.",
-    standardOrCustom: "Standard or custom solution",
-    standardText: "Standard solutions preserve the catalog learning objectives and core design. If the need exceeds that scope, BinaHub will align a custom approach with the client before final commitment.",
-    customText: "The scope and investment of this custom proposal are project-specific and require human approval before a final offer is sent.",
+    alignment: "Aligning with your needs",
+    alignmentText: "The program follows the objectives and scope stated in this proposal. If your needs change, we will align the approach, schedule, and investment together before delivery.",
     investment: "Investment",
     quantity: "Quantity",
     fee: "Fee",
@@ -133,7 +130,7 @@ const translations = {
     about: "About BinaHub",
     solutionReason: "These solutions address the priorities identified by the diagnostic. The experience combines exploration, practice, reflection, and workplace application.",
     exclusionsText: "The investment excludes venue, electronic equipment (including projector, screen, and sound system), participant catering, transportation and accommodation for BinaHub personnel outside Jakarta, and applicable taxes, unless expressly stated otherwise.",
-    termsText: "Dates and facilitator availability are subject to confirmation. Delivery begins after commercial and administrative requirements are agreed, including a PO/SPK where applicable. Changes to participant count, date, location, format, or scope after confirmation may change the investment. Transactions above Rp100,000,000 require BinaHub internal approval before final commitment.",
+    termsText: "Dates and facilitator availability are subject to confirmation. Delivery begins after commercial and administrative requirements are agreed, including a PO/SPK where applicable. Changes to participant count, date, location, format, or scope after confirmation may change the investment.",
     aboutText: "BinaHub helps organizations build people capability, drive transformation, and deliver sustainable impact.",
     closingTitle: "Start with what matters most.",
     closingText: "The BinaHub team can help clarify priorities, align delivery, and define the next step with you.",
@@ -152,7 +149,8 @@ function currency(amount: number, code: string, locale: Locale) {
   return new Intl.NumberFormat(locale === "en" ? "en-US" : "id-ID", { style: "currency", currency: code, maximumFractionDigits: 0 }).format(amount);
 }
 
-export function SignatureProposalReport({ formData, proposal, locale = "id", issuedAt }: { formData: AssessmentData; proposal: ProposalResult; locale?: Locale; issuedAt: string }) {
+export function SignatureProposalReport({ formData, proposal: storedProposal, locale = "id", issuedAt }: { formData: AssessmentData; proposal: ProposalResult; locale?: Locale; issuedAt: string }) {
+  const proposal = clientProposalCopy(storedProposal);
   const copy = translations[locale];
   const preliminary = proposal.documentKind === "preliminary";
   const title = preliminary ? copy.preliminary : copy.commercial;
@@ -177,7 +175,7 @@ export function SignatureProposalReport({ formData, proposal, locale = "id", iss
         <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.preparedFor}</Text><Text style={styles.metadataValue}>{company}</Text></View>
         <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.contact}</Text><Text style={styles.metadataValue}>{formData.name || "-"}</Text></View>
         <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.date}</Text><Text style={styles.metadataValue}>{date}</Text></View>
-        {(preliminary || proposal.isSimulation || proposal.proposalType === "custom") && <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.status}</Text><Text style={styles.metadataValue}>{proposal.isSimulation ? copy.simulation : proposal.proposalType === "custom" ? copy.custom : copy.indicative}</Text></View>}
+        {(preliminary || proposal.isSimulation) && <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.status}</Text><Text style={styles.metadataValue}>{proposal.isSimulation ? copy.simulation : copy.indicative}</Text></View>}
       </View>
       <Text style={styles.coverFooter}>{copy.confidential}  |  www.binahub.id</Text>
     </Page>
@@ -217,7 +215,7 @@ export function SignatureProposalReport({ formData, proposal, locale = "id", iss
       </Section>
       <Text style={[styles.muted, { marginBottom: 14 }]}>{copy.exclusions}: {copy.exclusionsText}</Text>
       <Section number="08" title={copy.quality}><Text style={styles.body}>{copy.qualityText}</Text></Section>
-      <Section number="09" title={copy.standardOrCustom}><Text style={styles.body}>{proposal.proposalType === "custom" ? copy.customText : copy.standardText}</Text></Section>
+      <Section number="09" title={copy.alignment}><Text style={styles.body}>{copy.alignmentText}</Text></Section>
       <Section number="10" title={copy.terms}><Text style={styles.body}>{copy.termsText}</Text></Section>
       {commercial?.validityDays && <Text style={styles.muted}>{copy.validity}: {commercial.validityDays} {locale === "en" ? "days from issue" : "hari sejak diterbitkan"}.</Text>}
       <View break wrap={false} style={{ paddingTop: 60 }}>

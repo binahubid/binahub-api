@@ -3,6 +3,7 @@ import { generateProposalPDFBuffer, type ProposalResult } from "@/lib/pdf-servic
 import { createServerSupabase } from "@/lib/supabase";
 import { verifyProposalViewToken } from "@/lib/secure-token";
 import type { AssessmentData } from "@/lib/validations";
+import { clientProposalCopy } from "@/lib/proposal-copy";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   const formData = data.form_data as AssessmentData;
-  const proposal = data.proposal_data as ProposalResult;
+  const proposal = clientProposalCopy(data.proposal_data as ProposalResult);
   const locale = formData.locale === "en" ? "en" : "id";
   if (request.nextUrl.searchParams.get("format") === "pdf") {
     const pdf = await generateProposalPDFBuffer(formData, proposal, locale, data.proposal_sent_at);

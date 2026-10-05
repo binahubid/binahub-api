@@ -325,8 +325,8 @@ export async function createAndSendAutomaticPreliminary(
       scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)),
       deliverables: modules.flatMap((module) => module.deliverables),
       timeline: locale === "en"
-        ? `Priced delivery days: ${modules.map((module) => `${module.name}: ${module.quantity} day(s)`).join("; ")}. Catalog duration: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Longer delivery requires a revised quote.`
-        : `Hari pelaksanaan yang dihargai: ${modules.map((module) => `${module.name}: ${module.quantity} hari`).join("; ")}. Durasi katalog: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Pelaksanaan lebih lama memerlukan penawaran ulang.`,
+        ? `Planned delivery: ${modules.map((module) => `${module.name}: ${module.quantity} day(s)`).join("; ")}. Program duration: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Longer delivery requires a revised quote.`
+        : `Rencana pelaksanaan: ${modules.map((module) => `${module.name}: ${module.quantity} hari`).join("; ")}. Durasi program: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Pelaksanaan lebih lama memerlukan penawaran ulang.`,
       learningObjectives: localizedObjectives,
       selectedSolutions: selectedModules.map((module) => {
         const localized = objectValue(objectValue(module.metadata).localized);
@@ -350,8 +350,8 @@ export async function createAndSendAutomaticPreliminary(
         validityDays: 14,
       },
       investmentNote: locale === "en"
-        ? `Standard catalog base price: ${formatIdr(total)} for ${modules.map((module) => `${module.name} (${module.quantity} delivery day(s))`).join(" + ")}. Taxes and changes to participants, location, duration, or scope are confirmed separately.`
-        : `Harga dasar katalog: ${formatIdr(total)} untuk ${modules.map((module) => `${module.name} (${module.quantity} hari pelaksanaan)`).join(" + ")}. Pajak serta perubahan jumlah peserta, lokasi, durasi, atau cakupan dikonfirmasi terpisah.`,
+        ? `Program investment: ${formatIdr(total)} for ${modules.map((module) => `${module.name} (${module.quantity} delivery day(s))`).join(" + ")}. Taxes and changes to participants, location, duration, or scope are confirmed separately.`
+        : `Investasi program: ${formatIdr(total)} untuk ${modules.map((module) => `${module.name} (${module.quantity} hari pelaksanaan)`).join(" + ")}. Pajak serta perubahan jumlah peserta, lokasi, durasi, atau cakupan dikonfirmasi terpisah.`,
       packages: generated.packages?.map((item) => ({ ...item, price: formatIdr(total), duration: selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; "), scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)), deliverables: modules.flatMap((module) => module.deliverables) })),
       isSimulation: false,
       rulesVersion: `automatic-standard-v2:${catalogVersion}`,

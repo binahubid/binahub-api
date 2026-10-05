@@ -3,6 +3,27 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.10] - 2026-10-05
+
+### Changed
+
+- Proposal web, PDF, dan email pengantar menggunakan judul netral serta bahasa klien, tanpa klasifikasi standar/custom, harga dasar katalog, snapshot, atau penjelasan persetujuan internal.
+- Mengganti bagian PDF tentang klasifikasi solusi dengan **Penyesuaian kebutuhan**, serta mempertahankan cakupan, keluaran, nilai investasi, pajak, asumsi pelaksanaan, dan masa berlaku.
+- Catatan investasi dan jadwal yang dibuat otomatis kini menyebut investasi program serta rencana/durasi pelaksanaan. Prompt dan narasi cadangan AI menggunakan bahasa yang sama.
+- Merapikan narasi proposal lama pada lapisan presentasi, tanpa migrasi atau perubahan data komersial tersimpan. Klasifikasi internal, aturan persetujuan, harga, dan perlindungan pengiriman tetap berlaku.
+
+### Fixed
+
+- Memperbaiki posisi footer/nomor halaman pada PDF proposal yang terdiri dari beberapa halaman.
+
+### Verification
+
+- 263 tes lulus; 3 tes live opt-in dilewati. Typecheck, lint file yang berubah, dan production build lulus. Pengujian mencakup copywriting Indonesia/Inggris, dokumen lama, email yang dimock, serta render PDF asli. Seluruh halaman PDF kedua bahasa diperiksa secara visual, tanpa email nyata atau penulisan database produksi.
+
+### Deployment
+
+- Deploy bersama app **0.27.0**. Tidak ada migrasi SQL. Email yang sudah diterima klien tidak dapat diubah; copy baru berlaku pada pengiriman berikutnya dan proposal web/PDF yang dihasilkan ulang.
+
 ## [0.27.9] - 2026-10-05
 
 ### Fixed

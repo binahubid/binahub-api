@@ -7,6 +7,7 @@ import { resolvePublicAppUrl } from '@/lib/public-app-url';
 import { createServerSupabase } from '@/lib/supabase';
 import { createUnsubscribeToken, normalizeRecipientEmail } from '@/lib/unsubscribe-token';
 import { renderApprovedOutreachHtml } from '@/lib/email-template-renderer';
+import { clientProposalCopy } from '@/lib/proposal-copy';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -517,6 +518,7 @@ export async function sendProposalEmail(
   linkIssuedAt?: string,
 ) {
   const issuedAtMs = linkIssuedAt ? Date.parse(linkIssuedAt) : Date.now();
+  proposal = clientProposalCopy(proposal);
   if (!Number.isFinite(issuedAtMs)) throw new Error('Waktu penerbitan proposal tidak valid.');
   const proposalUrl = `${resolvePublicAppUrl()}/proposal/${encodeURIComponent(assessmentId)}?token=${encodeURIComponent(createProposalViewToken(assessmentId, 60 * 60 * 24 * 90, issuedAtMs))}`;
   const isEnglish = locale === 'en';
@@ -525,8 +527,8 @@ export async function sendProposalEmail(
   const isPreliminary = (proposal as { documentKind?: string }).documentKind === 'preliminary';
   const isStandard = !isPreliminary && (proposal as { proposalType?: string }).proposalType === 'standard';
   const subject = safeHeader(isEnglish
-    ? `${isPreliminary ? 'Preliminary Recommendation' : isStandard ? 'Standard Solution Proposal' : 'Solution Proposal'} for ${company}`
-    : `${isPreliminary ? 'Preliminary Recommendation' : isStandard ? 'Proposal Standar BinaHub' : 'Proposal Solusi'} untuk ${company}`);
+    ? `${isPreliminary ? 'Preliminary Recommendation' : 'Solution Proposal'} for ${company}`
+    : `${isPreliminary ? 'Preliminary Recommendation' : 'Proposal Solusi BinaHub'} untuk ${company}`);
   const safeName = escapeHtml(name);
   const safeCompany = escapeHtml(company);
   const safeProgram = escapeHtml(proposal.proposedProgram || (isEnglish ? 'Organization Development Program' : 'Program Pengembangan Organisasi'));
@@ -540,7 +542,7 @@ export async function sendProposalEmail(
   const consultationUrl = escapeHtml(getConsultationUrl());
   const copy = isEnglish
     ? {
-        eyebrow: isPreliminary ? 'BinaHub Preliminary Recommendation' : isStandard ? 'BinaHub Standard Proposal' : 'BinaHub Solution Proposal',
+        eyebrow: isPreliminary ? 'BinaHub Preliminary Recommendation' : 'BinaHub Solution Proposal',
         greeting: `Dear <strong>${safeName}</strong>,`,
         intro: isPreliminary
           ? `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. Your personalized proposal is ready to read online.`
@@ -559,7 +561,7 @@ export async function sendProposalEmail(
         closing: 'Warm regards,',
       }
     : {
-        eyebrow: isPreliminary ? 'Preliminary Recommendation BinaHub' : isStandard ? 'Proposal Standar BinaHub' : 'Proposal Solusi BinaHub',
+        eyebrow: isPreliminary ? 'Preliminary Recommendation BinaHub' : 'Proposal Solusi BinaHub',
         greeting: `Yth. Bapak/Ibu <strong>${safeName}</strong>,`,
         intro: isPreliminary
           ? `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Proposal khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`
