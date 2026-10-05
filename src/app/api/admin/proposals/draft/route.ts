@@ -25,6 +25,8 @@ type AssessmentRow = {
   recommendations: unknown;
   overall_score: number | null;
   proposal_sent_at: string | null;
+  proposal_status: string | null;
+  proposal_draft_data: unknown;
 };
 
 function objectValue(value: unknown) {
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
     { data: commercialPolicy, error: commercialPolicyError },
   ] = await Promise.all([
     db.from("assessments")
-      .select("id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_sent_at")
+      .select("id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_sent_at, proposal_status, proposal_draft_data")
       .eq("id", input.assessmentId)
       .single(),
     db.from("business_rule_sets")
@@ -83,6 +85,10 @@ export async function POST(req: NextRequest) {
   ]);
   if (assessmentError || !assessment) return adminError(assessmentError?.message || "Assessment tidak ditemukan.", 404, "ASSESSMENT_NOT_FOUND");
   if ((assessment as AssessmentRow).proposal_sent_at) return adminError("Proposal standar sudah dikirim. Jangan timpa dokumen yang telah diterima klien; proposal custom disusun manual oleh CEO dari hasil assessment.", 409, "PROPOSAL_ALREADY_SENT");
+  const observedStatus = (assessment as AssessmentRow).proposal_status;
+  const previousDraft = objectValue((assessment as AssessmentRow).proposal_draft_data);
+  const hasManualDraft = Boolean(previousDraft.proposal && previousDraft.automatic !== true);
+  if (["Perlu Rekonsiliasi", "Gagal Otomatis"].includes(observedStatus || "") || observedStatus === "Sedang Disusun" && !hasManualDraft) return adminError("Alur proposal otomatis belum selesai. Jangan timpa snapshot pengiriman dengan draf baru.", 409, "AUTOMATIC_PROPOSAL_IN_PROGRESS");
   if (rulesError) return adminError(rulesError.message, 500, "BUSINESS_RULES_READ_FAILED");
   if (commercialPolicyError) return adminError(commercialPolicyError.message, 500, "COMMERCIAL_POLICY_READ_FAILED");
 
@@ -207,7 +213,7 @@ export async function POST(req: NextRequest) {
     rulesVersion: rules.version,
     generatedAt,
   };
-  const { error: updateError } = await db.from("assessments").update({
+  let update = db.from("assessments").update({
     proposal_draft_data: draft,
     proposal_data: proposal,
     proposal_gate_status: gate.status,
@@ -216,9 +222,12 @@ export async function POST(req: NextRequest) {
     proposal_generated_at: generatedAt,
     proposal_approved_at: null,
     proposal_approved_by: null,
-    proposal_status: gate.status === "pending_approval" ? "Menunggu Approval" : "Sedang Disusun",
-  }).eq("id", input.assessmentId);
+    proposal_status: gate.status === "pending_approval" ? "Menunggu Approval" : "Disetujui",
+  }).eq("id", input.assessmentId).is("proposal_sent_at", null);
+  update = observedStatus ? update.eq("proposal_status", observedStatus) : update.is("proposal_status", null);
+  const { data: saved, error: updateError } = await update.select("id").maybeSingle();
   if (updateError) return adminError(updateError.message, 500, "PROPOSAL_DRAFT_SAVE_FAILED");
+  if (!saved) return adminError("Status proposal berubah selama penyusunan draf. Muat ulang; draf tidak menimpa proses pengiriman.", 409, "PROPOSAL_DRAFT_STATE_CHANGED");
 
   await db.from("proposal_approvals").update({ status: "cancelled" }).eq("assessment_id", input.assessmentId).eq("status", "pending");
   if (gate.status === "pending_approval") {

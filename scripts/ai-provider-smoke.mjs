@@ -67,7 +67,7 @@ if (!apiKey) {
 } else {
   try {
     const catalog = await lapakVip("/models");
-    const available = new Set((Array.isArray(catalog?.data) ? catalog.data : []).map((item) => item.id));
+    const available = new Set((Array.isArray(catalog?.data) ? catalog.data : []).map((item) => normalizeModel(item.id)));
     const configured = new Set([primaryModel, ...fallbackModels, reasoningModel, visionModel, ...visionFallbackModels]);
     let catalogValid = true;
     for (const model of configured) {

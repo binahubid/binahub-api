@@ -3,6 +3,32 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.27.9] - 2026-10-05
+
+### Fixed
+
+- Copy halaman permintaan proposal dan ajakan pada email hasil assessment diringkas agar ramah klien, tanpa syarat teknis validasi modul, harga, AI, atau proses internal. Pesan diterima tidak mengklaim email sudah terkirim.
+- Tombol konfirmasi menampilkan spinner, status aksesibel, dan terkunci segera setelah submit. API menyimpan permintaan lalu merespons sebelum AI/pengiriman; pemrosesan dilanjutkan melalui `after()`. GET tetap read-only agar pemindai tautan email tidak memicu pengiriman.
+- Alur standar mengunci assessment sebelum pemilihan AI, memakai harga dasar pasti serta rincian lengkap katalog CEO, dan menyimpan snapshot sebelum pengiriman. Klik bersamaan tidak menjalankan dua pengiriman; retry memakai snapshot, timestamp tautan, dan kunci idempotensi yang sama.
+- Pemilihan AI memiliki batas waktu/token khusus dan pencatatan kegagalan. Jika pemilihan AI gagal, pencocokan kebutuhan assessment ke modul standar resmi dapat digunakan bila bukti relevansinya kuat. Kebutuhan tidak cocok, harga non-tetap, katalog tidak lengkap, serta batas komersial tetap ditahan; harga/modul tidak dikarang.
+- Kegagalan menjadi Gagal Otomatis agar dapat ditindaklanjuti. Pengiriman diterima provider tetapi belum tercatat pasti, atau retry melampaui jendela aman, ditahan sebagai Perlu Rekonsiliasi. Draf manual dan proposal terkirim tidak ditimpa. Perubahan status manual memakai pemeriksaan konflik dan melindungi state pengiriman otomatis.
+- Tindakan `request_proposal` admin sekarang benar-benar menjalankan alur standar setelah respons. Pengiriman/draf manual tidak boleh memotong proses otomatis; custom tetap dibuat manual oleh CEO di luar aplikasi.
+- Smoke AI menormalisasi prefiks model LapakVIP terhadap daftar model provider agar tidak melaporkan model tidak tersedia secara keliru.
+
+### Added
+
+- Endpoint retry internal `/api/automation/standard-proposals`, dilindungi worker secret dan switch mati secara default, beserta [panduan deployment/pemulihan](STANDARD-PROPOSAL-RUNBOOK.md). Scheduler tidak dibuat atau diaktifkan otomatis.
+- Tes regresi workflow, halaman publik, status admin, klik bersamaan, snapshot retry, rincian katalog utuh, serta rekonsiliasi. Audit LapakVIP read-only bersifat opt-in dan preview UI lokal tidak memuat kredensial/akses DB.
+
+### Verification
+
+- 246 tes lulus (3 dilewati), typecheck, lint file yang berubah, dan production build lulus. Audit read-only assessment yang dilaporkan berhasil memilih modul resmi melalui LapakVIP setelah perbaikan (sekitar 8 detik termasuk setup).
+- Tampilan seluler dan spinner diperiksa melalui browser lokal. Tidak ada email klien nyata, mutasi database produksi, atau deployment yang dijalankan saat audit.
+
+### Deployment
+
+- Deploy bersama app **0.26.9**; SQL/migrasi baru tidak diperlukan. Kredensial API LapakVIP/Resend dan secret tautan tetap wajib. Retry terjadwal opsional memerlukan `STANDARD_PROPOSAL_RETRY_ENABLED=true` dan scheduler POST ber-secret; pemrosesan awal tidak memerlukan switch ini.
+
 ## [0.27.8] - 2026-10-03
 
 ### Changed

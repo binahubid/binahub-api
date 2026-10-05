@@ -6,6 +6,9 @@ import { formatIdr } from "@/lib/proposal-policy";
 import { automaticPreliminaryCommercialEligibility } from "@/lib/preliminary-commercial-policy";
 import { createServerSupabase } from "@/lib/supabase";
 import { isAutoSendableStandardModule } from "@/lib/standard-catalog-policy";
+import { selectCatalogFallback } from "@/lib/standard-catalog-selection";
+import { recordRuntimeError } from "@/lib/runtime-observability";
+import { safeTelemetryText } from "@/lib/telemetry-privacy";
 
 type AssessmentRow = {
   id: string;
@@ -18,6 +21,8 @@ type AssessmentRow = {
   overall_score?: number | null;
   proposal_status?: string | null;
   proposal_sent_at?: string | null;
+  proposal_draft_data?: unknown;
+  proposal_catalog_version?: string | null;
 };
 
 type CatalogModuleRow = {
@@ -88,16 +93,56 @@ async function markManualReview(
   assessmentId: string,
   eligibility: ProposalEligibility,
 ) {
-  await db.from("assessments").update({
+  const saved = await db.from("assessments").update({
     assessment_status: "Minta Proposal",
-    proposal_status: "Diminta",
+    proposal_status: "Menunggu Approval",
     proposal_gate_status: "pending_approval",
     proposal_gate_reasons: eligibility.missing.map((message) => ({
       code: "AUTO_PRELIMINARY_INELIGIBLE",
       message,
       severity: "blocking",
     })),
-  }).eq("id", assessmentId);
+  }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun").select("id").maybeSingle();
+  if (saved.error || !saved.data) throw new Error(saved.error?.message || "Status tinjauan proposal belum tersimpan.");
+}
+
+async function deliverStandardProposal(db: ReturnType<typeof createServerSupabase>, assessment: AssessmentRow, proposal: ProposalResult, draft: Record<string, unknown>, catalogVersion: string, eligibility: ProposalEligibility) {
+  const form = objectValue(assessment.form_data);
+  const locale: "id" | "en" = form.locale === "en" ? "en" : "id";
+  const generatedAt = String(draft.generatedAt);
+  let emailAccepted = false;
+  try {
+    // Persist the exact snapshot before attempting delivery. Retries use this
+    // same document, link timestamp and idempotency key, not a new AI draft.
+    const prepared = await db.from("assessments").update({
+      proposal_data: proposal, proposal_draft_data: draft,
+      proposal_catalog_version: catalogVersion, proposal_generated_at: generatedAt,
+    }).eq("id", assessment.id).eq("proposal_status", "Sedang Disusun").select("id").maybeSingle();
+    if (prepared.error || !prepared.data) throw new Error(prepared.error?.message || "Status proposal berubah sebelum pengiriman.");
+    const email = await sendProposalEmail(String(form.email), String(form.name), String(form.company), proposal, assessment.id, locale, `assessment-${assessment.id}-automatic-standard-v2`, generatedAt);
+    emailAccepted = true;
+    const sentAt = new Date().toISOString();
+    const emailId = email.data?.id || null;
+    const saved = await db.from("assessments").update({
+      assessment_status: "Proposal Terkirim", proposal_status: "Terkirim",
+      proposal_sent_at: sentAt, proposal_email_id: emailId,
+      proposal_gate_status: "clear", proposal_gate_reasons: [],
+    }).eq("id", assessment.id).eq("proposal_status", "Sedang Disusun").select("id").maybeSingle();
+    if (saved.error || !saved.data) throw new Error(saved.error?.message || "Status pengiriman belum tersimpan.");
+    if (assessment.lead_id) {
+      const lead = await db.from("leads").update({ lifecycle_stage: "lead", opportunity_stage: "proposal", last_meaningful_activity_at: sentAt }).eq("id", assessment.lead_id);
+      if (lead.error) await recordRuntimeError({ code: "STANDARD_PROPOSAL_LEAD_UPDATE_FAILED", message: lead.error.message, route: "/api/proposal/request" });
+    }
+    return { outcome: "sent", eligibility, emailId } satisfies AutomaticPreliminaryResult;
+  } catch (error) {
+    if (emailAccepted) {
+      await db.from("assessments").update({
+        proposal_status: "Perlu Rekonsiliasi", proposal_gate_status: "pending_approval",
+        proposal_gate_reasons: [{ code: "STANDARD_PROPOSAL_EMAIL_STATE_UNCERTAIN", message: "Provider menerima email, tetapi status database belum terkonfirmasi. Rekonsiliasi sebelum mengirim ulang.", severity: "blocking" }],
+      }).eq("id", assessment.id).eq("proposal_status", "Sedang Disusun");
+    }
+    throw error;
+  }
 }
 
 export async function createAndSendAutomaticPreliminary(
@@ -106,7 +151,7 @@ export async function createAndSendAutomaticPreliminary(
 ): Promise<AutomaticPreliminaryResult> {
   const db = createServerSupabase();
   const { data, error } = await db.from("assessments")
-    .select("id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_status, proposal_sent_at")
+    .select("id, lead_id, form_data, scores, category, ai_analysis, recommendations, overall_score, proposal_status, proposal_sent_at, proposal_draft_data, proposal_catalog_version")
     .eq("id", assessmentId)
     .single();
   if (error || !data) throw new Error(error?.message || "Assessment tidak ditemukan.");
@@ -123,120 +168,131 @@ export async function createAndSendAutomaticPreliminary(
   if (assessment.proposal_sent_at || assessment.proposal_status === "Terkirim") {
     return { outcome: "already_sent", eligibility };
   }
-  if (!eligibility.eligible) {
-    await markManualReview(db, assessmentId, eligibility);
-    return { outcome: "manual_review", eligibility };
-  }
-
-  const { data: moduleRows, error: moduleError } = await db.from("catalog_modules")
-    .select("id, module_code, name, standard_scope, deliverables, duration_label, pricing_unit, base_price, minimum_quantity, catalog_version, metadata")
-    .eq("active", true)
-    .eq("readiness_status", "ready")
-    .eq("is_mock", false)
-    .order("base_price", { ascending: true });
-  if (moduleError) throw new Error(moduleError.message);
-
-  const recommendations = arrayValue(assessment.recommendations);
-  const officialModules = ((moduleRows || []) as unknown as CatalogModuleRow[])
-    .filter(isAutoSendableStandardModule);
-  if (officialModules.length === 0) {
-    const catalogEligibility = {
-      eligible: false,
-      missing: ["modul Signature Solutions berharga tetap yang siap ditawarkan"],
-      summary: "Belum ada modul standar resmi yang aman untuk pengiriman otomatis.",
-    } satisfies ProposalEligibility;
-    await markManualReview(db, assessmentId, catalogEligibility);
-    return { outcome: "manual_review", eligibility: catalogEligibility };
-  }
-
-  const form = objectValue(assessment.form_data);
-  const locale = form.locale === "en" ? "en" : "id";
-  let selectedModules: CatalogModuleRow[];
-  let selectionReason: string;
-  let emailAccepted = false;
-  try {
-    const selection = await selectStandardCatalogModules({
-      locale,
-      challenge: String(form.challenge || ""),
-      target: String(form.target || ""),
-      category: assessment.category || "",
-      scores: objectValue(assessment.scores) as Record<string, number>,
-      recommendations: recommendations as Array<{ title?: string; diagnosis?: string; description?: string; service?: string }>,
-      candidates: officialModules.map((module) => {
-        const localized = objectValue(objectValue(module.metadata).localized);
-        const copy = objectValue(localized[locale]);
-        return {
-          code: module.module_code,
-          name: String(copy.name || module.name),
-          summary: String(copy.summary || ""),
-          scope: localizedList(module, locale, "contentOutline", module.standard_scope).join("; "),
-          objectives: Array.isArray(copy.learningObjectives) ? copy.learningObjectives.filter((value): value is string => typeof value === "string").slice(0, 4) : [],
-          duration: module.duration_label || "",
-          serviceBrand: String(copy.serviceBrand || ""),
-        };
-      }),
-    });
-    selectedModules = selection.moduleCodes.map((code) => officialModules.find((module) => module.module_code === code)!);
-    selectionReason = selection.reasoning;
-  } catch (selectionError) {
-    console.error("[Automatic Standard Proposal] Catalog selection failed:", selectionError);
-    const reviewEligibility = { eligible: false, missing: ["pemilihan solusi katalog belum tervalidasi"], summary: "AI belum dapat memilih modul standar dengan aman; tinjau secara manual." } satisfies ProposalEligibility;
-    await markManualReview(db, assessmentId, reviewEligibility);
-    return { outcome: "manual_review", eligibility: reviewEligibility };
-  }
-
-  const commercialEligibility = automaticPreliminaryCommercialEligibility(selectedModules.map((module) => ({
-    basePrice: Number(module.base_price || 0),
-    quantity: quantityFor(module),
-  })));
-  if (!commercialEligibility.eligible) {
-    const reviewEligibility = {
-      eligible: false,
-      missing: [commercialEligibility.reason],
-      summary: commercialEligibility.reason,
-    } satisfies ProposalEligibility;
-    await markManualReview(db, assessmentId, reviewEligibility);
-    return { outcome: "manual_review", eligibility: reviewEligibility };
-  }
-
+  const previousDraft = objectValue(assessment.proposal_draft_data);
+  if (previousDraft.proposal && previousDraft.automatic !== true) return { outcome: "manual_review", eligibility };
+  if (!["Belum Diminta", "Diminta", "Gagal Otomatis"].includes(assessment.proposal_status || "")) return { outcome: "already_processing", eligibility };
+  // Claim BEFORE the expensive work: repeat clicks cannot run two selectors,
+  // send twice, or overwrite a completed request with a late failure.
   const claim = await db.from("assessments").update({
-    assessment_status: "Minta Proposal",
-    proposal_status: "Sedang Disusun",
+    assessment_status: "Minta Proposal", proposal_status: "Sedang Disusun",
     proposal_requested_at: requestedAt,
-  }).eq("id", assessmentId)
-    .is("proposal_sent_at", null)
-    .in("proposal_status", ["Belum Diminta", "Diminta", "Gagal Otomatis"])
-    .select("id")
-    .maybeSingle();
+  }).eq("id", assessmentId).is("proposal_sent_at", null)
+    .eq("proposal_status", assessment.proposal_status)
+    .select("id").maybeSingle();
   if (claim.error) throw new Error(claim.error.message);
   if (!claim.data) return { outcome: "already_processing", eligibility };
 
-  const modules = selectedModules.map((module) => {
-    const quantity = quantityFor(module);
-    const basePrice = Number(module.base_price || 0);
-    return {
-      name: module.name,
-      standardScope: module.standard_scope,
-      pricingUnit: module.pricing_unit,
-      quantity,
-      basePrice,
-      lineTotal: basePrice * quantity,
-      duration: module.duration_label || "",
-      deliverables: localizedList(module, locale, "outputs", module.deliverables),
-    };
-  });
-  const total = modules.reduce((sum, module) => sum + module.lineTotal, 0);
-  const catalogVersion = Array.from(new Set(selectedModules.map((module) => module.catalog_version))).join("+");
-  const localizedObjectives = selectedModules.flatMap((module) => {
-    const localized = objectValue(objectValue(module.metadata).localized);
-    const copy = objectValue(localized[locale]);
-    return Array.isArray(copy.learningObjectives)
-      ? copy.learningObjectives.filter((value): value is string => typeof value === "string").slice(0, 4)
-      : [];
-  });
-
   try {
+    if (!eligibility.eligible) {
+      await markManualReview(db, assessmentId, eligibility);
+      return { outcome: "manual_review", eligibility };
+    }
+    if (previousDraft.automatic === true && previousDraft.proposal && previousDraft.generatedAt && assessment.proposal_catalog_version) {
+      const generatedTime = Date.parse(String(previousDraft.generatedAt));
+      if (!Number.isFinite(generatedTime) || Date.now() - generatedTime > 23 * 60 * 60 * 1000) {
+        // Provider idempotency has a finite retention window. An old ambiguous
+        // delivery must be checked by staff, never silently sent a second time.
+        await db.from("assessments").update({ proposal_status: "Perlu Rekonsiliasi", proposal_gate_status: "pending_approval", proposal_gate_reasons: [{ code: "STANDARD_PROPOSAL_RETRY_WINDOW_EXPIRED", message: "Batas waktu retry aman terlewati. Periksa arsip email sebelum mengirim ulang.", severity: "blocking" }] }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun");
+        return { outcome: "manual_review", eligibility };
+      }
+      return await deliverStandardProposal(db, assessment, previousDraft.proposal as ProposalResult, previousDraft, assessment.proposal_catalog_version, eligibility);
+    }
+
+    const { data: moduleRows, error: moduleError } = await db.from("catalog_modules")
+      .select("id, module_code, name, standard_scope, deliverables, duration_label, pricing_unit, base_price, minimum_quantity, catalog_version, metadata")
+      .eq("active", true)
+      .eq("readiness_status", "ready")
+      .eq("is_mock", false)
+      .order("base_price", { ascending: true });
+    if (moduleError) throw new Error(moduleError.message);
+
+    const recommendations = arrayValue(assessment.recommendations);
+    const officialModules = ((moduleRows || []) as unknown as CatalogModuleRow[])
+      .filter(isAutoSendableStandardModule);
+    if (officialModules.length === 0) {
+      const catalogEligibility = {
+        eligible: false,
+        missing: ["modul Signature Solutions berharga tetap yang siap ditawarkan"],
+        summary: "Belum ada modul standar resmi yang aman untuk pengiriman otomatis.",
+      } satisfies ProposalEligibility;
+      await markManualReview(db, assessmentId, catalogEligibility);
+      return { outcome: "manual_review", eligibility: catalogEligibility };
+    }
+
+    const form = objectValue(assessment.form_data);
+    const locale: "id" | "en" = form.locale === "en" ? "en" : "id";
+    let selectedModules: CatalogModuleRow[];
+    let selectionReason: string;
+    let selectionMethod: "ai" | "assessment_catalog_match" = "ai";
+    const selectionInput = {
+      locale,
+      challenge: String(form.challenge || ""), target: String(form.target || ""),
+      category: assessment.category || "", scores: objectValue(assessment.scores) as Record<string, number>,
+      recommendations: recommendations as Array<{ title?: string; diagnosis?: string; description?: string; service?: string; priority?: string }>,
+      candidates: officialModules.map((module) => {
+        const copy = objectValue(objectValue(objectValue(module.metadata).localized)[locale]);
+        return { code: module.module_code, name: String(copy.name || module.name), summary: String(copy.summary || ""), scope: localizedList(module, locale, "contentOutline", module.standard_scope).join("; "), objectives: Array.isArray(copy.learningObjectives) ? copy.learningObjectives.filter((value): value is string => typeof value === "string").slice(0, 4) : [], duration: module.duration_label || "", serviceBrand: String(copy.serviceBrand || "") };
+      }),
+    };
+    try {
+      const selection = await selectStandardCatalogModules(selectionInput);
+      if (selection.moduleCodes.some((code) => !officialModules.some((module) => module.module_code === code))) throw new Error("Pemilihan modul di luar katalog resmi.");
+      selectedModules = selection.moduleCodes.map((code) => officialModules.find((module) => module.module_code === code)!);
+      selectionReason = selection.reasoning;
+    } catch (selectionError) {
+      const detail = safeTelemetryText(selectionError instanceof Error ? selectionError.message : String(selectionError));
+      await recordRuntimeError({ code: "STANDARD_PROPOSAL_SELECTION_FAILED", message: detail, route: "/api/proposal/request" });
+      const fallback = selectCatalogFallback(selectionInput);
+      if (!fallback) {
+        const reviewEligibility = { eligible: false, missing: ["Belum ada kecocokan modul standar yang cukup kuat dengan kebutuhan assessment."], summary: "Tinjau kebutuhan dan pemilihan modul sebelum menawarkan program." } satisfies ProposalEligibility;
+        await markManualReview(db, assessmentId, reviewEligibility);
+        return { outcome: "manual_review", eligibility: reviewEligibility };
+      }
+      selectedModules = fallback.moduleCodes.map((code) => officialModules.find((module) => module.module_code === code)!);
+      selectionReason = fallback.reasoning;
+      selectionMethod = "assessment_catalog_match";
+    }
+
+    const commercialEligibility = automaticPreliminaryCommercialEligibility(selectedModules.map((module) => ({
+      basePrice: Number(module.base_price || 0),
+      quantity: quantityFor(module),
+    })));
+    if (!commercialEligibility.eligible) {
+      const reviewEligibility = {
+        eligible: false,
+        missing: [commercialEligibility.reason],
+        summary: commercialEligibility.reason,
+      } satisfies ProposalEligibility;
+      await markManualReview(db, assessmentId, reviewEligibility);
+      return { outcome: "manual_review", eligibility: reviewEligibility };
+    }
+
+    const modules = selectedModules.map((module) => {
+      const quantity = quantityFor(module);
+      const basePrice = Number(module.base_price || 0);
+      return {
+        name: module.name,
+        standardScope: module.standard_scope,
+        pricingUnit: module.pricing_unit,
+        quantity,
+        basePrice,
+        lineTotal: basePrice * quantity,
+        duration: module.duration_label || "",
+        deliverables: localizedList(module, locale, "outputs", module.deliverables),
+      };
+    });
+    const total = modules.reduce((sum, module) => sum + module.lineTotal, 0);
+    const catalogVersion = Array.from(new Set(selectedModules.map((module) => module.catalog_version))).join("+");
+    const localizedObjectives = selectedModules.flatMap((module) => {
+      const localized = objectValue(objectValue(module.metadata).localized);
+      const copy = objectValue(localized[locale]);
+      return Array.isArray(copy.learningObjectives)
+        ? copy.learningObjectives.filter((value): value is string => typeof value === "string")
+        : [];
+    });
+
     const generated = await generateAssessmentProposal({
+      aiBudget: { maxTokens: 2048, perAttemptTimeoutMs: 10_000, totalTimeoutMs: 25_000 },
       locale,
       name: String(form.name || "Bapak/Ibu"),
       email: String(form.email || ""),
@@ -266,8 +322,8 @@ export async function createAndSendAutomaticPreliminary(
       ...generated,
       documentKind: "commercial",
       proposalType: "standard",
-      scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)).slice(0, 12),
-      deliverables: modules.flatMap((module) => module.deliverables).slice(0, 12),
+      scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)),
+      deliverables: modules.flatMap((module) => module.deliverables),
       timeline: locale === "en"
         ? `Priced delivery days: ${modules.map((module) => `${module.name}: ${module.quantity} day(s)`).join("; ")}. Catalog duration: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Longer delivery requires a revised quote.`
         : `Hari pelaksanaan yang dihargai: ${modules.map((module) => `${module.name}: ${module.quantity} hari`).join("; ")}. Durasi katalog: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Pelaksanaan lebih lama memerlukan penawaran ulang.`,
@@ -296,69 +352,39 @@ export async function createAndSendAutomaticPreliminary(
       investmentNote: locale === "en"
         ? `Standard catalog base price: ${formatIdr(total)} for ${modules.map((module) => `${module.name} (${module.quantity} delivery day(s))`).join(" + ")}. Taxes and changes to participants, location, duration, or scope are confirmed separately.`
         : `Harga dasar katalog: ${formatIdr(total)} untuk ${modules.map((module) => `${module.name} (${module.quantity} hari pelaksanaan)`).join(" + ")}. Pajak serta perubahan jumlah peserta, lokasi, durasi, atau cakupan dikonfirmasi terpisah.`,
-      packages: generated.packages?.map((item) => ({ ...item, price: formatIdr(total), scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)).slice(0, 12), deliverables: modules.flatMap((module) => module.deliverables).slice(0, 12) })),
+      packages: generated.packages?.map((item) => ({ ...item, price: formatIdr(total), duration: selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; "), scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)), deliverables: modules.flatMap((module) => module.deliverables) })),
       isSimulation: false,
       rulesVersion: `automatic-standard-v2:${catalogVersion}`,
     };
-    const email = await sendProposalEmail(
-      String(form.email),
-      String(form.name),
-      String(form.company),
-      proposal,
-      assessmentId,
-      locale,
-      `assessment-${assessmentId}-automatic-standard-v2`,
-    );
-    emailAccepted = true;
-    const sentAt = new Date().toISOString();
-    const emailId = email.data?.id || null;
     const draft = {
       proposal,
       automatic: true,
       kind: "standard",
       selectedModuleIds: selectedModules.map((module) => module.id),
       selectionReason,
+      selectionMethod,
       basePriceTotal: total,
-      generatedAt: sentAt,
+      generatedAt: new Date().toISOString(),
       eligibility,
     };
-    const saved = await db.from("assessments").update({
-      assessment_status: "Proposal Terkirim",
-      proposal_status: "Terkirim",
-      proposal_sent_at: sentAt,
-      proposal_email_id: emailId,
-      proposal_data: proposal,
-      proposal_draft_data: draft,
-      proposal_gate_status: "clear",
-      proposal_gate_reasons: [],
-      proposal_catalog_version: catalogVersion,
-      proposal_generated_at: sentAt,
-    }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun").select("id").maybeSingle();
-    if (saved.error || !saved.data) throw new Error(`Email terkirim tetapi status perlu direkonsiliasi: ${saved.error?.message || "baris assessment tidak diperbarui"}`);
-    if (assessment.lead_id) {
-      await db.from("leads").update({
-        lifecycle_stage: "lead",
-        opportunity_stage: "proposal",
-        last_meaningful_activity_at: sentAt,
-      }).eq("id", assessment.lead_id);
-    }
-    return { outcome: "sent", eligibility, emailId };
+    return await deliverStandardProposal(db, assessment, proposal, draft, catalogVersion, eligibility);
   } catch (error) {
     await db.from("assessments").update({
-      proposal_status: emailAccepted ? "Perlu Rekonsiliasi" : "Diminta",
+      proposal_status: "Gagal Otomatis",
       proposal_gate_status: "pending_approval",
       proposal_gate_reasons: [{
-        code: emailAccepted ? "STANDARD_PROPOSAL_EMAIL_STATE_UNCERTAIN" : "AUTO_STANDARD_PROPOSAL_FAILED",
-        message: emailAccepted ? "Provider menerima email, tetapi status database belum terkonfirmasi. Rekonsiliasi sebelum mengirim ulang." : "Pengiriman proposal standar belum selesai; tindak lanjut manusia diperlukan.",
+        code: "AUTO_STANDARD_PROPOSAL_FAILED",
+        message: "Penyusunan atau pengiriman gagal. Jalankan ulang proposal standar setelah memeriksa log; jangan kirim draf baru secara terpisah.",
         severity: "blocking",
       }],
     }).eq("id", assessmentId).eq("proposal_status", "Sedang Disusun");
     await db.from("email_failures").insert({
       target_type: "assessment_preliminary",
       target_id: assessmentId,
-      error: error instanceof Error ? error.message : String(error),
+      error: safeTelemetryText(error instanceof Error ? error.message : String(error)),
       retry_count: 0,
     });
+    await recordRuntimeError({ code: "AUTO_STANDARD_PROPOSAL_FAILED", message: error instanceof Error ? error.message : String(error), route: "/api/proposal/request" });
     throw error;
   }
 }

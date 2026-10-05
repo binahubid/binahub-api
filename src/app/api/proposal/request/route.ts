@@ -1,385 +1,61 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase';
-import { enforceRateLimit } from '@/lib/rate-limit';
-import { verifyProposalToken } from '@/lib/secure-token';
-import { createAndSendAutomaticPreliminary } from '@/lib/automatic-preliminary';
+import { after, NextRequest, NextResponse } from "next/server";
+import { createServerSupabase } from "@/lib/supabase";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { verifyProposalToken } from "@/lib/secure-token";
+import { createAndSendAutomaticPreliminary } from "@/lib/automatic-preliminary";
+import { requestStandardProposal } from "@/lib/standard-proposal-request";
+import { proposalRequestPage } from "@/lib/proposal-request-page";
+import { recordRuntimeError } from "@/lib/runtime-observability";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 export const maxDuration = 120;
+const headers = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow, noarchive", "X-Content-Type-Options": "nosniff" };
+const html = (input: Parameters<typeof proposalRequestPage>[0], status = 200) => new NextResponse(proposalRequestPage(input), { status, headers });
 
-const NAVY = '#0B2C6B';
-const GOLD = '#D9A441';
-const EXISTING_PROPOSAL_STATUSES = new Set([
-  'Diminta',
-  'Sedang Disusun',
-  'Perlu Rekonsiliasi',
-  'Draft Simulasi',
-  'Menunggu Approval',
-  'Disetujui',
-  'Terkirim',
-  'Proposal Follow Up 1 Terkirim',
-  'Proposal Follow Up 2 Terkirim',
-  'Proposal Follow Up 3 Terkirim',
-  'Revisi',
-  'Lanjut Diskusi',
-  'Deal',
-  'Lost',
-  'Closed',
-]);
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function successHtml(
-  name: string,
-  company: string,
-  confirmation?: { assessmentId: string; token: string },
-  delivery: 'sent' | 'queued' = 'queued',
-) {
-  const isPending = Boolean(confirmation);
-  const formAction = confirmation
-    ? `/api/proposal/request?assessmentId=${encodeURIComponent(confirmation.assessmentId)}&token=${encodeURIComponent(confirmation.token)}`
-    : "";
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Permintaan Proposal - BinaHub</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #F5F7FA;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      color: #1A1A2E;
-    }
-    .card {
-      background: #FFFFFF;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(11,44,107,0.08);
-      max-width: 480px;
-      width: 100%;
-      overflow: hidden;
-    }
-    .header {
-      background: ${NAVY};
-      padding: 32px 40px 28px;
-      text-align: center;
-    }
-    .logo {
-      font-size: 22px;
-      font-weight: 700;
-      color: #FFFFFF;
-      margin-bottom: 4px;
-    }
-    .logo span { color: ${GOLD}; }
-    .tagline {
-      font-size: 11px;
-      font-weight: 500;
-      color: rgba(255,255,255,0.55);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .body { padding: 36px 40px 40px; text-align: center; }
-    .checkmark {
-      width: 64px; height: 64px;
-      background: #E8F5E9;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-    }
-    .checkmark svg { width: 32px; height: 32px; }
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      color: ${NAVY};
-      margin-bottom: 12px;
-    }
-    p {
-      font-size: 15px;
-      line-height: 1.7;
-      color: #4A4C54;
-      margin-bottom: 8px;
-    }
-    .highlight {
-      font-weight: 600;
-      color: ${NAVY};
-    }
-    .divider {
-      width: 48px;
-      height: 3px;
-      background: ${GOLD};
-      border-radius: 2px;
-      margin: 24px auto;
-    }
-    .confirm-button {
-      border: 0;
-      border-radius: 10px;
-      background: ${NAVY};
-      color: #FFFFFF;
-      cursor: pointer;
-      font: inherit;
-      font-weight: 700;
-      margin-top: 20px;
-      padding: 13px 22px;
-    }
-    .info-box {
-      background: #F0F4FF;
-      border-left: 3px solid ${NAVY};
-      border-radius: 0 8px 8px 0;
-      padding: 16px 20px;
-      text-align: left;
-      margin: 24px 0;
-    }
-    .info-box p {
-      font-size: 13px;
-      color: #4A4C54;
-      margin: 0;
-    }
-    .footer {
-      padding: 20px 40px;
-      border-top: 1px solid #E8ECF1;
-      text-align: center;
-    }
-    .footer p {
-      font-size: 11px;
-      color: #94A3B8;
-      margin: 0;
-    }
-    .footer a {
-      color: ${NAVY};
-      text-decoration: none;
-      font-weight: 600;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <div class="logo">Bina<span>Hub</span></div>
-      <div class="tagline">Human-Centered Transformation Partner</div>
-    </div>
-    <div class="body">
-      <div class="checkmark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      </div>
-      <h1>${isPending ? 'Konfirmasi Permintaan Proposal' : 'Permintaan Proposal Diterima'}</h1>
-      <p>Terima kasih, <span class="highlight">${name}</span> dari <span class="highlight">${company}</span>.</p>
-      ${isPending
-        ? `<p>Silakan konfirmasi untuk menerima proposal standar yang disusun dari hasil diagnosa dan modul katalog resmi BinaHub. Permintaan baru diproses setelah tombol ditekan.</p><form method="post" action="${formAction}"><button class="confirm-button" type="submit">Konfirmasi Permintaan</button></form>`
-        : delivery === 'sent'
-          ? '<p>Proposal standar telah disusun berdasarkan hasil diagnosa dan katalog resmi, lalu dikirim ke email Anda. Silakan periksa kotak masuk atau folder spam.</p>'
-          : '<p>Permintaan Anda sudah diterima. Jika modul standar yang sesuai dan harga dasarnya tervalidasi, sistem akan mengirim proposal otomatis. Jika belum, tim BinaHub akan meninjaunya sebelum ada penawaran.</p>'}
-
-      <div class="divider"></div>
-
-      <div class="info-box">
-        <p><strong>Yang terjadi selanjutnya:</strong></p>
-        <p>1. Hasil diagnosa digunakan untuk menyusun rekomendasi awal</p>
-        <p>2. Proposal standar dikirim ke email Anda bila lolos validasi katalog</p>
-        <p>3. Kebutuhan khusus dapat dibahas setelah Anda membaca proposal atau melalui konsultasi</p>
-      </div>
-    </div>
-    <div class="footer">
-      <p><a href="https://binahub.id">binahub.id</a> &middot; People Transformation &amp; Future Capability Partner</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
-function errorHtml(title: string, message: string) {
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - BinaHub</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #F5F7FA;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      color: #1A1A2E;
-    }
-    .card {
-      background: #FFFFFF;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(11,44,107,0.08);
-      max-width: 480px;
-      width: 100%;
-      overflow: hidden;
-    }
-    .header {
-      background: ${NAVY};
-      padding: 32px 40px 28px;
-      text-align: center;
-    }
-    .logo { font-size: 22px; font-weight: 700; color: #FFFFFF; }
-    .logo span { color: ${GOLD}; }
-    .body { padding: 36px 40px 40px; text-align: center; }
-    h1 { font-size: 18px; font-weight: 700; color: ${NAVY}; margin-bottom: 12px; }
-    p { font-size: 15px; line-height: 1.7; color: #4A4C54; }
-    .footer {
-      padding: 20px 40px;
-      border-top: 1px solid #E8ECF1;
-      text-align: center;
-    }
-    .footer p { font-size: 11px; color: #94A3B8; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <div class="logo">Bina<span>Hub</span></div>
-    </div>
-    <div class="body">
-      <h1>${title}</h1>
-      <p>${message}</p>
-    </div>
-    <div class="footer">
-      <p><a href="https://binahub.id" style="color:${NAVY};text-decoration:none;font-weight:600;">binahub.id</a></p>
-    </div>
-  </div>
-</body>
-</html>`;
+function signedRequest(req: NextRequest) {
+  const assessmentId = req.nextUrl.searchParams.get("assessmentId") || "";
+  const token = req.nextUrl.searchParams.get("token") || "";
+  if (!/^[0-9a-f-]{36}$/i.test(assessmentId) || !token || !verifyProposalToken(assessmentId, token)) return null;
+  return { assessmentId, token };
 }
 
 export async function GET(req: NextRequest) {
-  const assessmentId = req.nextUrl.searchParams.get('assessmentId');
-  const token = req.nextUrl.searchParams.get('token');
-
-  const rateLimited = await enforceRateLimit(req, 'proposal-request', 30, 60 * 60);
-  if (rateLimited) return rateLimited;
-
-  if (!assessmentId || !token || !verifyProposalToken(assessmentId, token)) {
-    return new NextResponse(errorHtml(
-      'Link Tidak Valid',
-      'Parameter assessmentId tidak ditemukan. Silakan gunakan link dari email yang kami kirimkan.'
-    ), { status: 400, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-  }
-
-  const supabase = createServerSupabase();
-
-  const { data: assessment, error } = await supabase
-    .from('assessments')
-    .select('id, assessment_status, proposal_status, form_data')
-    .eq('id', assessmentId)
-    .single();
-
-  if (error || !assessment) {
-    return new NextResponse(errorHtml(
-      'Assessment Tidak Ditemukan',
-      'Data assessment tidak ditemukan. Silakan hubungi tim BinaHub untuk bantuan.'
-    ), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-  }
-
-  if (EXISTING_PROPOSAL_STATUSES.has(assessment.proposal_status || '')) {
-    const formData = assessment.form_data as Record<string, string> | null;
-    const name = escapeHtml(formData?.name || 'Bapak/Ibu');
-    const company = escapeHtml(formData?.company || 'Perusahaan Anda');
-    return new NextResponse(successHtml(name, company, undefined, assessment.proposal_status === 'Terkirim' ? 'sent' : 'queued'), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  }
-
-  const formData = assessment.form_data as Record<string, string> | null;
-  const name = escapeHtml(formData?.name || 'Bapak/Ibu');
-  const company = escapeHtml(formData?.company || 'Perusahaan Anda');
-
-  return new NextResponse(successHtml(name, company, { assessmentId, token }), {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
+  const limited = await enforceRateLimit(req, "proposal-request", 30, 60 * 60);
+  if (limited) return limited;
+  const signed = signedRequest(req);
+  if (!signed) return html({ state: "error", title: "Tautan tidak tersedia", message: "Silakan gunakan tautan pada email hasil diagnosa Anda. Hubungi BinaHub jika membutuhkan bantuan." }, 400);
+  const { data, error } = await createServerSupabase().from("assessments")
+    .select("proposal_status,proposal_sent_at,proposal_requested_at,form_data").eq("id", signed.assessmentId).single();
+  if (error || !data) return html({ state: "error", title: "Hasil diagnosa tidak ditemukan", message: "Silakan hubungi BinaHub agar kami dapat membantu Anda." }, 404);
+  const locale = data.form_data?.locale === "en" ? "en" : "id";
+  // GET must remain read-only: mail scanners cannot request/send a proposal.
+  if (data.proposal_sent_at || data.proposal_status === "Terkirim") return html({ locale, state: "sent" });
+  if (data.proposal_requested_at || data.proposal_status && data.proposal_status !== "Belum Diminta") return html({ locale, state: "received" });
+  const action = `/api/proposal/request?assessmentId=${encodeURIComponent(signed.assessmentId)}&token=${encodeURIComponent(signed.token)}`;
+  return html({ locale, state: "confirm", action });
 }
 
 export async function POST(req: NextRequest) {
-  const assessmentId = req.nextUrl.searchParams.get('assessmentId');
-  const token = req.nextUrl.searchParams.get('token');
-
-  const rateLimited = await enforceRateLimit(req, 'proposal-confirm', 10, 60 * 60);
-  if (rateLimited) return rateLimited;
-
-  if (!assessmentId || !token || !verifyProposalToken(assessmentId, token)) {
-    return new NextResponse(errorHtml('Link Tidak Valid', 'Link konfirmasi tidak valid atau sudah kedaluwarsa.'), {
-      status: 400,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  }
-
-  const supabase = createServerSupabase();
-  const { data: assessment, error } = await supabase
-    .from('assessments')
-    .select('id, proposal_status, form_data')
-    .eq('id', assessmentId)
-    .single();
-
-  if (error || !assessment) {
-    return new NextResponse(errorHtml('Assessment Tidak Ditemukan', 'Data assessment tidak ditemukan.'), {
-      status: 404,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  }
-
-  const requestedAt = new Date().toISOString();
-  if (!EXISTING_PROPOSAL_STATUSES.has(assessment.proposal_status || '')) {
-    const { error: updateError } = await supabase
-      .from('assessments')
-      .update({
-        assessment_status: 'Minta Proposal',
-        proposal_status: 'Diminta',
-        proposal_requested_at: requestedAt,
-      })
-      .eq('id', assessmentId);
-
-    if (updateError) {
-      console.error('[API] Failed to update proposal status:', updateError);
-      return new NextResponse(errorHtml('Gagal Memproses', 'Terjadi kesalahan saat memproses permintaan Anda.'), {
-        status: 500,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  const limited = await enforceRateLimit(req, "proposal-confirm", 10, 60 * 60);
+  if (limited) return limited;
+  const signed = signedRequest(req);
+  if (!signed) return html({ state: "error", title: "Tautan tidak tersedia", message: "Silakan gunakan tautan pada email hasil diagnosa Anda." }, 400);
+  try {
+    const result = await requestStandardProposal(signed.assessmentId);
+    if (result.outcome === "queued") {
+      after(async () => {
+        try { await createAndSendAutomaticPreliminary(signed.assessmentId, result.requestedAt); }
+        catch (error) { await recordRuntimeError({ code: "STANDARD_PROPOSAL_BACKGROUND_FAILED", message: error instanceof Error ? error.message : String(error), route: "/api/proposal/request" }); }
       });
     }
+    // Confirm immediately; AI and email delivery continue on the server even
+    // after the visitor closes the tab. PRG avoids resubmission on refresh.
+    const location = new URL("/api/proposal/request", req.url);
+    location.searchParams.set("assessmentId", signed.assessmentId);
+    location.searchParams.set("token", signed.token);
+    return NextResponse.redirect(location, { status: 303, headers });
+  } catch (error) {
+    await recordRuntimeError({ code: "STANDARD_PROPOSAL_REQUEST_FAILED", message: error instanceof Error ? error.message : String(error), route: "/api/proposal/request" });
+    return html({ state: "error", message: "Permintaan belum berhasil dikirim. Silakan coba lagi melalui tautan pada email Anda." }, 503);
   }
-
-  let delivery: 'sent' | 'queued' = assessment.proposal_status === 'Terkirim' ? 'sent' : 'queued';
-  if (delivery !== 'sent') {
-    try {
-      const result = await createAndSendAutomaticPreliminary(assessmentId, requestedAt);
-      if (result.outcome === 'sent' || result.outcome === 'already_sent') delivery = 'sent';
-    } catch (automaticError) {
-      console.error('[Proposal Request] Automatic Preliminary Recommendation failed:', automaticError);
-      // The request itself remains recorded as "Diminta" so the admin can complete it manually.
-    }
-  }
-
-  const formData = assessment.form_data as Record<string, string> | null;
-  const name = escapeHtml(formData?.name || 'Bapak/Ibu');
-  const company = escapeHtml(formData?.company || 'Perusahaan Anda');
-
-  return new NextResponse(successHtml(name, company, undefined, delivery), {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
 }

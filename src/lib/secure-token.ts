@@ -47,8 +47,8 @@ export function verifyProposalToken(assessmentId: string, token: string) {
 }
 
 // A delivery link must never authorize the separate request/confirmation action.
-export function createProposalViewToken(assessmentId: string, ttlSeconds = 60 * 60 * 24 * 90) {
-  const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+export function createProposalViewToken(assessmentId: string, ttlSeconds = 60 * 60 * 24 * 90, issuedAtMs = Date.now()) {
+  const expiresAt = Math.floor(issuedAtMs / 1000) + ttlSeconds;
   const signature = createHmac("sha256", proposalSecret())
     .update(`proposal-view:${assessmentId}:${expiresAt}`)
     .digest("base64url");

@@ -19,6 +19,12 @@ export type AIProviderAttempt = {
 
 export type AIPurpose = "general" | "reasoning" | "vision";
 
+export type AIRequestBudget = {
+  maxTokens?: number;
+  perAttemptTimeoutMs?: number;
+  totalTimeoutMs?: number;
+};
+
 function commaList(value: string | undefined) {
   return (value || "").split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -121,6 +127,7 @@ export async function callRoutedAI(input: {
   purpose?: AIPurpose;
   environment?: NodeJS.ProcessEnv;
   validateContent?: (content: string) => void;
+  budget?: AIRequestBudget;
 }) {
   const environment = input.environment || process.env;
   const attempts = buildAIProviderAttempts(environment, input.purpose);
@@ -129,9 +136,9 @@ export async function callRoutedAI(input: {
   }
 
   const failures: Array<{ provider: string; model: string; failure: string }> = [];
-  const maxTokens = Math.max(2048, Math.min(Number(environment.AI_MAX_TOKENS) || 8192, 32768));
-  const perAttemptTimeout = Math.max(5_000, Math.min(Number(environment.AI_REQUEST_TIMEOUT_MS) || 25_000, 45_000));
-  const totalTimeout = Math.max(10_000, Math.min(Number(environment.AI_TOTAL_TIMEOUT_MS) || 55_000, 120_000));
+  const maxTokens = Math.max(256, Math.min(input.budget?.maxTokens || Number(environment.AI_MAX_TOKENS) || 8192, 32768));
+  const perAttemptTimeout = Math.max(5_000, Math.min(input.budget?.perAttemptTimeoutMs || Number(environment.AI_REQUEST_TIMEOUT_MS) || 25_000, 45_000));
+  const totalTimeout = Math.max(10_000, Math.min(input.budget?.totalTimeoutMs || Number(environment.AI_TOTAL_TIMEOUT_MS) || 55_000, 120_000));
   const deadline = Date.now() + totalTimeout;
   const blockedCredentials = new Set<string>();
 

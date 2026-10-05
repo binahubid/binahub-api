@@ -43,6 +43,8 @@ export const proposalStatusSchema = z.enum([
   "Belum Diminta",
   "Diminta",
   "Sedang Disusun",
+  "Gagal Otomatis",
+  "Perlu Rekonsiliasi",
   "Draft Simulasi",
   "Menunggu Approval",
   "Disetujui",

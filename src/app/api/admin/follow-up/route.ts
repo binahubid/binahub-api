@@ -59,6 +59,8 @@ const RESULT_STOP_ASSESSMENT_STATUSES = new Set([
 const RESULT_STOP_PROPOSAL_STATUSES = new Set([
   "Diminta",
   "Sedang Disusun",
+  "Gagal Otomatis",
+  "Perlu Rekonsiliasi",
   "Terkirim",
   "Revisi",
   "Lanjut Diskusi",

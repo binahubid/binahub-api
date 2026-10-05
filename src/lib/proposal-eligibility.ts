@@ -81,7 +81,7 @@ export function evaluateAssessmentProposalEligibility(input: {
     eligible: missing.length === 0,
     missing,
     summary: missing.length === 0
-      ? "Data assessment lengkap dan siap disusun menjadi Preliminary Recommendation oleh AI."
+      ? "Data assessment lengkap untuk menyusun proposal standar berdasarkan katalog resmi."
       : `Belum siap: ${missing.join(", ")}.`,
   };
 }

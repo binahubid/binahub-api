@@ -193,7 +193,7 @@ export async function sendAssessmentEmail(
         noteBody: 'This result is an initial view designed to help identify areas that may require attention as your organization responds to change and evolving work demands.',
         referenceTitle: 'Complete report attached',
         pdfNote: '<strong>The attached PDF report</strong> contains the detailed scores, analysis, insights, and initial priorities. Please use the PDF as the primary reference for this diagnostic result.',
-        proposalIntro: 'If you would like to explore relevant solutions, request a <strong>Preliminary Recommendation</strong>. We will prepare a standard proposal based on this diagnostic result and the official BinaHub catalog, including a fixed catalog base price and its assumptions when a standard solution is eligible.',
+        proposalIntro: 'Want to explore the next step for your team? Request a <strong>Preliminary Recommendation</strong> to receive a proposal with recommended programs, scope, and investment based on your diagnostic results.',
         proposalCta: 'Request a Preliminary Recommendation',
         chatCta: 'Learn more about BinaHub',
         closing: 'Warm regards,',
@@ -216,7 +216,7 @@ export async function sendAssessmentEmail(
         noteBody: 'Hasil ini merupakan gambaran awal untuk membantu melihat area yang perlu mendapat perhatian dalam menghadapi perubahan dan tuntutan pekerjaan.',
         referenceTitle: 'Laporan lengkap terlampir',
         pdfNote: '<strong>Laporan PDF terlampir</strong> memuat rincian skor, analisis, insight, dan prioritas awal. Gunakan PDF tersebut sebagai rujukan utama hasil diagnosa ini.',
-        proposalIntro: 'Jika Bapak/Ibu ingin melihat solusi yang relevan, mintalah <strong>Preliminary Recommendation</strong>. Kami akan menyiapkan proposal standar berdasarkan hasil diagnosa dan katalog resmi BinaHub, termasuk harga dasar pasti beserta asumsinya bila modul standar memenuhi syarat.',
+        proposalIntro: 'Ingin mengetahui langkah berikutnya untuk tim Anda? Minta <strong>Preliminary Recommendation</strong> untuk menerima proposal berisi rekomendasi program, ruang lingkup, dan investasi berdasarkan hasil diagnosa Anda.',
         proposalCta: 'Minta Preliminary Recommendation',
         chatCta: 'Kenali BinaHub lebih jauh',
         closing: 'Salam hangat,',
@@ -514,8 +514,11 @@ export async function sendProposalEmail(
   assessmentId: string,
   locale: Locale = 'id',
   idempotencyKey?: string,
+  linkIssuedAt?: string,
 ) {
-  const proposalUrl = `${resolvePublicAppUrl()}/proposal/${encodeURIComponent(assessmentId)}?token=${encodeURIComponent(createProposalViewToken(assessmentId))}`;
+  const issuedAtMs = linkIssuedAt ? Date.parse(linkIssuedAt) : Date.now();
+  if (!Number.isFinite(issuedAtMs)) throw new Error('Waktu penerbitan proposal tidak valid.');
+  const proposalUrl = `${resolvePublicAppUrl()}/proposal/${encodeURIComponent(assessmentId)}?token=${encodeURIComponent(createProposalViewToken(assessmentId, 60 * 60 * 24 * 90, issuedAtMs))}`;
   const isEnglish = locale === 'en';
   const navy = '#0B2C6B';
   const gold = '#D9A441';
@@ -542,13 +545,13 @@ export async function sendProposalEmail(
         intro: isPreliminary
           ? `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. Your personalized proposal is ready to read online.`
           : isStandard
-            ? `Based on your diagnostic result, we selected official BinaHub catalog solutions for <strong>${safeCompany}</strong>. Your standard proposal with the catalog base price and clear assumptions is ready to read online.`
+            ? `Your proposal for <strong>${safeCompany}</strong> is ready. It brings together a recommended program, its scope, and the investment based on your diagnostic results.`
             : `Thank you for the opportunity to support <strong>${safeCompany}</strong>. Your personalized solution proposal is ready to read online.`,
         areaTitle: 'Areas that can be strengthened',
         approachTitle: 'A potentially relevant approach',
         formatTitle: 'Indicative format',
-        investmentTitle: isStandard ? 'Standard catalog base price' : 'Initial investment estimate',
-        attachment: isStandard ? 'Open your proposal to review the selected catalog solutions, standard scope, base price, and assumptions. A PDF download is available there. Custom changes require a separate discussion.' : 'Open your proposal to review the approach, indicative scope, assumptions, and initial investment range. A PDF download is available on that page. The final scope and investment can be adjusted after we understand your context in greater detail.',
+        investmentTitle: isStandard ? 'Program investment' : 'Initial investment estimate',
+        attachment: isStandard ? 'Read or download your proposal using the button above. If you would like to discuss adjustments, reply to this email or choose a consultation time below.' : 'Open your proposal to review the approach, indicative scope, assumptions, and initial investment range. A PDF download is available on that page. The final scope and investment can be adjusted after we understand your context in greater detail.',
         proposalCta: 'Read your proposal',
         question: 'Have a quick question? Simply reply to this email and we will be happy to help.',
         schedule: 'Prefer a deeper discussion?',
@@ -561,13 +564,13 @@ export async function sendProposalEmail(
         intro: isPreliminary
           ? `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Proposal khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`
           : isStandard
-            ? `Berdasarkan hasil diagnosa, kami memilih solusi katalog resmi yang relevan untuk <strong>${safeCompany}</strong>. Proposal standar beserta harga dasar katalog dan asumsinya kini dapat dibaca secara daring.`
+            ? `Proposal untuk <strong>${safeCompany}</strong> sudah siap. Di dalamnya terdapat rekomendasi program, ruang lingkup, dan investasi yang disusun berdasarkan hasil diagnosa Anda.`
             : `Terima kasih atas kesempatan untuk mendukung <strong>${safeCompany}</strong>. Proposal solusi khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`,
         areaTitle: 'Area yang dapat diperkuat',
         approachTitle: 'Gambaran pendekatan yang mungkin relevan',
         formatTitle: 'Format indikatif',
-        investmentTitle: isStandard ? 'Harga dasar katalog' : 'Estimasi investasi awal',
-        attachment: isStandard ? 'Buka proposal untuk melihat modul katalog terpilih, cakupan standar, harga dasar, dan asumsinya. PDF dapat diunduh di halaman tersebut. Perubahan khusus dibahas dalam proses terpisah.' : 'Buka halaman proposal untuk melihat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. PDF dapat diunduh dari halaman tersebut. Pendekatan dan investasi dapat disesuaikan setelah kebutuhan organisasi dipahami lebih lanjut.',
+        investmentTitle: isStandard ? 'Investasi program' : 'Estimasi investasi awal',
+        attachment: isStandard ? 'Baca atau unduh proposal melalui tombol di atas. Jika ingin membahas penyesuaian, Anda dapat membalas email ini atau memilih waktu konsultasi di bawah.' : 'Buka halaman proposal untuk melihat pendekatan, cakupan indikatif, asumsi, dan estimasi investasi awal. PDF dapat diunduh dari halaman tersebut. Pendekatan dan investasi dapat disesuaikan setelah kebutuhan organisasi dipahami lebih lanjut.',
         proposalCta: 'Buka proposal Anda',
         question: 'Ada pertanyaan singkat? Cukup balas email ini dan kami akan dengan senang hati membantu.',
         schedule: 'Ingin berdiskusi lebih mendalam?',

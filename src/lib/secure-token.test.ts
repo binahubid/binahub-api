@@ -40,4 +40,10 @@ describe("secure tokens", () => {
     expect(verifyProposalViewToken("assessment-a", createProposalViewToken("assessment-a", -1))).toBe(false);
     expect(verifyProposalViewToken("assessment-a", `${token}tampered`)).toBe(false);
   });
+
+  it("keeps the view link stable when retrying the same issued proposal", () => {
+    const issuedAt = Date.now();
+    expect(createProposalViewToken("assessment-a", 3600, issuedAt)).toBe(createProposalViewToken("assessment-a", 3600, issuedAt));
+    expect(verifyProposalViewToken("assessment-a", createProposalViewToken("assessment-a", 3600, issuedAt))).toBe(true);
+  });
 });
