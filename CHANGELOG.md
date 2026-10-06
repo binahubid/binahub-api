@@ -3,6 +3,39 @@
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 
+## [0.28.0] - 2026-10-06
+
+### Added
+
+- Endpoint admin `/api/admin/acquisition/email` untuk preview, uji ke akun admin peminta, antrean email pertama, dan pemrosesan antrean per kampanye. Respons 202 diberikan setelah penyimpanan; worker dijalankan melalui `after()` tanpa menahan layar hingga semua email selesai.
+- SQL **0060_outbound_email_queue.sql** menyediakan job/delivery persisten, transaksi idempoten, kunci unik email pertama per kampanye, claim `SKIP LOCKED`, RLS/service-role-only, dan state rekonsiliasi untuk worker yang terhenti. Migrasi tidak mengaktifkan gate atau mengirim email.
+- Worker cron ber-secret `/api/automation/outbound-email` dan switch `OUTBOUND_EMAIL_ENABLED=false` secara default. Panduan setup, operasi, pengujian internal, serta pemulihan tersedia di [OUTBOUND-EMAIL-RUNBOOK.md](OUTBOUND-EMAIL-RUNBOOK.md).
+- Uji PostgreSQL dalam memori untuk SQL antrean, otorisasi/konfirmasi endpoint, worker provider/suppression, dan redirect tracking. PGlite hanya merupakan dev dependency.
+
+### Changed
+
+- Aturan assessment **v1.2-public-diagnostic** mengabaikan budget/sponsor legacy sepenuhnya. Skor maksimal 100 dengan rincian poin; 4 sinyal minat; kelengkapan 8 jawaban inti tidak menghukum field dampak bisnis yang opsional.
+- Dashboard Assessment menghitung tampilan per assessment dengan aturan terbaru secara read-only, mencatat versi historis terpisah, dan tidak mengubah skor pipeline atau memicu follow-up saat halaman dibuka.
+- Email pertama memakai template marketing non-mock yang disetujui, personalisasi yang di-escape, unsubscribe, dan idempotency key provider. Persetujuan sumber/kampanye/batch, retensi, audience release, opt-out/suppression, runtime, aturan bisnis, dan jadwal diperiksa ulang sebelum send. Kontrol Follow-up Scheduler tetap dipakai bersama dan tidak dilewati.
+- Tracking email awal mengarahkan CTA lama `/diagnosa` pada template CEO ke halaman website `/insight` atau `/en/insight` yang tersedia. UTM/journey dipertahankan; click internal test dibedakan dari initial outreach; root landing link UAT lama tetap berlaku.
+- Link UAT menerima sumber Manual Upload atau Apollo yang approved/aktif; sumber lain tetap ditolak.
+
+### Security
+
+- Memperbarui Next.js dan eslint-config-next ke **16.3.8** serta lockfile source-map-js ke versi patched. Versi sebelumnya masih berada dalam rentang [advisory kritis Next.js](https://github.com/advisories/GHSA-vcvr-r3jv-pc5j) dan [advisory source-map-js](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+- `npm audit --omit=dev`: 0 critical/high, 3 moderate terkait Mammoth/argparse/sprintf-js. Audit seluruh dependency masih mencatat 6 high pada toolchain pengembangan. Tidak menjalankan `audit fix --force` atau downgrade Mammoth; temuan tersisa membutuhkan penanganan terpisah.
+
+### Verification
+
+- 298 tes lulus, 3 tes produksi opt-in dilewati; typecheck, lint file yang berubah, dan production build lulus. Tes PDF yang sempat timeout pada run paralel awal lulus saat pengujian ulang dan full suite dengan 4 worker.
+- SQL dieksekusi pada PostgreSQL lokal dalam memori, termasuk apply ulang, retry request, impor ulang alamat, claim sekali, rollback atomik, dan akses role. Tidak membuktikan concurrency lintas koneksi produksi, konfigurasi sender/cron, atau penerimaan inbox.
+- Tidak ada email nyata, SQL produksi, deployment, commit, atau push yang dilakukan pada pekerjaan ini.
+
+### Deployment
+
+- Urutan: jalankan SQL **60** setelah migrasi terdahulu → deploy API **0.28.0** → deploy app **0.28.0** → verifikasi konfigurasi/persetujuan/audience → uji satu akun internal.
+- Antrean awal mencoba satu chunk paling banyak 10 penerima, dibatasi runtime bila lebih rendah. Sisanya memerlukan cron atau tindakan Proses antrean berikutnya. Sender diterima provider tidak disamakan dengan inbox delivery; timeout/status tidak pasti tidak otomatis dikirim ulang.
+
 ## [0.27.10] - 2026-10-05
 
 ### Changed

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { evaluateAssessmentProposalEligibility } from "@/lib/proposal-eligibility";
+import { qualifyPublicAssessment } from "@/lib/lead-qualification";
 
 const DIMENSIONS = ["Insights", "Lab", "Coach", "Play", "Academy", "Works", "Impact"] as const;
 
@@ -739,6 +740,8 @@ export async function GET(req: NextRequest) {
     const lead = row.lead_id ? leadsById.get(row.lead_id) : undefined;
     const scores = getScores(row.scores, row.overall_score);
     const recommendations = getRecommendations(row.recommendations);
+    // Per-assessment, read-only recalculation. Never overwrite historical lead scores in a GET.
+    const qualification = qualifyPublicAssessment({ ...form }, Object.keys(form.answers || {}).length === 49);
     const proposalEligibility = evaluateAssessmentProposalEligibility({
       formData: row.form_data,
       scores: row.scores,
@@ -793,13 +796,14 @@ export async function GET(req: NextRequest) {
       proposalFollowUpLevel: row.proposal_follow_up_level || 0,
       proposalFollowUpSentAt: row.proposal_follow_up_sent_at || null,
       followUpPaused: row.follow_up_paused === true,
-      leadScore: lead?.lead_score || null,
-      leadStatus: lead?.lead_status || null,
-      leadTemperature: lead?.lead_temperature || lead?.lead_status || null,
-      leadScoreConfidence: lead?.lead_score_confidence ?? null,
-      leadScoreReason: lead?.lead_score_reason || null,
-      leadScoreEvidence: lead?.lead_score_evidence || null,
-      leadScoreRuleVersion: lead?.lead_score_rule_version || null,
+      leadScore: qualification.score,
+      leadStatus: qualification.temperature,
+      leadTemperature: qualification.temperature,
+      leadScoreConfidence: qualification.confidence,
+      leadScoreReason: qualification.reasoning,
+      leadScoreEvidence: qualification,
+      leadScoreRuleVersion: qualification.ruleVersion,
+      recordedLeadScoreRuleVersion: lead?.lead_score_rule_version || null,
       lifecycleStage: lead?.lifecycle_stage || "prospect",
       opportunityStage: lead?.opportunity_stage || "identified",
       attribution: form.attribution || (lead?.source_metadata as Record<string, string> | undefined) || {},

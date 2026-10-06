@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { qualifyLead } from "./lead-qualification";
+import { qualifyLead, qualifyPublicAssessment } from "./lead-qualification";
 
 describe("confirmed lead qualification", () => {
   it("requires all mandatory Hot conditions even when the numeric score is high", () => {
@@ -58,7 +58,7 @@ describe("confirmed lead qualification", () => {
     expect(result.missingData).not.toContain("budget");
   });
 
-  it("still respects an explicitly unconfirmed sponsor on legacy submissions", () => {
+  it("ignores removed sponsor and budget fields even in legacy submissions", () => {
     const result = qualifyLead({
       assessmentCompleted: true,
       employees: "50-99",
@@ -73,7 +73,33 @@ describe("confirmed lead qualification", () => {
     });
 
     expect(result.score).toBeGreaterThanOrEqual(75);
-    expect(result.temperature).toBe("warm");
+    expect(result.temperature).toBe("hot");
+    expect(result.score).toBe(93);
+    expect(result.indicators).not.toHaveProperty("budgetKnown");
+    expect(result.indicators).not.toHaveProperty("sponsorKnown");
+  });
+
+  it("has an exact 100-point maximum and four observable buying signals", () => {
+    const result = qualifyLead({ assessmentCompleted: true, employees: 200, role: "CEO", challenge: "Tantangan organisasi yang cukup terisi", target: "Tujuan organisasi yang cukup terisi", industry: "Teknologi", location: "Jakarta", timelineKnown: true, meetingIntent: true, businessConsequenceKnown: true });
+    expect(result.score).toBe(100);
+    expect(result.scoreBreakdown.reduce((total, item) => total + item.maximum, 0)).toBe(100);
+    expect(result.buyingSignalCount).toBe(4);
+    expect(result.confidence).toBe(1);
+  });
+
+  it("reports actual Hot blockers separately from optional data improvements", () => {
+    const result = qualifyLead({ assessmentCompleted: true, employees: "100-250", role: "CEO", challenge: "Konflik menghambat produktivitas tim", target: "Tim kompak", industry: "Konstruksi", location: "Madura", timelineKnown: true, meetingIntent: false, businessConsequenceKnown: true });
+    expect(result).toMatchObject({ score: 80, temperature: "warm", confidence: 1, buyingSignalCount: 3 });
+    expect(result.hotBlockers).toEqual(["Belum memilih konsultasi atau proposal"]);
+    expect(result.reasoning).not.toContain("objectiveOrExpectedOutcome");
+    expect(result.missingData).toContain("objectiveOrExpectedOutcome");
+  });
+
+  it("does not count absent timeline and next-step fields as known", () => {
+    const result = qualifyPublicAssessment({ role: "CEO", employees: 100, challenge: "Organisasi membutuhkan program peningkatan", target: "Meningkatkan kesiapan tim menghadapi perubahan", industry: "Teknologi", location: "Jakarta" });
+    expect(result.indicators.timelineKnown).toBe(false);
+    expect(result.confidence).toBe(0.75);
+    expect(qualifyPublicAssessment({ budgetStatus: "allocated", sponsorStatus: "decision_maker" }).score).toBe(15);
   });
 
   it("does not guess eligibility from an employee range crossing the minimum", () => {

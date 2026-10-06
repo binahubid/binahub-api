@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   const sourceResult = await db.from("acquisition_sources").select("id,provider_type,channel,status,active").eq("id", campaign.source_id).maybeSingle();
   const source = sourceResult.data;
   if (sourceResult.error) return adminError(sourceResult.error.message, 500, "OUTBOUND_SOURCE_LOOKUP_FAILED");
-  if (!source || source.provider_type !== "apollo" || source.channel !== "outbound" || source.status !== "approved" || !source.active) return adminError("Tautan hanya dapat dibuat dari source Apollo manual outbound yang approved dan aktif.", 409, "OUTBOUND_SOURCE_NOT_READY");
+  if (!source || !["apollo", "manual_upload"].includes(source.provider_type) || source.channel !== "outbound" || source.status !== "approved" || !source.active) return adminError("Pilih sumber manual atau Apollo outbound yang sudah disetujui dan aktif.", 409, "OUTBOUND_SOURCE_NOT_READY");
 
   const token = createOutboundCampaignToken();
   const expiry = new Date();

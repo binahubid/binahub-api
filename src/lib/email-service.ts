@@ -434,7 +434,8 @@ export async function sendOutreachEmail(
   name: string,
   subject: string,
   htmlContent: string,
-  company?: string
+  company?: string,
+  options?: { idempotencyKey: string; category?: string }
 ) {
   const normalizedTo = normalizeRecipientEmail(to);
   const db = createServerSupabase();
@@ -469,8 +470,8 @@ export async function sendOutreachEmail(
       'List-Unsubscribe': `<${unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
-    tags: [{ name: 'category', value: 'commercial_follow_up' }],
-  });
+    tags: [{ name: 'category', value: options?.category || 'commercial_follow_up' }],
+  }, options ? { idempotencyKey: options.idempotencyKey } : undefined);
   if (response.error) throw new Error(`Resend gagal mengirim follow up: ${response.error.message}`);
   return response;
 }

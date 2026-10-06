@@ -9,6 +9,7 @@ export type LeadQualificationInput = {
   industry?: string | null;
   location?: string | null;
   timelineKnown?: boolean;
+  /** Legacy fields accepted for compatibility only; ignored by the public rules. */
   sponsorKnown?: boolean;
   budgetKnown?: boolean;
   meetingIntent?: boolean;
@@ -22,6 +23,9 @@ export type LeadQualificationResult = {
   confidence: number;
   eligible: boolean;
   buyingSignalCount: number;
+  maximumBuyingSignals: number;
+  scoreBreakdown: Array<{ key: string; label: string; points: number; maximum: number }>;
+  hotBlockers: string[];
   indicators: {
     assessmentCompleted: boolean;
     problemClear: boolean;
@@ -29,8 +33,6 @@ export type LeadQualificationResult = {
     companySize: "eligible" | "below_minimum" | "unknown";
     roleLevel: "decision_maker" | "champion" | "other" | "unknown";
     timelineKnown: boolean;
-    sponsorKnown: boolean;
-    budgetKnown: boolean;
     meetingIntent: boolean;
     businessConsequenceKnown: boolean;
   };
@@ -39,7 +41,7 @@ export type LeadQualificationResult = {
   reasoning: string;
 };
 
-export const CONFIRMED_LEAD_RULE_VERSION = "v1.1-public-diagnostic";
+export const CONFIRMED_LEAD_RULE_VERSION = "v1.2-public-diagnostic";
 export const LEAD_TEMPERATURE_THRESHOLDS = { hot: 75, warm: 50 } as const;
 export const MINIMUM_COMPANY_SIZE = 20;
 export const MINIMUM_BUYING_SIGNALS = 3;
@@ -124,36 +126,29 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
   const outcomeClear = isClearText(input.target);
   const companySize = classifyCompanySize(input.employees);
   const roleLevel = classifyRole(input.role);
-  const sponsorAsked = input.sponsorKnown !== undefined;
-  const budgetAsked = input.budgetKnown !== undefined;
-  const sponsorKnown = input.sponsorKnown === true || roleLevel === "decision_maker";
   const timelineKnown = input.timelineKnown === true;
-  const budgetKnown = input.budgetKnown === true;
   const meetingIntent = input.meetingIntent === true;
   const businessConsequenceKnown = input.businessConsequenceKnown === true;
 
   const buyingSignals = [
     problemClear,
     timelineKnown,
-    sponsorKnown,
-    budgetKnown,
     meetingIntent,
     businessConsequenceKnown,
   ];
   const buyingSignalCount = buyingSignals.filter(Boolean).length;
 
-  let score = 0;
-  if (input.assessmentCompleted) score += 15;
-  if (problemClear) score += 20;
-  if (outcomeClear) score += 10;
-  if (companySize === "eligible") score += 10;
-  if (roleLevel === "decision_maker") score += 15;
-  else if (roleLevel === "champion") score += 8;
-  if (timelineKnown) score += 15;
-  if (budgetKnown) score += 10;
-  if (meetingIntent) score += 10;
-  if (businessConsequenceKnown) score += 5;
-  score = Math.min(100, score);
+  const scoreBreakdown = [
+    { key: "assessment", label: "Assessment selesai", points: input.assessmentCompleted ? 15 : 0, maximum: 15 },
+    { key: "challenge", label: "Tantangan terisi (minimal 20 karakter)", points: problemClear ? 20 : 0, maximum: 20 },
+    { key: "target", label: "Tujuan terisi (minimal 20 karakter)", points: outcomeClear ? 10 : 0, maximum: 10 },
+    { key: "company", label: "Perusahaan minimal 20 orang", points: companySize === "eligible" ? 10 : 0, maximum: 10 },
+    { key: "role", label: "Jabatan (pengambil keputusan 15; manager/champion 8)", points: roleLevel === "decision_maker" ? 15 : roleLevel === "champion" ? 8 : 0, maximum: 15 },
+    { key: "timeline", label: "Waktu mulai diketahui", points: timelineKnown ? 15 : 0, maximum: 15 },
+    { key: "nextStep", label: "Memilih konsultasi atau proposal", points: meetingIntent ? 10 : 0, maximum: 10 },
+    { key: "impact", label: "Dampak bisnis terisi (minimal 20 karakter)", points: businessConsequenceKnown ? 5 : 0, maximum: 5 },
+  ];
+  const score = scoreBreakdown.reduce((total, item) => total + item.points, 0);
 
   const industry = normalized(input.industry);
   const exclusionReasons = EXCLUDED_INDUSTRY_PATTERNS
@@ -164,7 +159,14 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
   }
   const eligible = exclusionReasons.length === 0;
 
-  const hotRequirementsMet = problemClear && timelineKnown && meetingIntent && (!sponsorAsked || sponsorKnown);
+  const hotBlockers: string[] = [];
+  if (!input.assessmentCompleted) hotBlockers.push("Assessment belum selesai");
+  if (!problemClear) hotBlockers.push("Tantangan belum terisi minimal 20 karakter");
+  if (!timelineKnown) hotBlockers.push("Waktu mulai belum ditentukan");
+  if (!meetingIntent) hotBlockers.push("Belum memilih konsultasi atau proposal");
+  if (score < LEAD_TEMPERATURE_THRESHOLDS.hot) hotBlockers.push("Skor belum mencapai 75/100");
+  if (buyingSignalCount < MINIMUM_BUYING_SIGNALS) hotBlockers.push("Belum memiliki minimal 3 dari 4 sinyal minat");
+  const hotRequirementsMet = hotBlockers.length === 0;
   const temperature: LeadTemperature = !eligible
     ? "cold"
     : score >= LEAD_TEMPERATURE_THRESHOLDS.hot
@@ -176,16 +178,15 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
         : "cold";
 
   const knownData = [
-    Boolean(normalized(input.employees)),
+    typeof input.employees === "number" ? Number.isFinite(input.employees) : Boolean(normalized(input.employees)),
     Boolean(normalized(input.role)),
     Boolean(normalized(input.challenge)),
     Boolean(normalized(input.target)),
     Boolean(industry),
     Boolean(normalized(input.location)),
     input.timelineKnown !== undefined,
-    ...(budgetAsked ? [true] : []),
     input.meetingIntent !== undefined,
-    input.businessConsequenceKnown !== undefined,
+    // Optional business-impact text adds points, but is not required for core-data completeness.
   ];
   const confidence = roundConfidence(knownData.filter(Boolean).length / knownData.length);
 
@@ -197,17 +198,16 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
   if (!problemClear) missingData.push("problemOrNeed");
   if (!outcomeClear) missingData.push("objectiveOrExpectedOutcome");
   if (input.timelineKnown === undefined || !timelineKnown) missingData.push("timeline");
-  if (budgetAsked && !budgetKnown) missingData.push("budget");
   if (input.meetingIntent === undefined || !meetingIntent) missingData.push("nextStepOrMeeting");
   if (input.businessConsequenceKnown === undefined || !businessConsequenceKnown) missingData.push("businessConsequence");
 
   const reasoning = exclusionReasons.length > 0
     ? `Lead ditahan karena ${exclusionReasons.join(" ")}`
     : temperature === "hot"
-      ? `Lead memenuhi threshold Hot, memiliki ${buyingSignalCount} buying signals, dan seluruh syarat wajib Hot.`
+      ? `Minat tinggi: skor minimal 75, sedikitnya 3 dari 4 sinyal minat, dan syarat tindak lanjut terpenuhi.`
       : temperature === "warm"
-        ? `Lead memenuhi threshold Warm, tetapi data Hot belum lengkap (${missingData.join(", ") || "tidak ada"}).`
-        : `Data dan buying signals belum cukup untuk melewati threshold Warm (${score}/100).`;
+        ? `Minat berkembang. Untuk kategori minat tinggi: ${hotBlockers.join("; ").toLowerCase()}.`
+        : `Minat awal: skor ${score}/100 belum mencapai batas minat berkembang (50/100).`;
 
   return {
     ruleVersion: CONFIRMED_LEAD_RULE_VERSION,
@@ -216,6 +216,9 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
     confidence,
     eligible,
     buyingSignalCount,
+    maximumBuyingSignals: buyingSignals.length,
+    scoreBreakdown,
+    hotBlockers,
     indicators: {
       assessmentCompleted: input.assessmentCompleted,
       problemClear,
@@ -223,8 +226,6 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
       companySize,
       roleLevel,
       timelineKnown,
-      sponsorKnown,
-      budgetKnown,
       meetingIntent,
       businessConsequenceKnown,
     },
@@ -232,4 +233,18 @@ export function qualifyLead(input: LeadQualificationInput): LeadQualificationRes
     missingData: [...new Set(missingData)],
     reasoning,
   };
+}
+
+/** One mapping for new submissions and per-assessment admin previews. Removed fields never affect scoring. */
+export function qualifyPublicAssessment(form: Record<string, unknown>, assessmentCompleted = true) {
+  const text = (key: string) => typeof form[key] === "string" ? form[key] as string : undefined;
+  return qualifyLead({
+    assessmentCompleted,
+    employees: typeof form.employees === "number" ? form.employees : text("employees"),
+    role: text("role"), challenge: text("challenge"), target: text("target"),
+    industry: text("industry"), location: text("location"),
+    timelineKnown: text("timeline") ? !["unknown", "later"].includes(text("timeline")!) : undefined,
+    meetingIntent: text("nextStepIntent") ? ["consultation", "proposal"].includes(text("nextStepIntent")!) : undefined,
+    businessConsequenceKnown: typeof form.businessConsequence === "string" ? isClearText(form.businessConsequence) : undefined,
+  });
 }

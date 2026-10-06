@@ -8,7 +8,7 @@ import { AssessmentSchema } from '@/lib/validations';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireTransformationActor } from '@/lib/transformation/auth';
 import { isProgramModuleEnabled } from '@/lib/program-access';
-import { qualifyLead } from '@/lib/lead-qualification';
+import { qualifyPublicAssessment } from '@/lib/lead-qualification';
 import { classifyInboundAttribution, compactInboundAttribution } from '@/lib/inbound-journey';
 
 const MAX_ASSESSMENT_BODY_BYTES = 64 * 1024;
@@ -259,24 +259,7 @@ export async function POST(req: NextRequest) {
     // 6. Apply the confirmed deterministic qualification rules. AI analysis may
     // enrich the assessment, but it cannot bypass commercial thresholds.
     try {
-      const leadQualification = qualifyLead({
-        assessmentCompleted: true,
-        employees: body.employees,
-        role: body.role,
-        challenge: body.challenge,
-        target: body.target,
-        industry: body.industry,
-        location: body.location,
-        timelineKnown: body.timeline !== 'unknown',
-        sponsorKnown: body.sponsorStatus === undefined
-          ? undefined
-          : ['sponsor_confirmed', 'decision_maker'].includes(body.sponsorStatus),
-        budgetKnown: body.budgetStatus === undefined
-          ? undefined
-          : ['range_known', 'allocated'].includes(body.budgetStatus),
-        meetingIntent: ['consultation', 'proposal'].includes(body.nextStepIntent || 'explore'),
-        businessConsequenceKnown: Boolean(body.businessConsequence && body.businessConsequence.trim().length >= 20),
-      });
+      const leadQualification = qualifyPublicAssessment(body);
       const { error: leadScoreUpdateError } = await supabase
         .from('leads')
         .update({
