@@ -142,7 +142,7 @@ Mandatory analysis style:
 - All output must be in English.
 - Diagnose first, solution second.
 - Avoid generic phrases such as "improve synergy", "optimize HR", or "drive transformation" without context.
-- Use cross-dimensional reasoning: connect at least two dimension scores to explain a pattern.
+- Use cross-area reasoning: connect at least two area scores to explain a pattern.
 - Explain business implications or execution risks, not just recommendations.
 - Recommendations must feel derived from the scores, challenge, goal, role, and organization scale.
 - Do not invent benchmarks or industry claims without data.
@@ -155,23 +155,23 @@ Role: ${data.role || '-'}
 Main Challenge: ${data.challenge || '-'}
 Goal to Achieve: ${data.target || '-'}
 
-DIMENSION SCORES (0-100%):
+AREA SCORES (0-100%):
 ${DIMENSIONS.map(dim => `- ${dim}: ${dimensionScores[dim]}%`).join('\n')}
 
 OVERALL SCORE: ${overallScore}%
-HIGHEST DIMENSION: ${topDimension} (${dimensionScores[topDimension]}%)
-LOWEST DIMENSION: ${lowestDimension} (${dimensionScores[lowestDimension]}%)
-SECOND LOWEST DIMENSION: ${secondLowestDimension} (${dimensionScores[secondLowestDimension]}%)
+HIGHEST AREA: ${topDimension} (${dimensionScores[topDimension]}%)
+LOWEST AREA: ${lowestDimension} (${dimensionScores[lowestDimension]}%)
+SECOND LOWEST AREA: ${secondLowestDimension} (${dimensionScores[secondLowestDimension]}%)
 
 Return JSON exactly like this, no markdown:
 {
   "category": "${categoryExamples}",
   "archetype": "${archetypeExamples}",
   "scoreInterpretation": "<2 sentences explaining the overall score contextually for this company. Explain whether this indicates a strong foundation, developing phase, or risk area.>",
-  "analysis": "<4-5 sentence executive analysis. Mention cross-dimensional patterns, main strength, main bottleneck, and business implications.>",
+  "analysis": "<4-5 sentence executive analysis. Mention cross-area patterns, main strength, main bottleneck, and business implications.>",
   "crossDimensionalInsights": [
-    "<insight 1 connecting two or more dimensions and explaining what it means>",
-    "<insight 2 connecting two or more dimensions and explaining what it means>"
+    "<insight 1 connecting two or more areas and explaining what it means>",
+    "<insight 2 connecting two or more areas and explaining what it means>"
   ],
   "riskProjection": "<12-18 month risk projection if the main gap is not addressed. Specific, not exaggerated.>",
   "strategicKey": "<90-day strategic key paragraph. Focus on priorities and business consequences.>",
@@ -196,7 +196,7 @@ Gaya analisis wajib:
 - Semua output wajib menggunakan Bahasa Indonesia. Jangan gunakan label, istilah profil, atau archetype berbahasa Inggris.
 - Diagnosis dulu, solusi kedua.
 - Hindari bahasa generik seperti "meningkatkan sinergi", "mengoptimalkan SDM", atau "mendorong transformasi" tanpa konteks.
-- Gunakan cross-dimensional reasoning: hubungkan minimal dua skor dimensi untuk menjelaskan pola.
+- Gunakan cross-area reasoning: hubungkan minimal dua skor area untuk menjelaskan pola.
 - Jelaskan implikasi bisnis atau risiko eksekusi, bukan hanya daftar rekomendasi.
 - Rekomendasi harus terasa lahir dari skor, tantangan, goal, jabatan, dan skala organisasi.
 - Jangan memberikan benchmark palsu atau klaim industri yang tidak ada datanya.
@@ -209,23 +209,23 @@ Jabatan: ${data.role || '-'}
 Tantangan Utama: ${data.challenge || '-'}
 Goal yang Ingin Dicapai: ${data.target || '-'}
 
-DATA SKOR DIMENSI (0-100%):
+DATA SKOR AREA (0-100%):
 ${DIMENSIONS.map(dim => `- ${dim}: ${dimensionScores[dim]}%`).join('\n')}
 
 SKOR KESELURUHAN: ${overallScore}%
-DIMENSI TERTINGGI: ${topDimension} (${dimensionScores[topDimension]}%)
-DIMENSI TERENDAH: ${lowestDimension} (${dimensionScores[lowestDimension]}%)
-DIMENSI TERENDAH KEDUA: ${secondLowestDimension} (${dimensionScores[secondLowestDimension]}%)
+AREA TERTINGGI: ${topDimension} (${dimensionScores[topDimension]}%)
+AREA TERENDAH: ${lowestDimension} (${dimensionScores[lowestDimension]}%)
+AREA TERENDAH KEDUA: ${secondLowestDimension} (${dimensionScores[secondLowestDimension]}%)
 
 Berikan output dalam format JSON PERSIS seperti ini (tanpa markdown, langsung JSON):
 {
   "category": "${categoryExamples}",
   "archetype": "${archetypeExamples}",
   "scoreInterpretation": "<2 kalimat yang menjelaskan arti skor keseluruhan secara kontekstual untuk perusahaan ini. Jelaskan apakah ini fondasi kuat, fase berkembang, atau area risiko.>",
-  "analysis": "<paragraf analisis eksekutif 4-5 kalimat. Harus menyebut pola lintas dimensi, kekuatan utama, bottleneck utama, dan implikasi bisnis.>",
+  "analysis": "<paragraf analisis eksekutif 4-5 kalimat. Harus menyebut pola lintas area, kekuatan utama, bottleneck utama, dan implikasi bisnis.>",
   "crossDimensionalInsights": [
-    "<insight 1 yang menghubungkan dua atau lebih dimensi dan menjelaskan maknanya>",
-    "<insight 2 yang menghubungkan dua atau lebih dimensi dan menjelaskan maknanya>"
+    "<insight 1 yang menghubungkan dua atau lebih area dan menjelaskan maknanya>",
+    "<insight 2 yang menghubungkan dua atau lebih area dan menjelaskan maknanya>"
   ],
   "riskProjection": "<proyeksi risiko 12-18 bulan jika gap utama tidak ditangani. Spesifik, tidak menakut-nakuti berlebihan.>",
   "strategicKey": "<paragraf kunci strategis 90 hari ke depan. Fokus pada prioritas dan konsekuensi bisnis.>",
@@ -269,24 +269,24 @@ Buat 5 rekomendasi yang spesifik dan actionable. Setiap rekomendasi harus diawal
     archetype: aiResult.archetype || fallbackArchetype,
     analysis: aiResult.analysis || (isEnglish
       ? `${data.company}'s diagnostic result shows its strongest relative foundation in ${topDimension}, while ${lowestDimension} requires the clearest management priority.`
-      : `Hasil diagnostik ${data.company} menunjukkan fondasi relatif terkuat pada dimensi ${topDimension}, sementara ${lowestDimension} memerlukan prioritas manajemen yang paling jelas.`),
+      : `Hasil diagnostik ${data.company} menunjukkan fondasi relatif terkuat pada area ${topDimension}, sementara ${lowestDimension} memerlukan prioritas manajemen yang paling jelas.`),
     scoreInterpretation: aiResult.scoreInterpretation || (isEnglish
-      ? `A score of ${overallScore}% places ${data.company} in the ${fallbackCategory} category. This indicates a foundation that can be strengthened through sharper priorities around the ${lowestDimension} dimension.`
-      : `Skor ${overallScore}% menempatkan ${data.company} pada kategori ${fallbackCategory}. Ini menunjukkan adanya fondasi yang dapat dikembangkan lebih lanjut melalui prioritas yang lebih tajam pada dimensi ${lowestDimension}.`),
+      ? `A score of ${overallScore}% places ${data.company} in the ${fallbackCategory} category. This indicates a foundation that can be strengthened through sharper priorities around the ${lowestDimension} area.`
+      : `Skor ${overallScore}% menempatkan ${data.company} pada kategori ${fallbackCategory}. Ini menunjukkan adanya fondasi yang dapat dikembangkan lebih lanjut melalui prioritas yang lebih tajam pada area ${lowestDimension}.`),
     crossDimensionalInsights: Array.isArray(aiResult.crossDimensionalInsights) ? aiResult.crossDimensionalInsights : [
       isEnglish
         ? `${topDimension} is a relative strength, while ${lowestDimension} is the area that needs the clearest priority.`
-        : `Dimensi ${topDimension} menjadi kekuatan relatif, sementara ${lowestDimension} menjadi area yang paling perlu diprioritaskan.`,
+        : `Area ${topDimension} menjadi kekuatan relatif, sementara ${lowestDimension} menjadi area yang paling perlu diprioritaskan.`,
       isEnglish
         ? `This score pattern shows the need to connect people capability with a more consistent execution rhythm.`
         : `Kombinasi skor ini menunjukkan perlunya menghubungkan kapasitas manusia dengan ritme eksekusi yang lebih konsisten.`,
     ],
     riskProjection: aiResult.riskProjection || (isEnglish
       ? `If ${lowestDimension} is not strengthened, the organization risks slower execution as growth demands increase.`
-      : `Jika dimensi ${lowestDimension} tidak diperkuat, organisasi berisiko mengalami perlambatan eksekusi saat tuntutan pertumbuhan meningkat.`),
+      : `Jika area ${lowestDimension} tidak diperkuat, organisasi berisiko mengalami perlambatan eksekusi saat tuntutan pertumbuhan meningkat.`),
     strategicKey: aiResult.strategicKey || (isEnglish
       ? `Over the next 90 days, ${data.company}'s main focus is to strengthen ${lowestDimension} and connect it to the most consequential operational priorities.`
-      : `Dalam 90 hari ke depan, fokus utama ${data.company} adalah memperkuat dimensi ${lowestDimension} dan menghubungkannya dengan prioritas operasional yang paling berdampak.`),
+      : `Dalam 90 hari ke depan, fokus utama ${data.company} adalah memperkuat area ${lowestDimension} dan menghubungkannya dengan prioritas operasional yang paling berdampak.`),
     recommendations: Array.isArray(aiResult.recommendations)
       ? aiResult.recommendations.map((rec) => ({
           ...rec,
@@ -294,7 +294,7 @@ Buat 5 rekomendasi yang spesifik dan actionable. Setiap rekomendasi harus diawal
           service: rec.service || lowestDimension,
           diagnosis: rec.diagnosis || (isEnglish
             ? `This recommendation is relevant because ${rec.service || lowestDimension} is an important signal in the diagnostic result.`
-            : `Rekomendasi ini relevan karena dimensi ${rec.service || lowestDimension} menjadi sinyal penting dalam hasil diagnostik.`),
+            : `Rekomendasi ini relevan karena area ${rec.service || lowestDimension} menjadi sinyal penting dalam hasil diagnostik.`),
         }))
       : [],
     scores: {
@@ -447,7 +447,7 @@ Tantangan: ${input.challenge || '-'}
 Target: ${input.target || '-'}
 Kategori: ${input.category || '-'}
 Skor keseluruhan: ${input.overallScore || '-'}
-Skor dimensi: ${JSON.stringify(input.scores || {})}
+Skor area: ${JSON.stringify(input.scores || {})}
 Analisis: ${input.aiAnalysis || '-'}
 Rekomendasi: ${JSON.stringify(input.recommendations || [])}
 MODUL TERPILIH: ${JSON.stringify(input.commercialContext.items)}

@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { createServerSupabase } from "./supabase";
-import { loadApprovedOutreachTemplate, isOutboundAutomationActive, type ApprovedOutreachTemplate } from "./outreach-template";
-import { loadAutomationRuntimeControl } from "./automation-runtime-control";
+import { loadApprovedOutreachTemplate, type ApprovedOutreachTemplate } from "./outreach-template";
+import { loadOutboundSettings, outboundAudience, outboundEmergencyStopped } from "./outbound-settings";
 import { createOutboundCampaignToken, outboundCampaignTokenDigest, outboundLinkSigningReady } from "./outbound-campaign-links";
 import { renderApprovedOutreachHtml } from "./email-template-renderer";
-import { evaluateFollowUpWindow, followUpWindowFromEnvironment } from "./follow-up-policy";
+import { evaluateFollowUpWindow } from "./follow-up-policy";
 import { sendOutreachEmail, OutreachSuppressedError } from "./email-service";
 
 type Db = ReturnType<typeof createServerSupabase>;
@@ -43,16 +43,15 @@ export async function loadOutboundContext(db: Db, campaignId: string, locale: "i
   if (campaignResult.error) throw new Error(campaignResult.error.message);
   const campaign = campaignResult.data;
   if (!campaign) throw new OutboundBlockedError("Kampanye tidak ditemukan.");
-  const [sourceResult, template, activation, control] = await Promise.all([
+  const [sourceResult, template, settings] = await Promise.all([
     db.from("acquisition_sources").select("*").eq("id", campaign.source_id).maybeSingle(),
     loadApprovedOutreachTemplate(db, "marketing_blast_initial", locale),
-    isOutboundAutomationActive(db),
-    loadAutomationRuntimeControl(db, "follow_up_scheduler", process.env.FOLLOW_UP_DRY_RUN !== "false"),
+    loadOutboundSettings(db, campaignId),
   ]);
   if (sourceResult.error) throw new Error(sourceResult.error.message);
   const source = sourceResult.data;
   const blockers: string[] = [];
-  if (process.env.OUTBOUND_EMAIL_ENABLED !== "true") blockers.push("Pengiriman kampanye email belum diaktifkan oleh tim teknis.");
+  if (outboundEmergencyStopped()) blockers.push("Pengiriman dihentikan sementara oleh tim teknis. Hubungi penanggung jawab.");
   if (!outboundLinkSigningReady()) blockers.push("Pelacakan tautan belum dikonfigurasi.");
   if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM?.includes("@") || process.env.EMAIL_FROM?.includes("resend.dev")) blockers.push("Pengirim email bisnis belum dikonfigurasi.");
   if ((process.env.UNSUBSCRIBE_SECRET?.length || 0) < 32) blockers.push("Tautan berhenti berlangganan belum dikonfigurasi.");
@@ -62,35 +61,28 @@ export async function loadOutboundContext(db: Db, campaignId: string, locale: "i
   if (campaign.status === "active" && (!campaign.starts_on || !campaign.ends_on || today < campaign.starts_on || today > campaign.ends_on)) blockers.push("Kampanye tidak berada dalam jadwal aktifnya.");
   if (!source || source.status !== "approved" || !source.active || source.channel !== "outbound" || !source.approved_by || !source.approved_at || !source.privacy_notice_url || !source.retention_days || !source.data_owner || !source.legal_owner || !["consent", "legitimate_interest"].includes(source.lawful_basis)) blockers.push("Sumber outbound dan persetujuan penggunaan data belum lengkap.");
   if (!template || !template.owner) blockers.push("Template email pertama belum disetujui atau belum memiliki penanggung jawab.");
-  if (!activation.active) blockers.push("Aturan bisnis atau template tindak lanjut belum siap untuk outbound.");
-  if (!["pilot", "live"].includes(control.effectiveMode)) blockers.push("Pengiriman masih dijeda atau dalam mode simulasi. Periksa kontrol operasional.");
-  if (!control.pilotReleaseId) blockers.push("Daftar penerima yang diizinkan belum tersedia.");
-  const audienceResult = control.pilotReleaseId ? await db.from("pilot_release_recipients").select("email").eq("release_id", control.pilotReleaseId) : { data: [], error: null };
-  if (audienceResult.error) throw new Error(audienceResult.error.message);
-  const audience = new Set((audienceResult.data || []).map((row) => String(row.email).trim().toLowerCase()));
-  if (!audience.size) blockers.push("Daftar penerima yang diizinkan masih kosong.");
-  return { campaign, source, template, control, audience, blockers, ready: blockers.length === 0 };
+  const setupBlockers = [...blockers];
+  if (!settings.enabled) blockers.push("Pengiriman kampanye dijeda. Atur pengiriman dari halaman ini.");
+  if (settings.recipientMode === "restricted" && !settings.allowedEmails.length) blockers.push("Tambahkan alamat uji pada Pengaturan pengiriman.");
+  return { campaign, source, template, settings, audience: outboundAudience(settings), setupBlockers, blockers, ready: blockers.length === 0 };
 }
 
-export function recipientBlocker(prospect: OutboundProspect, source: { id: string; lawful_basis: string; retention_days: number }, campaignId: string, batch: { status: string; approved_by: string | null; approved_at: string | null; created_at: string } | undefined, audience: ReadonlySet<string>, suppressed: ReadonlySet<string>) {
+export function recipientBlocker(prospect: OutboundProspect, source: { id: string; lawful_basis: string; retention_days: number }, campaignId: string, batch: { status: string; approved_by: string | null; approved_at: string | null; created_at: string } | undefined, audience: ReadonlySet<string> | null, suppressed: ReadonlySet<string>) {
   if (prospect.source_id !== source.id || prospect.campaign_id !== campaignId) return "Sumber atau kampanye tidak sesuai";
   if (prospect.validation_status !== "valid") return "Tidak lolos validasi data";
   if (prospect.consent_status === "opted_out" || suppressed.has(prospect.email.trim().toLowerCase())) return "Tidak boleh dihubungi";
   if (source.lawful_basis === "consent" && prospect.consent_status !== "opted_in") return "Persetujuan penerima belum tersedia";
   if (!batch || !["approved", "processing", "completed"].includes(batch.status) || !batch.approved_by || !batch.approved_at) return "Daftar target belum disetujui";
   if (Date.now() - Date.parse(batch.created_at) > source.retention_days * 86_400_000 || !Number.isFinite(Date.parse(batch.created_at))) return "Masa penggunaan data berakhir";
-  if (!audience.has(prospect.email.trim().toLowerCase())) return "Belum masuk daftar penerima yang diizinkan";
+  if (audience && !audience.has(prospect.email.trim().toLowerCase())) return "Di luar alamat uji. Tambahkan pada Pengaturan pengiriman atau pilih Target disetujui.";
   return null;
 }
 
 export async function processOutboundQueue(jobId?: string, campaignId?: string) {
   const db = createServerSupabase();
-  const window = evaluateFollowUpWindow(new Date(), followUpWindowFromEnvironment());
-  if (!window.allowed && process.env.FOLLOW_UP_ENFORCE_BUSINESS_WINDOW !== "false") return { processed: 0, deferred: true, reason: "Di luar jam pengiriman yang ditetapkan." };
-  // Claim only a small chunk. Durable queued rows remain available to the cron or admin's next run.
-  const control = await loadAutomationRuntimeControl(db, "follow_up_scheduler", process.env.FOLLOW_UP_DRY_RUN !== "false");
-  if (!control.activationEligible || !["pilot", "live"].includes(control.effectiveMode) || process.env.OUTBOUND_EMAIL_ENABLED !== "true") return { processed: 0, deferred: true, reason: "Kontrol pengiriman belum aktif." };
-  const claimed = await db.rpc("claim_outbound_email", { p_job_id: jobId || null, p_limit: Math.min(10, control.maximumItemsPerRun), p_campaign_id: campaignId || null });
+  if (outboundEmergencyStopped()) return { processed: 0, deferred: true, reason: "Pengiriman dihentikan sementara oleh tim teknis." };
+  // SQL checks campaign activation, audience version and optional send window before claiming.
+  const claimed = await db.rpc("claim_outbound_email", { p_job_id: jobId || null, p_limit: 10, p_campaign_id: campaignId || null });
   if (claimed.error) throw new Error(claimed.error.message);
   let processed = 0;
   for (const delivery of (claimed.data || []) as OutboundDelivery[]) {
@@ -101,8 +93,10 @@ export async function processOutboundQueue(jobId?: string, campaignId?: string) 
       const job = jobResult.data;
       const context = await loadOutboundContext(db, job.campaign_id, job.locale);
       if (!context.ready || !context.template) throw new OutboundBlockedError(context.blockers.join(" "));
+      if (job.settings_version !== context.settings.version) throw new OutboundBlockedError("Pengaturan pengiriman berubah. Antrean lama tidak dikirim otomatis.");
+      if (delivery.kind === "initial" && context.settings.businessHoursOnly && !evaluateFollowUpWindow().allowed) throw new OutboundBlockedError("Di luar jam pengiriman yang ditetapkan.");
       if (outboundTemplateHash(context.template) !== job.template_hash) throw new OutboundBlockedError("Template berubah. Tinjau kembali kampanye sebelum pengiriman lain.");
-      if (!context.audience.has(delivery.email)) throw new OutboundBlockedError("Penerima tidak lagi diizinkan.");
+      if (delivery.kind === "initial" && context.audience && !context.audience.has(delivery.email)) throw new OutboundBlockedError("Penerima tidak lagi diizinkan.");
       if (delivery.kind === "test" && delivery.email !== job.requested_by) throw new OutboundBlockedError("Email uji hanya boleh dikirim ke admin peminta.");
       let prospect: OutboundProspect | null = null;
       if (delivery.kind === "initial") {
@@ -121,6 +115,9 @@ export async function processOutboundQueue(jobId?: string, campaignId?: string) 
       const content = renderInitialOutreach(context.template, delivery, `${process.env.NEXT_PUBLIC_BINAHUB_API_URL!.replace(/\/$/, "")}/api/acquisition/c/${token}`);
       const linked = await db.from("outbound_email_deliveries").update({ link_id: linkResult.data.id }).eq("id", delivery.id).eq("status", "processing");
       if (linked.error) throw new Error(linked.error.message);
+      // Final read reduces the pause/revoke race during template/link preparation.
+      const latest = await loadOutboundSettings(db, job.campaign_id);
+      if (outboundEmergencyStopped() || !latest.enabled || latest.version !== job.settings_version) throw new OutboundBlockedError("Pengiriman dijeda atau pengaturan berubah sebelum dikirim.");
       attempted = true;
       const result = await sendOutreachEmail(delivery.email, delivery.name, delivery.kind === "test" ? `[UJI] ${content.subject}` : content.subject, content.html, delivery.company || undefined, { idempotencyKey: `outbound-initial-${delivery.id}`, category: "marketing_initial" });
       if (!result.data?.id) throw new Error("Respons penyedia email belum memiliki bukti penerimaan. Periksa arsip pengiriman.");

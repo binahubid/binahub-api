@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ db: vi.fn(), control: vi.fn(), send: vi.fn(), template: vi.fn(), activation: vi.fn() }));
+const mocks = vi.hoisted(() => ({ db: vi.fn(), settings: vi.fn(), send: vi.fn(), template: vi.fn() }));
 vi.mock("./supabase", () => ({ createServerSupabase: mocks.db }));
-vi.mock("./automation-runtime-control", () => ({ loadAutomationRuntimeControl: mocks.control }));
+vi.mock("./outbound-settings", async (original) => ({ ...await original<typeof import("./outbound-settings")>(), loadOutboundSettings: mocks.settings }));
 vi.mock("./email-service", () => ({ sendOutreachEmail: mocks.send, OutreachSuppressedError: class extends Error {} }));
-vi.mock("./outreach-template", () => ({ loadApprovedOutreachTemplate: mocks.template, isOutboundAutomationActive: mocks.activation }));
+vi.mock("./outreach-template", () => ({ loadApprovedOutreachTemplate: mocks.template }));
 import { OutreachSuppressedError } from "./email-service";
 import { outboundTemplateHash, processOutboundQueue, recipientBlocker, renderInitialOutreach, type OutboundProspect } from "./outbound-email";
 const template = { version: "ceo-v1", subject: "Halo {{company}}", html: '<p>Yth {{name}}</p><a href="https://binahub.id/diagnosa">Diagnosa</a><a href="https://binahub.id">Website</a>' };
@@ -39,12 +39,11 @@ describe("initial outreach safety and rendering", () => {
     expect(check(prospect, { ...source, lawful_basis: "consent" })).toContain("Persetujuan penerima");
     expect(check(prospect, source, { ...batch, status: "staged" })).toContain("belum disetujui");
     expect(check(prospect, source, { ...batch, created_at: "2020-01-01" })).toContain("berakhir");
-    expect(check(prospect, source, batch, new Set())).toContain("diizinkan");
+    expect(check(prospect, source, batch, new Set())).toContain("Di luar alamat uji");
     expect(check(prospect, source, batch, audience, new Set([prospect.email]))).toContain("Tidak boleh");
   });
-  it("never claims or sends queued emails in dry-run or when disabled", async () => {
-    vi.stubEnv("FOLLOW_UP_ENFORCE_BUSINESS_WINDOW", "false"); vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
-    mocks.control.mockResolvedValue({ effectiveMode: "dry_run", activationEligible: false });
+  it("never claims or sends queued emails during the technical emergency stop", async () => {
+    vi.stubEnv("OUTBOUND_EMAIL_FORCE_DISABLED", "true");
     const rpc = vi.fn(); mocks.db.mockReturnValue({ rpc });
     expect(await processOutboundQueue()).toMatchObject({ processed: 0, deferred: true });
     expect(rpc).not.toHaveBeenCalled(); expect(mocks.send).not.toHaveBeenCalled();
@@ -53,13 +52,12 @@ describe("initial outreach safety and rendering", () => {
 
 function workerFixture(options: { templateChanged?: boolean; optedOut?: boolean; saveFailed?: boolean } = {}) {
   for (const [key, value] of Object.entries({ FOLLOW_UP_ENFORCE_BUSINESS_WINDOW: "false", OUTBOUND_EMAIL_ENABLED: "true", RESEND_API_KEY: "test-not-a-real-key", EMAIL_FROM: "outreach@example.com", UNSUBSCRIBE_SECRET: "test".repeat(10), ACQUISITION_LINK_SECRET: "test".repeat(10), NEXT_PUBLIC_BINAHUB_API_URL: "https://api.example.com" })) vi.stubEnv(key, value);
-  mocks.control.mockResolvedValue({ effectiveMode: "pilot", activationEligible: true, maximumItemsPerRun: 1, pilotReleaseId: "release" });
-  mocks.activation.mockResolvedValue({ active: true });
+  mocks.settings.mockResolvedValue({ enabled: true, recipientMode: "restricted", allowedEmails: [prospect.email], businessHoursOnly: false, version: 1 });
   mocks.template.mockResolvedValue({ ...template, owner: "owner", ...(options.templateChanged ? { version: "v2" } : {}) });
   mocks.send.mockResolvedValue({ data: { id: "provider-id" } });
   const updates: Array<Record<string, unknown>> = [];
   const rows: Record<string, unknown> = {
-    outbound_email_jobs: { campaign_id: "campaign", requested_by: "admin@example.com", template_hash: outboundTemplateHash(template), locale: "id" },
+    outbound_email_jobs: { campaign_id: "campaign", requested_by: "admin@example.com", template_hash: outboundTemplateHash(template), locale: "id", settings_version: 1 },
     acquisition_campaigns: { id: "campaign", source_id: "source", channel: "email", status: "approved", approved_by: "admin", approved_at: "2026-10-06" },
     acquisition_sources: { ...source, status: "approved", active: true, channel: "outbound", approved_by: "admin", approved_at: "2026-10-06", privacy_notice_url: "https://example.com/privacy", data_owner: "owner", legal_owner: "owner" },
     pilot_release_recipients: [{ email: prospect.email }],
@@ -88,7 +86,7 @@ describe("outbound delivery worker", () => {
   it("persists provider acceptance and uses a stable per-delivery idempotency key", async () => {
     const { updates, rpc } = workerFixture();
     expect(await processOutboundQueue("job", "campaign")).toEqual({ processed: 1, deferred: false });
-    expect(rpc).toHaveBeenCalledWith("claim_outbound_email", { p_job_id: "job", p_campaign_id: "campaign", p_limit: 1 });
+    expect(rpc).toHaveBeenCalledWith("claim_outbound_email", { p_job_id: "job", p_campaign_id: "campaign", p_limit: 10 });
     expect(mocks.send.mock.calls[0][5]).toEqual({ idempotencyKey: "outbound-initial-delivery", category: "marketing_initial" });
     expect(updates).toContainEqual(expect.objectContaining({ status: "sent", provider_email_id: "provider-id" }));
   });
@@ -113,5 +111,23 @@ describe("outbound delivery worker", () => {
   it("treats the last-moment suppression guard as not sent, not uncertain", async () => {
     const { updates } = workerFixture(); mocks.send.mockRejectedValue(new OutreachSuppressedError()); await processOutboundQueue();
     expect(updates.at(-1)?.status).toBe("blocked");
+  });
+  it("ignores legacy outbound and follow-up env toggles for a confirmed campaign", async () => {
+    workerFixture(); vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "false"); vi.stubEnv("FOLLOW_UP_DRY_RUN", "true"); vi.stubEnv("AUTOMATION_PILOT_ENABLED", "false");
+    expect(await processOutboundQueue()).toMatchObject({ processed: 1 });
+  });
+  it("does not send jobs from an older settings version", async () => {
+    const { updates } = workerFixture(); mocks.settings.mockResolvedValue({ enabled: true, recipientMode: "approved_list", allowedEmails: [], businessHoursOnly: false, version: 2 });
+    await processOutboundQueue(); expect(mocks.send).not.toHaveBeenCalled(); expect(updates.at(-1)?.status).toBe("blocked");
+  });
+  it("rechecks a pause at the last read before calling the provider", async () => {
+    const { updates } = workerFixture();
+    mocks.settings.mockResolvedValueOnce({ enabled: true, recipientMode: "restricted", allowedEmails: [prospect.email], businessHoursOnly: false, version: 1 }).mockResolvedValue({ enabled: false, recipientMode: "restricted", allowedEmails: [prospect.email], businessHoursOnly: false, version: 2 });
+    await processOutboundQueue(); expect(mocks.send).not.toHaveBeenCalled(); expect(updates.at(-1)?.status).toBe("blocked");
+  });
+  it("approved-list mode still enforces consent and batch approval", () => {
+    expect(recipientBlocker(prospect, source, "campaign", batch, null, new Set())).toBeNull();
+    expect(recipientBlocker({ ...prospect, consent_status: "opted_out" }, source, "campaign", batch, null, new Set())).toContain("Tidak boleh");
+    expect(recipientBlocker(prospect, source, "campaign", { ...batch, status: "staged" }, null, new Set())).toContain("belum disetujui");
   });
 });

@@ -2,6 +2,16 @@
 
 Dokumen ini adalah urutan resmi untuk database bersama `app-binahub` dan `binahub-api`.
 
+## Workspace penjualan dan assessment background (API/app 0.29.0)
+
+1. Setelah SQL 60, terapkan `0061_outbound_campaign_settings.sql` lalu `0062_assessment_background_jobs.sql`.
+2. Deploy API 0.29.0, kemudian app 0.29.0 dan website 0.2.27. Jangan menjalankan worker recovery sebelum API baru aktif.
+3. Hubungkan scheduler backend ke GET `/api/assessment/worker` setiap menit dengan Bearer `FOLLOW_UP_CRON_SECRET` yang sudah ada. Ini recovery satu kali setup; submission memulai job langsung melalui `after()`.
+4. SQL 61 membuat kontrol pengiriman dijeda, mengunci antrean legacy, dan memindahkan aktivasi rutin ke dashboard. SQL 62 tidak mengantrekan assessment historis atau mengirim email saat migrasi.
+5. Uji satu target internal: kontrol dari aplikasi, antrean idempoten, pause sebelum send, diagnosis mendapat 202 setelah tersimpan, hasil tetap diproses setelah browser ditutup. Jangan replay job berstatus uncertain; rekonsiliasi dengan provider terlebih dahulu.
+
+Petunjuk operasional: `OUTBOUND-EMAIL-RUNBOOK.md`. Tidak ada secret baru atau perubahan env rutin untuk kontrol UI.
+
 ## Phase 15 runtime circuit breaker (API 0.18.0)
 
 Fase 15 tidak memiliki migration database. Deploy API `0.18.0` lalu tambahkan `AUTOMATION_PILOT_ENABLED=false` dan `AUTOMATION_LIVE_ENABLED=false` pada environment production. Kedua nilai yang tidak tersedia juga diperlakukan sebagai `false`, tetapi deklarasi eksplisit memudahkan audit konfigurasi.
@@ -55,7 +65,7 @@ Untuk jangka panjang, buat satu baseline schema bertimestamp setelah release pro
 - Lead qualification menyimpan score, temperature, confidence, evidence, dan rule version; data yang belum tersedia tidak ditebak.
 - Maksimum tiga follow-up dihitung per lead/opportunity lintas inquiry, assessment result, dan proposal.
 - Admin dapat menetapkan owner, next action, due date, nilai peluang, stage won/lost, alasan lost, serta pause outreach; setiap perubahan memiliki audit trail.
-- Template follow-up production wajib berstatus approved dan non-mock; activation outbound tetap menjadi pengunci kedua.
+- Template follow-up production wajib berstatus approved dan non-mock. Setelah SQL 61, kontrol aplikasi menggantikan gate release/runtime global untuk outbound/follow-up; workflow lain tetap memakai kontrol sebelumnya.
 - Webhook Resend dengan signature salah ditolak; event duplikat tidak diproses ulang; bounce/complaint/suppression menjeda outreach dan masuk suppression list.
 - Opportunity `won` hanya dapat di-handoff oleh admin dengan commercial owner, delivery owner, dan nama project; retry tidak membuat account atau initial project ganda.
 - Client account memiliki stakeholder utama tunggal, delivery stage, milestone, risk summary, health review, dan activity trail.

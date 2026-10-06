@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { adminError, parseJsonBody, parseValidatedBody } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/admin-auth";
 import {
@@ -71,6 +72,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, source: data });
   }
 
+  if (action === "quick_email_campaign") {
+    const parsed = z.object({ sourceId: z.string().uuid(), campaignCode: z.string().regex(/^EMAIL-[A-F0-9-]{36}$/), name: z.string().trim().min(3).max(200), confirmation: z.literal("CREATE_EMAIL_CAMPAIGN") }).strict().safeParse(payload);
+    if (!parsed.success) return adminError("Isi nama kampanye dan pilih sumber data yang tersedia.", 400, "INVALID_EMAIL_CAMPAIGN");
+    const input = parsed.data;
+    const source = await db.from("acquisition_sources").select("channel,status,active").eq("id", input.sourceId).maybeSingle();
+    if (source.error || !source.data || source.data.channel !== "outbound" || source.data.status !== "approved" || !source.data.active) return adminError("Pilih sumber outbound yang sudah siap digunakan.", 409, "OUTBOUND_SOURCE_NOT_READY");
+    const prior = await db.from("acquisition_campaigns").select("*").eq("campaign_code", input.campaignCode).maybeSingle();
+    if (prior.error) return adminError("Kampanye belum dapat diperiksa.", 503, "CAMPAIGN_LOOKUP_FAILED");
+    if (prior.data) {
+      if (prior.data.created_by !== admin.email || prior.data.source_id !== input.sourceId || prior.data.name !== input.name || prior.data.channel !== "email") return adminError("Permintaan kampanye tidak sesuai. Perbarui halaman.", 409, "CAMPAIGN_REQUEST_CONFLICT");
+      return NextResponse.json({ success: true, campaign: prior.data, duplicate: true });
+    }
+    const { data, error } = await db.rpc("save_acquisition_campaign", {
+      p_id: null, p_actor: admin.email, p_source_id: input.sourceId, p_campaign_code: input.campaignCode, p_name: input.name,
+      p_objective: "assessment", p_channel: "email", p_status: "approved", p_owner: admin.email,
+      p_budget_amount: null, p_currency: "IDR", p_starts_on: null, p_ends_on: null,
+      p_utm_config: { source: "binahub_outreach", medium: "email", campaign: input.campaignCode.toLowerCase() }, p_target_definition: {},
+      p_human_approved: true, p_approval_note: "Admin membuat dan menyetujui kampanye email dari form ringkas. Penerima dikonfirmasi terpisah saat pengiriman.",
+    });
+    if (error) return adminError("Kampanye belum tersimpan atau sudah diproses. Perbarui untuk memeriksa statusnya.", 409, "CAMPAIGN_CREATE_FAILED");
+    return NextResponse.json({ success: true, campaign: data });
+  }
+
   if (action === "campaign") {
     const parsed = acquisitionCampaignSchema.safeParse(payload);
     if (!parsed.success) return adminError(parsed.error.issues[0]?.message || "Campaign tidak valid.", 400, "INVALID_ACQUISITION_CAMPAIGN");
@@ -86,11 +110,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, campaign: data });
   }
 
-  if (action === "batch") {
-    const parsed = acquisitionBatchSchema.safeParse(payload);
+  if (action === "batch" || action === "reviewed_batch") {
+    const schema = action === "reviewed_batch" ? acquisitionBatchSchema.extend({ confirmation: z.literal("USE_REVIEWED_TARGET_LIST") }) : acquisitionBatchSchema;
+    const parsed = schema.safeParse(payload);
     if (!parsed.success) return adminError(parsed.error.issues[0]?.message || "Batch tidak valid.", 400, "INVALID_ACQUISITION_BATCH");
     const input = parsed.data;
-    const { data, error } = await db.rpc("stage_acquisition_batch", {
+    const { data, error } = await db.rpc(action === "reviewed_batch" ? "stage_reviewed_acquisition_batch" : "stage_acquisition_batch", {
       p_source_id: input.sourceId, p_campaign_id: input.campaignId || null, p_import_key: input.importKey,
       p_file_name: input.fileName || null, p_file_checksum: input.fileChecksum || null,
       p_prospects: input.prospects, p_actor: admin.email,

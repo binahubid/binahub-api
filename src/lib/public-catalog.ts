@@ -51,7 +51,10 @@ export function buildPublicCatalog(
       : [];
     const field = (key: string) => typeof copy[key] === "string" ? copy[key] as string : null;
     return {
-      name: field("name") || module.name,
+      // CEO solution titles remain English in both locales; localize body only.
+      name: (localized.en && typeof localized.en === "object" && !Array.isArray(localized.en)
+        && typeof (localized.en as Record<string, unknown>).name === "string"
+        ? (localized.en as Record<string, string>).name : null) || module.name,
       description: field("summary") || module.description,
       tagline: field("tagline"),
       learningObjectives: details("learningObjectives"),
@@ -76,7 +79,7 @@ export function buildPublicCatalog(
     .map((product) => ({
       key: product.product_key,
       slug: product.slug,
-      name: locale === "en" ? englishCategories[product.product_key]?.name || product.name : product.name,
+      name: englishCategories[product.product_key]?.name || product.name,
       objective: product.objective,
       shortDescription: product.short_description,
       description: locale === "en" ? englishCategories[product.product_key]?.description || product.public_description : product.public_description,

@@ -8,6 +8,7 @@ import { createServerSupabase } from '@/lib/supabase';
 import { createUnsubscribeToken, normalizeRecipientEmail } from '@/lib/unsubscribe-token';
 import { renderApprovedOutreachHtml } from '@/lib/email-template-renderer';
 import { clientProposalCopy } from '@/lib/proposal-copy';
+import { assessmentAreaCopy } from './assessment-area-copy';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -152,6 +153,7 @@ export async function sendAssessmentEmail(
   assessmentId?: string,
   locale: Locale = 'id'
 ) {
+  result = assessmentAreaCopy(result);
   const isEnglish = locale === 'en';
   const safeName = escapeHtml(formData.name);
   const safeCompany = escapeHtml(formData.company);

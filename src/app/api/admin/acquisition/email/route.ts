@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { createServerSupabase } from "@/lib/supabase";
 import { loadOutboundContext, OutboundBlockedError, outboundTemplateHash, processOutboundQueue, recipientBlocker, renderInitialOutreach, type OutboundProspect } from "@/lib/outbound-email";
 import { recordRuntimeError } from "@/lib/runtime-observability";
+import { outboundSettingsSchema } from "@/lib/outbound-settings";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -12,13 +13,22 @@ const schema = z.object({
   action: z.enum(["test", "send", "process"]), campaignId: z.string().uuid(),
   locale: z.enum(["id", "en"]).default("id"), requestKey: z.string().uuid(),
   prospectIds: z.array(z.string().uuid()).max(50).default([]),
+  settingsVersion: z.number().int().min(0),
+  activateForSelection: z.boolean().default(false),
   confirmation: z.enum(["SEND_TEST_TO_MY_EMAIL", "SEND_SELECTED_RECIPIENTS", "PROCESS_APPROVED_QUEUE"]),
 }).strict();
 const querySchema = z.object({ campaignId: z.string().uuid(), locale: z.enum(["id", "en"]).default("id") });
 
 function startQueue(jobId?: string) {
   after(async () => {
-    try { await processOutboundQueue(jobId); }
+    try {
+      // Drain this confirmed job (max 50 addresses), never another campaign's queue.
+      const started = Date.now();
+      for (let chunk = 0; chunk < 5 && Date.now() - started < 80_000; chunk += 1) {
+        const result = await processOutboundQueue(jobId);
+        if (!result?.processed || result.deferred) break;
+      }
+    }
     catch (error) { await recordRuntimeError({ code: "OUTBOUND_EMAIL_WORKER_FAILED", message: error instanceof Error ? error.message : String(error), route: "/api/admin/acquisition/email" }); }
   });
 }
@@ -54,10 +64,10 @@ export async function GET(req: NextRequest) {
     const deliveryMap = new Map(targets.deliveries.filter((row) => row.kind === "initial").map((row) => [row.email, row]));
     const prospects = targets.prospects.map((prospect) => {
       const prior = deliveryMap.get(prospect.email);
-      const blockedReason = prior ? "Email pertama sudah masuk antrean atau pernah diproses" : context.source ? recipientBlocker(prospect, context.source, query.data.campaignId, batchMap.get(prospect.batch_id), context.audience, targets.suppressed) : "Sumber data belum tersedia";
+      const blockedReason = prior ? "Email pertama sudah masuk antrean atau pernah diproses" : context.source ? recipientBlocker(prospect, context.source, query.data.campaignId, batchMap.get(prospect.batch_id), context.settings.version === 0 ? null : context.audience, targets.suppressed) : "Sumber data belum tersedia";
       return { ...prospect, blockedReason, deliveryStatus: prior?.status || null };
     });
-    return NextResponse.json({ success: true, ready: context.ready, blockers: context.blockers, myEmail: admin.email, mode: context.control.effectiveMode, preview, templateVersion: template?.version || null, testSent, prospects, deliveries: targets.deliveries }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ success: true, ready: context.ready, blockers: context.blockers, setupBlockers: context.setupBlockers, settings: context.settings, myEmail: admin.email, mode: context.settings.enabled ? context.settings.recipientMode : "paused", preview, templateVersion: template?.version || null, testSent, prospects, deliveries: targets.deliveries }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return adminError(error instanceof Error ? error.message : "Kampanye email belum dapat dimuat.", 503, "OUTBOUND_EMAIL_LOAD_FAILED"); }
 }
 
@@ -72,7 +82,9 @@ export async function POST(req: NextRequest) {
   try {
     const db = createServerSupabase();
     const context = await loadOutboundContext(db, input.campaignId, input.locale);
-    if (!context.ready || !context.template) throw new OutboundBlockedError(context.blockers.join(" "));
+    const canActivate = input.activateForSelection && input.action !== "process" && !context.settings.enabled && !context.setupBlockers.length;
+    if ((!context.ready && !canActivate) || !context.template) throw new OutboundBlockedError(context.blockers.join(" "));
+    if (input.settingsVersion !== context.settings.version) throw new OutboundBlockedError("Pengaturan pengiriman berubah. Tekan Perbarui, lalu tinjau kembali sebelum mengirim.");
     if (input.action === "process") {
       // Only jobs for this campaign; never process unrelated recipients from an admin action.
       after(async () => { try { await processOutboundQueue(undefined, input.campaignId); } catch (error) { await recordRuntimeError({ code: "OUTBOUND_EMAIL_WORKER_FAILED", message: String(error), route: "/api/admin/acquisition/email" }); } });
@@ -82,27 +94,46 @@ export async function POST(req: NextRequest) {
     renderInitialOutreach(template, { name: "Bapak/Ibu", company: "Perusahaan Anda" }, "https://binahub.id/insight");
     let recipients: Array<{ prospectId: string | null; name: string; email: string; company: string | null }>;
     if (input.action === "test") {
-      if (!context.audience.has(admin.email)) throw new OutboundBlockedError("Email admin Anda belum masuk daftar penerima yang diizinkan.");
+      // The explicit test is always limited to the authenticated admin, not an arbitrary address.
       recipients = [{ prospectId: null, name: "Bapak/Ibu", email: admin.email, company: "BinaHub" }];
     } else {
       if (!input.prospectIds.length || new Set(input.prospectIds).size !== input.prospectIds.length) throw new OutboundBlockedError("Pilih 1–50 target yang berbeda.");
-      const testJobs = await db.from("outbound_email_jobs").select("id,outbound_email_deliveries(status,email)").eq("campaign_id", input.campaignId).eq("kind", "test").eq("requested_by", admin.email).eq("template_hash", outboundTemplateHash(template)).eq("locale", input.locale).gte("created_at", new Date(Date.now() - 24 * 60 * 60_000).toISOString()).limit(100);
-      if (testJobs.error) throw new Error(testJobs.error.message);
-      if (!(testJobs.data || []).some((job) => job.outbound_email_deliveries.some((row: { status: string; email: string }) => row.status === "sent" && row.email === admin.email))) throw new OutboundBlockedError("Kirim email uji terlebih dahulu menggunakan template ini (berlaku 24 jam).");
+      // Preview and explicit recipient confirmation are mandatory; a test to the admin is optional.
       const targets = await campaignTargets(db, input.campaignId);
       const batchMap = new Map(targets.batches.map((batch) => [batch.id, batch]));
       recipients = input.prospectIds.map((id) => {
         const prospect = targets.prospects.find((row) => row.id === id);
         if (!prospect) throw new OutboundBlockedError("Target tidak ditemukan dalam kampanye ini.");
-        const blocker = recipientBlocker(prospect, context.source, input.campaignId, batchMap.get(prospect.batch_id), context.audience, targets.suppressed);
+        const blocker = recipientBlocker(prospect, context.source, input.campaignId, batchMap.get(prospect.batch_id), context.settings.version === 0 ? null : context.audience, targets.suppressed);
         if (blocker) throw new OutboundBlockedError(`${prospect.email}: ${blocker}.`);
         return { prospectId: prospect.id, name: prospect.name, email: prospect.email, company: prospect.company };
       });
     }
-    const queued = await db.rpc("queue_outbound_email", { p_campaign_id: input.campaignId, p_request_key: input.requestKey, p_kind: input.action === "test" ? "test" : "initial", p_locale: input.locale, p_template_version: template.version, p_template_hash: outboundTemplateHash(template), p_subject: template.subject, p_html: template.html, p_actor: admin.email, p_recipients: recipients });
+    const queued = await db.rpc(canActivate ? "activate_and_queue_outbound_email" : "queue_outbound_email", { p_campaign_id: input.campaignId, p_request_key: input.requestKey, p_kind: input.action === "test" ? "test" : "initial", p_locale: input.locale, p_template_version: template.version, p_template_hash: outboundTemplateHash(template), p_subject: template.subject, p_html: template.html, p_actor: admin.email, p_recipients: recipients, p_settings_version: context.settings.version });
     if (queued.error) throw new Error(queued.error.message);
     const result = queued.data as { jobId: string; queued: number; duplicate: boolean };
     if (result.queued > 0) startQueue(result.jobId);
     return NextResponse.json({ success: true, ...result, message: result.queued ? `${result.queued} email masuk antrean. Pantau status di Aktivitas.` : "Permintaan sudah pernah diproses; tidak ada pengiriman ganda." }, { status: 202 });
   } catch (error) { return adminError(error instanceof Error ? error.message : "Pengiriman belum dapat diproses.", error instanceof OutboundBlockedError ? 409 : 503, "OUTBOUND_EMAIL_BLOCKED"); }
+}
+
+export async function PATCH(req: NextRequest) {
+  const admin = await requireAdmin(req);
+  if ("error" in admin) return adminError(admin.error || "Akses admin tidak valid.", admin.status, "ADMIN_REQUIRED");
+  const parsed = await parseValidatedBody(req, outboundSettingsSchema);
+  if (parsed.error || !parsed.data) return adminError(parsed.error, 400, "INVALID_OUTBOUND_SETTINGS");
+  const input = parsed.data;
+  try {
+    const db = createServerSupabase();
+    const campaign = await db.from("acquisition_campaigns").select("id,channel").eq("id", input.campaignId).maybeSingle();
+    if (campaign.error) throw new Error(campaign.error.message);
+    if (!campaign.data || campaign.data.channel !== "email") return adminError("Pilih kampanye Email yang tersedia.", 400, "INVALID_OUTBOUND_CAMPAIGN");
+    const result = await db.rpc("save_outbound_settings", { p_campaign_id: input.campaignId, p_enabled: input.enabled, p_recipient_mode: input.recipientMode, p_allowed_emails: [...new Set(input.allowedEmails)], p_business_hours_only: input.businessHoursOnly, p_expected_version: input.expectedVersion, p_actor: admin.email });
+    if (result.error) {
+      if (result.error.message.includes("OUTBOUND_SETTINGS_CONFLICT")) return adminError("Pengaturan sudah berubah atau tersimpan. Tutup dialog dan tekan Perbarui sebelum mengubah lagi.", 409, "OUTBOUND_SETTINGS_CONFLICT");
+      throw new Error(result.error.message);
+    }
+    // Saving settings never launches a worker, creates a release, or changes any follow-up flags.
+    return NextResponse.json({ success: true, message: input.enabled ? "Pengaturan tersimpan. Belum ada email yang dikirim; pilih target dan konfirmasi pengiriman." : "Pengiriman dijeda. Email yang sudah diproses penyedia tidak dapat ditarik kembali." }, { headers: { "Cache-Control": "no-store" } });
+  } catch { return adminError("Pengaturan belum dapat disimpan. Perbarui untuk memeriksa statusnya; jangan mengulang pengiriman.", 503, "OUTBOUND_SETTINGS_SAVE_FAILED"); }
 }

@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { getBearerToken } from "@/lib/auth-role";
 import { evaluateFollowUpWindow, followUpStopReason, followUpWindowFromEnvironment } from "@/lib/follow-up-policy";
 import { loadAutomationRuntimeControl } from "@/lib/automation-runtime-control";
+import { loadSalesFollowUpSettings, enrolledForSalesFollowUp, salesFollowUpSetupBlockers, type SalesFollowUpSettings } from "@/lib/sales-follow-up-settings";
 import { claimAutomationRun, finishAutomationRun } from "@/lib/automation-run";
 import { assessmentRecipientEmail, isPilotRecipientAllowed } from "@/lib/pilot-audience";
 import {
@@ -203,7 +204,7 @@ async function resolveFollowUpContent(
     html: applyTemplate(template.html, variables, true),
     templateVersion: template.version,
   };
-  if (process.env.FOLLOW_UP_REQUIRE_APPROVED_TEMPLATE !== "false") {
+  if (process.env.FOLLOW_UP_REQUIRE_APPROVED_TEMPLATE !== "false" || await loadSalesFollowUpSettings(db)) {
     throw new ApprovedOutreachTemplateRequiredError(templateKey);
   }
   const generated = await fallback();
@@ -373,6 +374,11 @@ async function loadAssessment(db: ReturnType<typeof createServerSupabase>, asses
   };
 }
 
+async function checkSalesFollowUpStillEnabled(db: ReturnType<typeof createServerSupabase>, createdAt: string | null | undefined) {
+  const latest = await loadSalesFollowUpSettings(db);
+  if (latest && (!enrolledForSalesFollowUp(latest, createdAt) || salesFollowUpSetupBlockers().length)) throw new Error("Tindak lanjut dijeda atau percakapan tidak terdaftar untuk otomatisasi.");
+}
+
 async function sendFollowUpForInquiry(
   db: ReturnType<typeof createServerSupabase>,
   inquiry: InquiryForFollowUp,
@@ -402,6 +408,7 @@ async function sendFollowUpForInquiry(
       level,
     }));
 
+    if (actor === "follow-up-cron") await checkSalesFollowUpStillEnabled(db, inquiry.created_at);
     const response = await sendOutreachEmail(
       email,
       String(inquiry.name || "Bapak/Ibu"),
@@ -511,6 +518,7 @@ async function sendFollowUpForAssessment(
       proposalStatus: assessment.proposal_status || "",
     }));
 
+    if (actor === "follow-up-cron") await checkSalesFollowUpStillEnabled(db, assessment.created_at);
     const response = await sendOutreachEmail(
       email,
       form.name || "Bapak/Ibu",
@@ -747,8 +755,16 @@ export async function GET(req: NextRequest) {
 
   const db = createServerSupabase();
   let runtimeControl;
+  let salesSettings: SalesFollowUpSettings | null = null;
   try {
-    runtimeControl = await loadAutomationRuntimeControl(
+    salesSettings = await loadSalesFollowUpSettings(db);
+    const enabled = Boolean(salesSettings?.enabled) && salesFollowUpSetupBlockers().length === 0;
+    runtimeControl = salesSettings ? {
+      requestedMode: enabled ? "live" as const : "disabled" as const,
+      effectiveMode: enabled ? "live" as const : "disabled" as const,
+      activationEligible: enabled, activationBlockers: salesFollowUpSetupBlockers(),
+      releaseWindowState: "not_required" as const, pilotReleaseId: null, maximumItemsPerRun: 20, version: salesSettings.version,
+    } : await loadAutomationRuntimeControl(
       db,
       "follow_up_scheduler",
       process.env.FOLLOW_UP_DRY_RUN !== "false",
@@ -761,7 +777,7 @@ export async function GET(req: NextRequest) {
       success: false,
       locked: true,
       code: "AUTOMATION_KILL_SWITCH_ACTIVE",
-      error: "Follow-up Scheduler dinonaktifkan oleh kill switch database.",
+      error: "Tindak lanjut otomatis dijeda atau pengirim email belum siap. Kontrol tersedia di Workspace Penjualan.",
       requestedMode: runtimeControl.requestedMode,
       effectiveMode: runtimeControl.effectiveMode,
       activationBlockers: runtimeControl.activationBlockers,
@@ -772,7 +788,7 @@ export async function GET(req: NextRequest) {
   }
   const dryRun = runtimeControl.effectiveMode === "dry_run";
   const maximumItemsPerRun = Math.min(runtimeControl.maximumItemsPerRun, 20);
-  if (!dryRun) {
+  if (!dryRun && !salesSettings) {
     try {
       const activation = await isOutboundAutomationActive(db);
       if (!activation.active) {
@@ -799,7 +815,7 @@ export async function GET(req: NextRequest) {
   }
 
   let pilotAudience: Set<string> | null = null;
-  if (!dryRun) {
+  if (!dryRun && !salesSettings) {
     if (!runtimeControl.pilotReleaseId) {
       return adminError("Release pilot aktif tidak memiliki audience.", 423, "PILOT_AUDIENCE_REQUIRED");
     }
@@ -850,7 +866,9 @@ export async function GET(req: NextRequest) {
   const dryRunReservations = new Map<string, number>();
   let excludedByAudience = 0;
 
-  const { data: inquiries, error: inquiriesError } = await db.from("inquiries").select("*").order("created_at", { ascending: true }).limit(50);
+  let inquiryQuery = db.from("inquiries").select("*").order("created_at", { ascending: true }).limit(50);
+  if (salesSettings?.activated_at) inquiryQuery = inquiryQuery.gte("created_at", salesSettings.activated_at);
+  const { data: inquiries, error: inquiriesError } = await inquiryQuery;
   if (inquiriesError) {
     await finishAutomationRun(db, runId, {
       status: "failed", candidateCount: 0, processedCount: 0, failureCount: 1,
@@ -859,6 +877,7 @@ export async function GET(req: NextRequest) {
     return adminError("Gagal memuat antrean inquiry.", 500, "FOLLOW_UP_QUEUE_FAILED");
   }
   for (const inquiry of (inquiries || []) as InquiryForFollowUp[]) {
+    if (salesSettings && !enrolledForSalesFollowUp(salesSettings, inquiry.created_at)) continue;
     const level = getDueInquiryLevel(inquiry);
     if (!level) continue;
     if (pilotAudience && !isPilotRecipientAllowed(pilotAudience, inquiry.email)) {
@@ -893,7 +912,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const { data: assessments, error: assessmentsError } = await db.from("assessments").select("*").order("created_at", { ascending: true }).limit(100);
+  let assessmentQuery = db.from("assessments").select("*").order("created_at", { ascending: true }).limit(100);
+  if (salesSettings?.activated_at) assessmentQuery = assessmentQuery.gte("created_at", salesSettings.activated_at);
+  const { data: assessments, error: assessmentsError } = await assessmentQuery;
   if (assessmentsError) {
     await finishAutomationRun(db, runId, {
       status: "failed", candidateCount: candidates.length, processedCount: sent.length, failureCount: failures.length + 1,
@@ -902,6 +923,7 @@ export async function GET(req: NextRequest) {
     return adminError("Gagal memuat antrean assessment.", 500, "FOLLOW_UP_QUEUE_FAILED");
   }
   for (const assessment of (assessments || []) as AssessmentForFollowUp[]) {
+    if (salesSettings && !enrolledForSalesFollowUp(salesSettings, assessment.created_at)) continue;
     if (sent.length + candidates.length >= maximumItemsPerRun) break;
 
     if (pilotAudience && !isPilotRecipientAllowed(pilotAudience, assessmentRecipientEmail(assessment.form_data))) {

@@ -137,6 +137,12 @@ export async function POST(req: NextRequest) {
     const result = buildResult(row);
 
     if (action === "resend_result") {
+      if (!row.scores) return adminError("Laporan masih disiapkan. Muat ulang beberapa saat lagi.", 409, "ASSESSMENT_NOT_READY");
+      const activeJob = await db.from("assessment_jobs").select("status").eq("assessment_id", id).maybeSingle();
+      if (activeJob.error) return adminError("Status penyusunan laporan belum dapat diperiksa.", 503, "ASSESSMENT_JOB_UNAVAILABLE");
+      if (activeJob.data && ["pending", "processing", "emailing"].includes(activeJob.data.status)) {
+        return adminError("Laporan sedang disiapkan dan dikirim. Tunggu hingga proses selesai.", 409, "ASSESSMENT_PROCESSING");
+      }
       const pdfBuffer = await generatePDFBuffer(formData, result);
       const locale = formData.locale === "en" ? "en" : "id";
       const emailIds = await sendAssessmentEmail(formData, result, pdfBuffer, id, locale);

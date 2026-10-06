@@ -3,6 +3,7 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { evaluateAssessmentProposalEligibility } from "@/lib/proposal-eligibility";
 import { qualifyPublicAssessment } from "@/lib/lead-qualification";
+import { assessmentAreaText } from "@/lib/assessment-area-copy";
 
 const DIMENSIONS = ["Insights", "Lab", "Coach", "Play", "Academy", "Works", "Impact"] as const;
 
@@ -746,7 +747,7 @@ export async function GET(req: NextRequest) {
       formData: row.form_data,
       scores: row.scores,
       category: row.category,
-      aiAnalysis: row.ai_analysis,
+      aiAnalysis: row.ai_analysis ? assessmentAreaText(row.ai_analysis) : row.ai_analysis,
       recommendations: row.recommendations,
       overallScore: row.overall_score,
     });
@@ -772,7 +773,7 @@ export async function GET(req: NextRequest) {
       target: form.target || "",
       scores,
       category: row.category || "Tidak diketahui",
-      aiAnalysis: row.ai_analysis || "",
+      aiAnalysis: assessmentAreaText(row.ai_analysis || ""),
       recommendations,
       proposalEligibility,
       answers: form.answers || {},

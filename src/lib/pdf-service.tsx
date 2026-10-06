@@ -5,6 +5,7 @@ import { AssessmentData, DIMENSIONS } from './validations';
 import type { Locale } from '@/i18n/config';
 import { EnterpriseAssessmentReport } from './assessment-report-enterprise';
 import { SignatureProposalReport } from './signature-proposal-report';
+import { assessmentAreaCopy } from './assessment-area-copy';
 
 const FONT_DIR = path.resolve(process.cwd(), 'public', 'fonts');
 
@@ -106,14 +107,14 @@ function getPdfCopy(locale: Locale = 'id') {
     ? {
         localeDate: 'en-US',
         documentTitle: 'Diagnostic Report',
-        compactSubtitle: 'Cross-dimensional reasoning · 7-dimension score distribution',
+        compactSubtitle: 'Cross-area reasoning · 7-area score distribution',
         fiscalYear: 'REPORT YEAR',
         preparedFor: 'PREPARED FOR',
         company: 'COMPANY',
         issueDate: 'ISSUE DATE',
         overallScore: 'Overall Index Score',
         stage: 'Stage',
-        totalDimensions: 'Total Dimensions',
+        totalDimensions: 'Total Areas',
         coreCriteria: '49 Core Criteria',
         teamScale: 'Team Scale',
         organizationScale: 'Organization Scale',
@@ -129,11 +130,11 @@ function getPdfCopy(locale: Locale = 'id') {
         currentStage: 'Current Stage',
         mainStrength: 'Main Strength',
         mainBottleneck: 'Main Bottleneck',
-        strengthText: 'Strongest dimension based on assessment score distribution.',
+        strengthText: 'Strongest area based on assessment score distribution.',
         bottleneckText: 'Priority area that most determines the next acceleration.',
         executiveSummary: 'Executive Summary & Strategic Analysis',
         mapTitle: 'Diagnostic Intelligence Map',
-        mapSectionTitle: 'Performance Map & 7-Dimension Organizational Analysis',
+        mapSectionTitle: 'Performance Map & 7-Area Organizational Analysis',
         mapSectionSubtitle: 'Score distribution visualization and operational efficiency comparison',
         balanceDistribution: 'Balance Distribution',
         scoreBoard: 'Performance Scoreboard',
@@ -142,7 +143,7 @@ function getPdfCopy(locale: Locale = 'id') {
         strategicOverview: 'Strategic Diagnostic Overview',
         strategicOverviewSubtitle: 'Main priorities · 90-day action focus',
         priorityActions: 'Priority Action Recommendations',
-        priorityActionsSubtitle: 'Top three priorities based on the BinaHub 7-dimension diagnostic result',
+        priorityActionsSubtitle: 'Top three priorities based on the BinaHub 7-area diagnostic result',
         strategy: 'STRATEGY',
         consultantKey: 'Strategic Key from the Consulting Team',
         roadmapTitle: 'Transformation Roadmap',
@@ -168,14 +169,14 @@ function getPdfCopy(locale: Locale = 'id') {
     : {
         localeDate: 'id-ID',
         documentTitle: 'Laporan Diagnostik',
-        compactSubtitle: 'Penalaran lintas dimensi · distribusi skor 7 dimensi',
+        compactSubtitle: 'Penalaran lintas area · distribusi skor 7 area',
         fiscalYear: 'TAHUN LAPORAN',
         preparedFor: 'DISUSUN UNTUK',
         company: 'PERUSAHAAN',
         issueDate: 'TANGGAL ISU',
         overallScore: 'Skor Indeks Keseluruhan',
         stage: 'Tahap',
-        totalDimensions: 'Total Dimensi',
+        totalDimensions: 'Total Area',
         coreCriteria: '49 Kriteria Inti',
         teamScale: 'Skala Tim',
         organizationScale: 'Skala Organisasi',
@@ -191,11 +192,11 @@ function getPdfCopy(locale: Locale = 'id') {
         currentStage: 'Tahap Saat Ini',
         mainStrength: 'Kekuatan Utama',
         mainBottleneck: 'Hambatan Utama',
-        strengthText: 'Dimensi terkuat berdasarkan distribusi skor assessment.',
+        strengthText: 'Area terkuat berdasarkan distribusi skor assessment.',
         bottleneckText: 'Area prioritas yang paling menentukan akselerasi berikutnya.',
         executiveSummary: 'Ringkasan Eksekutif & Analisis Strategis',
         mapTitle: 'Peta Intelijen Diagnostik',
-        mapSectionTitle: 'Peta Kinerja & Analisis 7 Dimensi Organisasi',
+        mapSectionTitle: 'Peta Kinerja & Analisis 7 Area Organisasi',
         mapSectionSubtitle: 'Visualisasi distribusi skor dan perbandingan efisiensi operasional',
         balanceDistribution: 'Distribusi Keseimbangan',
         scoreBoard: 'Papan Skor Performa',
@@ -204,7 +205,7 @@ function getPdfCopy(locale: Locale = 'id') {
         strategicOverview: 'Ikhtisar Strategis Diagnostik',
         strategicOverviewSubtitle: 'Prioritas utama · fokus aksi 90 hari',
         priorityActions: 'Rekomendasi Tindakan Prioritas',
-        priorityActionsSubtitle: 'Tiga prioritas awal berdasarkan hasil diagnostik 7 dimensi BinaHub',
+        priorityActionsSubtitle: 'Tiga prioritas awal berdasarkan hasil diagnostik 7 area BinaHub',
         strategy: 'STRATEGI',
         consultantKey: 'Kunci Strategis dari Tim Konsultan',
         roadmapTitle: 'Roadmap Transformasi',
@@ -376,19 +377,19 @@ const AssessmentPDF = ({ formData, result, locale = 'id' }: { formData: Assessme
     : `Skor ${scores.overall} menempatkan ${formData.company} pada kategori ${result.category}, dengan kekuatan relatif pada ${topDimension} dan prioritas penguatan pada ${lowestDimension}.`));
   const strategicKey = reportText(result.strategicKey || (locale === 'en'
     ? `Over the next 90 days, the main focus is strengthening ${lowestDimension} so organizational capability is better connected to daily execution rhythm.`
-    : `Dalam 90 hari ke depan, fokus utama adalah memperkuat dimensi ${lowestDimension} agar kapasitas organisasi lebih terhubung dengan ritme eksekusi harian.`));
+    : `Dalam 90 hari ke depan, fokus utama adalah memperkuat area ${lowestDimension} agar kapasitas organisasi lebih terhubung dengan ritme eksekusi harian.`));
   const riskProjection = reportText(result.riskProjection || (locale === 'en'
     ? `If ${lowestDimension} is not strengthened, the organization risks slower execution as growth demands increase.`
-    : `Jika dimensi ${lowestDimension} tidak diperkuat, organisasi berisiko mengalami perlambatan eksekusi saat tuntutan pertumbuhan meningkat.`));
+    : `Jika area ${lowestDimension} tidak diperkuat, organisasi berisiko mengalami perlambatan eksekusi saat tuntutan pertumbuhan meningkat.`));
   const primaryRecommendations = result.recommendations.slice(0, 3);
   const secondaryRecommendations = result.recommendations.slice(3);
   const crossInsights = result.crossDimensionalInsights?.length ? result.crossDimensionalInsights : [
     locale === 'en'
       ? `${topDimension} is a relative strength, while ${lowestDimension} is the priority area to address.`
-      : `Dimensi ${topDimension} menjadi kekuatan relatif, sementara ${lowestDimension} menjadi area prioritas yang perlu ditangani.`,
+      : `Area ${topDimension} menjadi kekuatan relatif, sementara ${lowestDimension} menjadi area prioritas yang perlu ditangani.`,
     locale === 'en'
-      ? `The gap across dimensions shows the need to connect strategic potential with more consistent implementation discipline.`
-      : `Perbedaan skor antardimensi menunjukkan perlunya menghubungkan potensi strategis dengan disiplin implementasi yang lebih konsisten.`,
+      ? `The gap across areas shows the need to connect strategic potential with more consistent implementation discipline.`
+      : `Perbedaan skor antar area menunjukkan perlunya menghubungkan potensi strategis dengan disiplin implementasi yang lebih konsisten.`,
   ];
 
   return (
@@ -787,7 +788,7 @@ export async function generatePDFBuffer(formData: AssessmentData, result: Assess
   const ReportDocument = process.env.BINAINSIGHT_PDF_STYLE === 'legacy'
     ? AssessmentPDF
     : EnterpriseAssessmentReport;
-  return await renderToBuffer(<ReportDocument formData={formData} result={result} locale={locale} />);
+  return await renderToBuffer(<ReportDocument formData={formData} result={assessmentAreaCopy(result)} locale={locale} />);
 }
 
 export async function generateProposalPDFBuffer(formData: AssessmentData, proposal: ProposalResult, locale: Locale = 'id', issuedAt?: string): Promise<Buffer> {

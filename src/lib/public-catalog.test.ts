@@ -62,4 +62,16 @@ describe("buildPublicCatalog", () => {
     expect(result[0].modules[0].outputs).toEqual(["Personal action plan."]);
     expect(JSON.stringify(result)).not.toMatch(/commercial|internalPrice|25000000|hiddenPrice|Rp25|metadata/i);
   });
+  it("keeps the original English title with Indonesian body copy", () => {
+    const result = buildPublicCatalog([{
+      id: "p1", product_key: "signature-team", slug: "team", name: "Transformasi Tim", objective: null,
+      short_description: null, public_description: "Kolaborasi tim", cover_image_url: null, featured: false, display_order: 1,
+    }], [{
+      id: "m1", product_id: "p1", module_code: "SS-13", slug: "synergy", name: "Sinergi Tim", description: "Penguatan tim",
+      standard_scope: null, deliverables: null, out_of_scope: null, duration_label: "1 hari", featured: false, display_order: 1, catalog_version: "v1",
+      metadata: { localized: { en: { name: "Team Synergy", summary: "Team alignment" }, id: { name: "Sinergi Tim", summary: "Menyelaraskan cara kerja tim", learningObjectives: ["Membangun kolaborasi"] } } },
+    }], "id");
+    expect(result[0].name).toBe("Team Transformation");
+    expect(result[0].modules[0]).toMatchObject({ name: "Team Synergy", description: "Menyelaraskan cara kerja tim", learningObjectives: ["Membangun kolaborasi"] });
+  });
 });

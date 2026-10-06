@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.29.0] - 2026-10-06
+
+### Added
+
+- SQL 61: kontrol kampanye email dan follow-up berbasis aplikasi, audit/optimistic versioning, aktivasi dan antrean terpilih secara atomik, serta impor yang ditinjau sekali. Mode baru tidak bergantung pada release Pilot, audience global atau flag operasional harian Vercel.
+- Endpoint pengaturan penjualan admin dan pembuatan kampanye cepat; semua perubahan tetap membutuhkan admin terverifikasi, validasi sumber/daftar/template, opt-out dan suppression.
+- SQL 62: antrean assessment persisten yang dibuat dalam transaksi insert, lease worker, retry analisis maksimal tiga percobaan, serta status rekonsiliasi untuk pengiriman email yang hasilnya tidak pasti. Tidak mengantrekan assessment historis.
+- API assessment membalas HTTP 202 setelah data/antrean tersimpan; AI/PDF/email berjalan melalui after(). Endpoint recovery /api/assessment/worker memakai credential scheduler FOLLOW_UP_CRON_SECRET yang sudah ada, tanpa secret baru.
+
+### Changed
+
+- Judul solusi/kategori katalog publik tetap Inggris di kedua bahasa, menggunakan teks CEO yang tersimpan; isi tetap dilokalkan dan harga internal tidak diekspos.
+- Laporan PDF, prompt analisis dan email memakai Area/Areas. Narasi lama dinormalisasi saat ditampilkan; key skor/schema API tetap kompatibel.
+- Gagal merender PDF tidak mengirim email yang menjanjikan lampiran kosong. Admin tidak dapat mengirim ulang hasil ketika job penyusunan/pengiriman masih aktif.
+- Resume kampanye membatalkan antrean versi lama, bukan mengirim backlog. Aktivasi follow-up hanya mendaftarkan record baru setelah waktu aktivasi. AI agent baru tidak dibuat.
+
+### Deployment
+
+- Terapkan SQL 61 dan 62 setelah SQL 60, deploy API, kemudian app 0.29.0 dan website 0.2.27. Hubungkan worker assessment ke scheduler sekali untuk recovery otomatis; after() memulai proses langsung. Lihat OUTBOUND-EMAIL-RUNBOOK.md.
+
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di file ini.
 Format yang digunakan berdasarkan [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini mematuhi aturan [Semantic Versioning](https://semver.org/).
 

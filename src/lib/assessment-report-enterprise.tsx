@@ -43,7 +43,7 @@ function copyFor(locale: Locale) {
         maturity: 'MATURITY STAGE',
         team: 'TEAM SCALE',
         scope: 'DIAGNOSTIC SCOPE',
-        dimensions: '7 DIMENSIONS / 49 CRITERIA',
+        dimensions: '7 AREAS / 49 CRITERIA',
         executiveProfile: 'EXECUTIVE PROFILE',
         maturityModel: 'ORGANIZATIONAL MATURITY MODEL',
         nextStage: 'NEXT STAGE',
@@ -51,10 +51,10 @@ function copyFor(locale: Locale) {
         strongest: 'STRONGEST SIGNAL',
         priority: 'PRIORITY SIGNAL',
         diagnosticMap: 'Diagnostic Intelligence Map',
-        diagnosticMapSub: 'Distribution, balance, and cross-dimensional reading',
+        diagnosticMapSub: 'Distribution, balance, and cross-area reading',
         scoreDistribution: 'SCORE DISTRIBUTION',
-        portfolio: 'DIMENSION PORTFOLIO',
-        crossReading: 'CROSS-DIMENSIONAL READING',
+        portfolio: 'AREA PORTFOLIO',
+        crossReading: 'CROSS-AREA READING',
         risk: '12-18 MONTH RISK OUTLOOK',
         strategicPriorities: 'Strategic Priorities',
         strategicPrioritiesSub: 'Executive interpretation and the first 90-day focus',
@@ -89,7 +89,7 @@ function copyFor(locale: Locale) {
         maturity: 'TAHAP KEMATANGAN',
         team: 'SKALA TIM',
         scope: 'CAKUPAN DIAGNOSTIK',
-        dimensions: '7 DIMENSI / 49 KRITERIA',
+        dimensions: '7 AREA / 49 KRITERIA',
         executiveProfile: 'PROFIL EKSEKUTIF',
         maturityModel: 'MODEL KEMATANGAN ORGANISASI',
         nextStage: 'TAHAP BERIKUTNYA',
@@ -97,10 +97,10 @@ function copyFor(locale: Locale) {
         strongest: 'SINYAL TERKUAT',
         priority: 'SINYAL PRIORITAS',
         diagnosticMap: 'Peta Intelijen Diagnostik',
-        diagnosticMapSub: 'Distribusi, keseimbangan, dan pembacaan lintas dimensi',
+        diagnosticMapSub: 'Distribusi, keseimbangan, dan pembacaan lintas area',
         scoreDistribution: 'DISTRIBUSI SKOR',
-        portfolio: 'PORTOFOLIO DIMENSI',
-        crossReading: 'PEMBACAAN LINTAS DIMENSI',
+        portfolio: 'PORTOFOLIO AREA',
+        crossReading: 'PEMBACAAN LINTAS AREA',
         risk: 'PROYEKSI RISIKO 12-18 BULAN',
         strategicPriorities: 'Prioritas Strategis',
         strategicPrioritiesSub: 'Interpretasi eksekutif dan fokus awal 90 hari',
@@ -407,12 +407,12 @@ export function EnterpriseAssessmentReport({
             <View style={styles.signal}>
               <Text style={styles.signalIndex}>01 / {copy.strongest}</Text>
               <Text style={styles.signalTitle}>{strongest}</Text>
-              <Text style={styles.signalText}>{locale === 'en' ? 'Highest-performing dimension in the current assessment portfolio.' : 'Dimensi dengan performa tertinggi dalam portofolio assessment saat ini.'}</Text>
+              <Text style={styles.signalText}>{locale === 'en' ? 'Highest-performing area in the current assessment portfolio.' : 'Area dengan performa tertinggi dalam portofolio assessment saat ini.'}</Text>
             </View>
             <View style={styles.signal}>
               <Text style={styles.signalIndex}>02 / {copy.priority}</Text>
               <Text style={styles.signalTitle}>{priority}</Text>
-              <Text style={styles.signalText}>{locale === 'en' ? 'The dimension most likely to constrain the next stage of execution.' : 'Dimensi yang paling berpotensi membatasi tahap eksekusi berikutnya.'}</Text>
+              <Text style={styles.signalText}>{locale === 'en' ? 'The area most likely to constrain the next stage of execution.' : 'Area yang paling berpotensi membatasi tahap eksekusi berikutnya.'}</Text>
             </View>
           </View>
         </View>
