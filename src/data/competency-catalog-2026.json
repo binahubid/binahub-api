@@ -1,0 +1,520 @@
+{
+  "frameworkId": "signature-2026-competency-v1",
+  "sourceFile": "BinaHub_Signature_Solutions_Catalog_DETAILED_2026_REVISED_COMPETENCY.docx",
+  "sourceSha256": "e54dc6d810a79b682ad9b92a0494472571105bdeba8a25b30e9430b68e04349d",
+  "competencyCodeAuthority": "Internal stable identifiers; official names are preserved from the CEO catalog.",
+  "measurementStatus": "awaiting_ceo_kpi_and_questions",
+  "competencies": [
+    {
+      "code": "COMP-001",
+      "name": "Adaptasi"
+    },
+    {
+      "code": "COMP-002",
+      "name": "Agen Perubahan"
+    },
+    {
+      "code": "COMP-003",
+      "name": "Berorientasi kepada Kualitas"
+    },
+    {
+      "code": "COMP-004",
+      "name": "Bimbingan"
+    },
+    {
+      "code": "COMP-005",
+      "name": "Delegasi"
+    },
+    {
+      "code": "COMP-006",
+      "name": "Inisiatif"
+    },
+    {
+      "code": "COMP-007",
+      "name": "Integritas"
+    },
+    {
+      "code": "COMP-008",
+      "name": "Kegigihan & Tahan Banting"
+    },
+    {
+      "code": "COMP-009",
+      "name": "Kerjasama"
+    },
+    {
+      "code": "COMP-010",
+      "name": "Kesan Positif"
+    },
+    {
+      "code": "COMP-011",
+      "name": "Komunikasi"
+    },
+    {
+      "code": "COMP-012",
+      "name": "Membangun Hubungan Baik"
+    },
+    {
+      "code": "COMP-013",
+      "name": "Membangun Kepercayaan"
+    },
+    {
+      "code": "COMP-014",
+      "name": "Membangun Loyalitas Pelanggan"
+    },
+    {
+      "code": "COMP-015",
+      "name": "Membangun Tim yang Sukses"
+    },
+    {
+      "code": "COMP-016",
+      "name": "Memimpin Rapat"
+    },
+    {
+      "code": "COMP-017",
+      "name": "Memimpin Visi & Nilai-Nilai Islam"
+    },
+    {
+      "code": "COMP-018",
+      "name": "Mengambil Resiko"
+    },
+    {
+      "code": "COMP-019",
+      "name": "Mengelola Pekerjaan"
+    },
+    {
+      "code": "COMP-020",
+      "name": "Mengelola Tekanan"
+    },
+    {
+      "code": "COMP-021",
+      "name": "Mengembangkan Orang Lain"
+    },
+    {
+      "code": "COMP-022",
+      "name": "Menginspirasi Orang Lain"
+    },
+    {
+      "code": "COMP-023",
+      "name": "Pembuatan Keputusan"
+    },
+    {
+      "code": "COMP-024",
+      "name": "Pengembangan Diri"
+    },
+    {
+      "code": "COMP-025",
+      "name": "Public Speaking"
+    },
+    {
+      "code": "COMP-026",
+      "name": "Tindak Lanjut"
+    }
+  ],
+  "solutions": [
+    {
+      "moduleCode": "SS-01",
+      "title": "Emotional Intelligence",
+      "core": [
+        "COMP-012",
+        "COMP-013",
+        "COMP-020"
+      ],
+      "secondary": [
+        "COMP-011",
+        "COMP-010",
+        "COMP-009",
+        "COMP-024"
+      ]
+    },
+    {
+      "moduleCode": "SS-02",
+      "title": "Professional Excellence",
+      "core": [
+        "COMP-007",
+        "COMP-003",
+        "COMP-019"
+      ],
+      "secondary": [
+        "COMP-026",
+        "COMP-006",
+        "COMP-008",
+        "COMP-024"
+      ]
+    },
+    {
+      "moduleCode": "SS-03",
+      "title": "Personal Productivity & Effectiveness",
+      "core": [
+        "COMP-019",
+        "COMP-026",
+        "COMP-006"
+      ],
+      "secondary": [
+        "COMP-003",
+        "COMP-008",
+        "COMP-024"
+      ]
+    },
+    {
+      "moduleCode": "SS-04",
+      "title": "Communication & Presentation",
+      "core": [
+        "COMP-011",
+        "COMP-025",
+        "COMP-010"
+      ],
+      "secondary": [
+        "COMP-012",
+        "COMP-013",
+        "COMP-016"
+      ]
+    },
+    {
+      "moduleCode": "SS-05",
+      "title": "Service Excellence",
+      "core": [
+        "COMP-014",
+        "COMP-011",
+        "COMP-003"
+      ],
+      "secondary": [
+        "COMP-012",
+        "COMP-013",
+        "COMP-010",
+        "COMP-007"
+      ]
+    },
+    {
+      "moduleCode": "SS-06",
+      "title": "Problem Solving, Decision Making, & Innovation",
+      "core": [
+        "COMP-023",
+        "COMP-006",
+        "COMP-018"
+      ],
+      "secondary": [
+        "COMP-001",
+        "COMP-002",
+        "COMP-003",
+        "COMP-008"
+      ]
+    },
+    {
+      "moduleCode": "SS-07",
+      "title": "First-Time Leader",
+      "core": [
+        "COMP-005",
+        "COMP-004",
+        "COMP-021"
+      ],
+      "secondary": [
+        "COMP-015",
+        "COMP-011",
+        "COMP-026",
+        "COMP-022"
+      ]
+    },
+    {
+      "moduleCode": "SS-08",
+      "title": "Adaptive Leadership",
+      "core": [
+        "COMP-001",
+        "COMP-002",
+        "COMP-023"
+      ],
+      "secondary": [
+        "COMP-018",
+        "COMP-020",
+        "COMP-011",
+        "COMP-022",
+        "COMP-008"
+      ]
+    },
+    {
+      "moduleCode": "SS-09",
+      "title": "AI-Powered Professional",
+      "core": [
+        "COMP-001",
+        "COMP-006",
+        "COMP-024"
+      ],
+      "secondary": [
+        "COMP-023",
+        "COMP-018",
+        "COMP-003",
+        "COMP-019"
+      ]
+    },
+    {
+      "moduleCode": "SS-10",
+      "title": "BinaCoach: Growth, Performance & Wellbeing Coaching",
+      "core": [
+        "COMP-021",
+        "COMP-004",
+        "COMP-024"
+      ],
+      "secondary": [
+        "COMP-013",
+        "COMP-012",
+        "COMP-026",
+        "COMP-020",
+        "COMP-022"
+      ]
+    },
+    {
+      "moduleCode": "SS-11",
+      "title": "Team Building",
+      "core": [
+        "COMP-009",
+        "COMP-013",
+        "COMP-015"
+      ],
+      "secondary": [
+        "COMP-012",
+        "COMP-011",
+        "COMP-010",
+        "COMP-007"
+      ]
+    },
+    {
+      "moduleCode": "SS-12",
+      "title": "Trust & Psychological Safety",
+      "core": [
+        "COMP-013",
+        "COMP-011",
+        "COMP-012"
+      ],
+      "secondary": [
+        "COMP-009",
+        "COMP-010",
+        "COMP-007"
+      ]
+    },
+    {
+      "moduleCode": "SS-13",
+      "title": "Team Synergy",
+      "core": [
+        "COMP-009",
+        "COMP-015",
+        "COMP-023"
+      ],
+      "secondary": [
+        "COMP-005",
+        "COMP-011",
+        "COMP-012",
+        "COMP-026"
+      ]
+    },
+    {
+      "moduleCode": "SS-14",
+      "title": "Empathy Experience",
+      "core": [
+        "COMP-012",
+        "COMP-013",
+        "COMP-010"
+      ],
+      "secondary": [
+        "COMP-011",
+        "COMP-009",
+        "COMP-014"
+      ]
+    },
+    {
+      "moduleCode": "SS-15",
+      "title": "High Performing Team",
+      "core": [
+        "COMP-015",
+        "COMP-003",
+        "COMP-026"
+      ],
+      "secondary": [
+        "COMP-009",
+        "COMP-019",
+        "COMP-007",
+        "COMP-013"
+      ]
+    },
+    {
+      "moduleCode": "SS-16",
+      "title": "Team Agility",
+      "core": [
+        "COMP-001",
+        "COMP-009",
+        "COMP-002"
+      ],
+      "secondary": [
+        "COMP-006",
+        "COMP-018",
+        "COMP-008"
+      ]
+    },
+    {
+      "moduleCode": "SS-17",
+      "title": "Leading the Team",
+      "core": [
+        "COMP-015",
+        "COMP-005",
+        "COMP-021"
+      ],
+      "secondary": [
+        "COMP-004",
+        "COMP-022",
+        "COMP-011",
+        "COMP-026"
+      ]
+    },
+    {
+      "moduleCode": "SS-18",
+      "title": "Culture Activation",
+      "core": [
+        "COMP-017",
+        "COMP-007",
+        "COMP-002"
+      ],
+      "secondary": [
+        "COMP-013",
+        "COMP-022",
+        "COMP-015",
+        "COMP-012"
+      ]
+    },
+    {
+      "moduleCode": "SS-19",
+      "title": "Change & Organizational Agility",
+      "core": [
+        "COMP-002",
+        "COMP-001",
+        "COMP-023"
+      ],
+      "secondary": [
+        "COMP-018",
+        "COMP-011",
+        "COMP-013",
+        "COMP-022"
+      ]
+    },
+    {
+      "moduleCode": "SS-20",
+      "title": "Leadership Academy",
+      "core": [
+        "COMP-021",
+        "COMP-004",
+        "COMP-015"
+      ],
+      "secondary": [
+        "COMP-005",
+        "COMP-023",
+        "COMP-022",
+        "COMP-016",
+        "COMP-017",
+        "COMP-026"
+      ]
+    },
+    {
+      "moduleCode": "SS-21",
+      "title": "Future Leaders",
+      "core": [
+        "COMP-024",
+        "COMP-023",
+        "COMP-006"
+      ],
+      "secondary": [
+        "COMP-018",
+        "COMP-001",
+        "COMP-022",
+        "COMP-021"
+      ]
+    },
+    {
+      "moduleCode": "SS-22",
+      "title": "Internal Trainer & Facilitator Academy",
+      "core": [
+        "COMP-021",
+        "COMP-004",
+        "COMP-025"
+      ],
+      "secondary": [
+        "COMP-011",
+        "COMP-010",
+        "COMP-012",
+        "COMP-003",
+        "COMP-024"
+      ]
+    },
+    {
+      "moduleCode": "SS-23",
+      "title": "Performance Acceleration",
+      "core": [
+        "COMP-003",
+        "COMP-019",
+        "COMP-026"
+      ],
+      "secondary": [
+        "COMP-006",
+        "COMP-007",
+        "COMP-008",
+        "COMP-015"
+      ]
+    },
+    {
+      "moduleCode": "SS-24",
+      "title": "AI-Ready Organization",
+      "core": [
+        "COMP-001",
+        "COMP-002",
+        "COMP-006"
+      ],
+      "secondary": [
+        "COMP-023",
+        "COMP-018",
+        "COMP-024",
+        "COMP-003"
+      ]
+    },
+    {
+      "moduleCode": "SS-25",
+      "title": "Future-Ready Organization",
+      "core": [
+        "COMP-001",
+        "COMP-002",
+        "COMP-024"
+      ],
+      "secondary": [
+        "COMP-006",
+        "COMP-023",
+        "COMP-018",
+        "COMP-008"
+      ]
+    },
+    {
+      "moduleCode": "SS-26",
+      "title": "Impact Measurement & Transformation Review",
+      "core": [
+        "COMP-003",
+        "COMP-023",
+        "COMP-026"
+      ],
+      "secondary": [
+        "COMP-019",
+        "COMP-007",
+        "COMP-002"
+      ]
+    },
+    {
+      "moduleCode": "SS-27",
+      "title": "Spiritual Leadership Journey",
+      "core": [
+        "COMP-017",
+        "COMP-007",
+        "COMP-024"
+      ],
+      "secondary": [
+        "COMP-008",
+        "COMP-020",
+        "COMP-013",
+        "COMP-022",
+        "COMP-001"
+      ]
+    }
+  ]
+}

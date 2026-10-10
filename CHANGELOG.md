@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.30.0] - 2026-10-10
+
+### Added
+
+- SQL 63: kamus kompetensi berversi dengan 26 nama resmi dan 189 pemetaan Core/Secondary pada 27 Signature Solutions dari katalog CEO revisi kompetensi. Provenance file/SHA-256 dan ID internal disimpan; definisi serta indikator menunggu KPI CEO.
+- Endpoint read-only `/api/admin/competencies`, dilindungi autentikasi admin dan tanpa cache, harga, atau data assessment. Akses langsung anon/authenticated ditutup dengan RLS dan revoke.
+- Manifest sumber yang dapat diuji, pengujian migrasi PostgreSQL/auth, dan rencana implementasi hingga 21 Oktober, termasuk dua jalur diagnosis, tiga kompetensi individu tetap menunggu CEO, dan workspace proposal konsultasi terpisah.
+
+### Deployment
+
+- SQL 59 harus sudah memasang SS-01–SS-27 sebelum SQL 63; migrasi membatalkan seluruh transaksi jika prasyarat/sumber tidak sesuai dan aman dijalankan ulang tanpa menimpa konten CEO.
+- Pasangan app 0.30.0 menampilkan kamus internal. Belum mengaktifkan skor kompetensi, bank soal, diagnosis individu, pembayaran, atau generator proposal konsultasi. Katalog publik, harga, versi komersial, TBOS, dan assessment historis tidak diubah.
+- Tidak memerlukan secret/env baru; verifikasi lokal tidak mengirim email atau mengubah produksi.
+
 ## [0.29.0] - 2026-10-06
 
 ### Added
