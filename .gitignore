@@ -45,3 +45,9 @@ CLAUDE.md
 *.sql
 !supabase/migrations/*.sql
 !supabase/production_readiness.sql
+
+# CEO assessment material and generated seeds must never enter this public repository.
+*.private.json
+*.private.sql
+*.private.test.ts
+src/lib/individual-assessment/private/

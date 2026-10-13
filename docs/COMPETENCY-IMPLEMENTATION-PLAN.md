@@ -13,6 +13,8 @@ Keputusan pengguna pada 10 Oktober 2026: mulai dari kamus kompetensi berdasarkan
 
 ## Tahap yang dibangun sekarang
 
+Pembaruan 13 Oktober: paket CEO Personal Effectiveness menyediakan enam kompetensi individu, 36 soal, definisi dan key actions, serta aturan scoring draft. Fondasi tahap 1 ditambahkan pada SQL 64/API 0.32.0; lihat [PERSONAL-EFFECTIVENESS-PHASE-1.md](PERSONAL-EFFECTIVENESS-PHASE-1.md). Paket ini tidak melengkapi seluruh 26 kompetensi, tidak memperbarui soal organisasi, dan belum menetapkan tiga kompetensi gratis. Instrumen individu tetap terpisah dan belum aktif untuk peserta.
+
 SQL 63 menambahkan framework versi `signature-2026-competency-v1`, 26 nama kompetensi, dan 189 hubungan pada 27 solusi (81 Core dan 108 Secondary). Nama, urutan pemetaan per solusi, dan judul diambil dari dokumen `BinaHub_Signature_Solutions_Catalog_DETAILED_2026_REVISED_COMPETENCY.docx`. SHA-256 sumber tersimpan bersama framework. Kode COMP merupakan ID internal, bukan kode resmi CEO.
 
 Core dan Secondary adalah peran pengembangan kompetensi dalam modul, bukan bobot penilaian. Definisi serta indikator kosong dengan status menunggu CEO. Kamus hanya dapat dibaca melalui API admin; bukan sumber skor aktif. Versi kamus terpisah dari versi komersial katalog agar aturan proposal yang sudah berjalan tidak berubah.

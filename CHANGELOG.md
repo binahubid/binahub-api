@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.32.0] - 2026-10-13
+
+### Added
+
+- Fondasi Personal Effectiveness `BINAINSIGHTS-PE-V1` terpisah dari diagnosis organisasi: kontrak snapshot privat berversi untuk 6 kompetensi, 25 key actions, 24 self-report dan 12 SJT, dengan provenance SHA-256. Bank soal/kunci CEO dipasang lewat SQL privat lokal, tidak masuk repository API yang publik; kunci dan partial credit tetap provisional.
+- Scoring deterministik dua metode terpisah, validasi ketat NA/missing/nol, batas bukti minimum, kelengkapan dan kontrak hasil tanpa overall, level, norma atau ranking prioritas. Kunci SJT dibatasi `server-only`; DTO soal memakai allowlist tanpa kunci/rationale.
+- SQL 64: skema snapshot immutable, registrasi instrumen privat khusus database admin, crosswalk PE→COMP proposed, respons/timestamp/hasil dan audit persisten, draft/resume, revision conflict, submit idempotent serta erasure uji internal. Database menghitung hasil, bukan menerima skor caller; parity SQL/TypeScript diuji.
+- Adapter backend internal dengan validasi scope, RPC terjaga, kontrak respons dan pesan error terbatas. RLS/revoke menutup akses browser; service-role writes memakai fungsi transaksi.
+- Runbook tahap 1, rekomendasi keputusan CEO dan pengujian sumber, skor, database, keamanan serta lifecycle menggunakan data sintetis. Generator SQL privat menolak output di dalam repository dan overwrite; loader server memverifikasi hash/struktur/versi snapshot database.
+
+### Deployment
+
+- Setelah SQL 63, jalankan SQL 64 lengkap yang diserahkan secara privat (skema + paket CEO dalam satu transaksi). Migration publik hanya memasang skema kosong. Tidak membutuhkan env/secret, cron atau n8n baru. App/website/AMS tidak berubah dan tidak membutuhkan deployment untuk fondasi ini.
+- Instrumen tetap draft, `public_enabled=false`, hanya mode `internal_test`. Belum ada endpoint/UI peserta, peluncuran pilot, pembagian kompetensi gratis, pembayaran, rekomendasi katalog, laporan/email baru atau proposal individu. Hasil lama dan alur penjualan tidak berubah.
+- Retensi uji internal wajib eksplisit dan dibatasi 30 hari; akses kedaluwarsa ditolak, erasure tersedia secara eksplisit. Belum mengaktifkan kebijakan retensi peserta atau job penghapusan otomatis.
+
 ## [0.31.1] - 2026-10-13
 
 ### Security
