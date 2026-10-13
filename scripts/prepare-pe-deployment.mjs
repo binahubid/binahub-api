@@ -14,16 +14,54 @@ export function canonical(value) {
 export function preparePEDeployment(bundle,schema) {
   if(bundle?.config?.assessment?.id!=='BINAINSIGHTS-PE-V1'||bundle?.metadata?.public_enabled!==false
     ||bundle?.metadata?.release_status!=='draft')throw new Error('PE_PRIVATE_BUNDLE_INVALID');
+  if(bundle?.metadata?.instrument_version!=='1.0.0-draft.1')throw new Error('PE_PRIVATE_BUNDLE_VERSION_REQUIRED');
   const json=JSON.stringify(bundle);
   const sha=createHash('sha256').update(canonical(bundle)).digest('hex');
   // A digest-based delimiter cannot be influenced by question punctuation.
   const delimiter='$pe_private_'+sha+'$';
   if(json.includes(delimiter))throw new Error('PE_PRIVATE_DELIMITER_CONFLICT');
   if(!schema.trimEnd().endsWith('commit;'))throw new Error('PE_SCHEMA_TRANSACTION_REQUIRED');
-  return schema.trimEnd().slice(0,-'commit;'.length)
+  const body=schema.trimEnd().slice(0,-'commit;'.length)
+    .replace(/^-- PE_SCHEMA_ONLY_BEGIN[\s\S]*?-- PE_SCHEMA_ONLY_END\r?\n/,'')
+    .replace(/-- PE_SCHEMA_ONLY_STATUS_BEGIN[\s\S]*?-- PE_SCHEMA_ONLY_STATUS_END\r?\n/,'');
+  return PRIVATE_INSTALL_HEADER+body
     +'\n-- PRIVATE CEO INSTRUMENT. DO NOT COMMIT, UPLOAD PUBLICLY OR COPY INTO LOGS.\n'
-    +'select public.pe_register_draft_instrument_v1('+delimiter+json+delimiter+"::jsonb,'"+sha+"');\ncommit;\n";
+    +'select public.pe_register_draft_instrument_v1('+delimiter+json+delimiter+"::jsonb,'"+sha+"');\n"
+    +PRIVATE_INSTALL_VERIFICATION+'commit;\n';
 }
+
+export const PRIVATE_INSTALL_HEADER=`-- SQL 64 COMPLETE PRIVATE INSTALLATION - updated 2026-10-13.
+-- Run ALL contents in Supabase SQL Editor as a database administrator, after SQL 63.
+-- Includes the schema AND the CEO instrument BINAINSIGHTS-PE-V1 / 1.0.0-draft.1.
+-- After success, run SQL 65 in the SAME Supabase project used by the API.
+-- Reapplying the same source preserves attempts, results and existing mapping reviews.
+-- A different source with the same version is rejected; do not change the CEO payload.
+-- PRIVATE: DO NOT upload to GitHub, publish, or paste contents into logs.
+`;
+
+export const PRIVATE_INSTALL_VERIFICATION=`
+-- Verify the complete installation before committing. Never return the private manifest.
+do $$ declare v_manifest jsonb; begin
+  select manifest into v_manifest from public.pe_instrument_versions
+    where instrument_id='BINAINSIGHTS-PE-V1' and version='1.0.0-draft.1';
+  if not found then raise exception 'PE_PRIVATE_SOURCE_REQUIRED'; end if;
+  if jsonb_array_length(v_manifest->'config'->'competencies') is distinct from 6
+    or jsonb_array_length(v_manifest->'config'->'self_report_items') is distinct from 24
+    or jsonb_array_length(v_manifest->'config'->'sjt_items') is distinct from 12
+    or (select count(*) from public.pe_catalog_crosswalks
+      where instrument_id='BINAINSIGHTS-PE-V1' and instrument_version='1.0.0-draft.1')<>6 then
+    raise exception 'PE_PRIVATE_INSTALL_INCOMPLETE';
+  end if;
+end; $$;
+select instrument_id,version,
+  jsonb_array_length(manifest->'config'->'competencies') as competency_count,
+  jsonb_array_length(manifest->'config'->'self_report_items') as self_report_question_count,
+  jsonb_array_length(manifest->'config'->'sjt_items') as scenario_question_count,
+  (select count(*) from public.pe_catalog_crosswalks
+    where instrument_id='BINAINSIGHTS-PE-V1' and instrument_version='1.0.0-draft.1') as catalog_mapping_count
+from public.pe_instrument_versions
+where instrument_id='BINAINSIGHTS-PE-V1' and version='1.0.0-draft.1';
+`;
 
 export function isOutsideRepository(repo,target) {
   const position=relative(repo,target);

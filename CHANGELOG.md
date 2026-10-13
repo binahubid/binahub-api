@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.33.1] - 2026-10-13
+
+### Fixed
+
+- Instalasi SQL 64 kini menjelaskan skema publik versus installer lengkap privat; skema publik memperingatkan `PE_SCHEMA_ONLY` bila instrumen CEO belum terdaftar. Bank soal/kunci tetap tidak masuk Git.
+- Generator/file SQL 64 lengkap privat memverifikasi versi 1.0.0-draft.1, enam kompetensi, 24 SR, 12 SJT dan enam pemetaan sebelum commit, lalu menampilkan jumlah tanpa manifest/kunci. Panduan pemulihan `PE_PRIVATE_SOURCE_REQUIRED` pada SQL 65 diperjelas.
+- Tes mereproduksi kegagalan dari registry kosong, memasang installer lengkap sebelum SQL 65, dan memeriksa pengulangan kedua SQL tidak mereset draft atau persetujuan pemetaan. Tidak mengubah soal, scoring, kontrak API, maupun hasil peserta.
+
 ## [0.33.0] - 2026-10-13
 
 ### Added

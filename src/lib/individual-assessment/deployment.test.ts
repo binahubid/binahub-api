@@ -24,7 +24,12 @@ describe('local private seed generation',()=>{
     expect(result.trimEnd().endsWith('commit;')).toBe(true);
     expect(schema).not.toContain('Synthetic scenario');
     expect(result).toContain('Synthetic scenario');
+    expect(result).toContain('SQL 64 COMPLETE PRIVATE INSTALLATION');
+    expect(result).toContain('PE_PRIVATE_INSTALL_INCOMPLETE');
+    expect(result).not.toContain('PE_SCHEMA_ONLY:');
+    expect(result).not.toContain('SQL 64 PUBLIC: SCHEMA ONLY');
     expect(()=>preparePEDeployment({...bundle,metadata:{...bundle.metadata,public_enabled:true}},schema)).toThrow();
+    expect(()=>preparePEDeployment({...bundle,metadata:{...bundle.metadata,instrument_version:'wrong'}},schema)).toThrow('PE_PRIVATE_BUNDLE_VERSION_REQUIRED');
     expect(()=>preparePEDeployment(bundle,'not a transaction')).toThrow();
   });
 });

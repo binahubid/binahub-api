@@ -17,9 +17,9 @@ Keputusan produk dikonfirmasi pengguna pada 13 Oktober 2026: CEO menyetujui reko
 
 ## Instalasi
 
-1. SQL 64 lengkap/privat harus sudah memasang `BINAINSIGHTS-PE-V1` versi `1.0.0-draft.1`. SQL 65 menolak pemasangan bila sumber privat belum ada.
-2. Jalankan `supabase/migrations/0065_personal_effectiveness_delivery.sql`. Ini migration tanpa bank soal/kunci, aman masuk Git. Registrasi source lama tetap immutable, tidak perlu menjalankan ulang SQL 64. SQL 65 merekam persetujuan CEO, enam crosswalk dan kebijakan tiga gratis; tidak membuat attempt peserta atau mengirim email.
-3. Deploy API 0.33.0, app 0.33.0 dan website 0.2.28. Tidak ada env/secret baru.
+1. Gunakan **SQL 64 lengkap/privat**, bukan hanya migration publik di Git. File lokal `0064_personal_effectiveness_COMPLETE.private.sql` memasang skema sekaligus bank soal/kunci CEO. Jalankan seluruh isi melalui SQL Editor sebagai database administrator pada proyek Supabase yang dipakai API, setelah SQL 63. File lengkap memverifikasi satu snapshot `BINAINSIGHTS-PE-V1` versi `1.0.0-draft.1`, enam kompetensi, 24 SR, 12 SJT dan enam pemetaan sebelum commit. Jangan unggah file lengkap ke GitHub.
+2. Setelah pemasangan lengkap berhasil, jalankan `supabase/migrations/0065_personal_effectiveness_delivery.sql`. Jika sebelumnya mendapat `PE_PRIVATE_SOURCE_REQUIRED`, ulangi SQL 64 **lengkap/privat** terlebih dahulu; pengulangan sumber yang sama tidak menimpa snapshot, jawaban, hasil atau review pemetaan. Jika session masih dalam transaksi gagal, jalankan `ROLLBACK;` sebelum mengulang. SQL 65 tetap menolak registry kosong; tidak perlu menghapus pengecekannya atau memakai data dummy. SQL 65 merekam persetujuan CEO, enam crosswalk dan kebijakan tiga gratis; tidak membuat attempt peserta atau mengirim email.
+3. Deploy API 0.33.1 (atau 0.33.0), app 0.33.0 dan website 0.2.28. Patch 0.33.1 memperjelas installer/generator tanpa mengubah kontrak API. Tidak ada env/secret baru.
 4. Pastikan scheduler worker asesmen yang sudah ada tetap memanggil endpointnya. Kredensial `FOLLOW_UP_CRON_SECRET` tetap berlaku. Bila worker belum dijadwalkan, akses tetap berakhir setelah enam bulan tetapi pembersihan fisik otomatis belum berjalan; sambungkan scheduler yang ada, tidak memerlukan n8n.
 5. Buka website → diagnosis → pilih Individu → masuk dengan akun sendiri. Cek bahwa ada tiga Area/18 soal, simpan satu jawaban, reload, lanjutkan, tinjau, submit, reload hasil. Jangan mengirim email atau membuat transaksi nyata untuk pengujian ini.
 

@@ -89,7 +89,8 @@ Fondasi mendukung hasil parsial dengan penanda kelengkapan untuk uji aturan. Ini
 
 1. Pastikan SQL 63 telah selesai dan backup tersedia sesuai prosedur tim.
 2. Untuk pemasangan lengkap, jalankan **file `0064_personal_effectiveness_COMPLETE.private.sql` yang diserahkan secara lokal di luar repository**. File ini memasang skema SQL 64 dan snapshot CEO dalam satu transaksi. Jangan upload file ini ke GitHub, halaman publik atau log. Migration SQL 64 di Git hanya memasang skema kosong; itu disengaja, bukan hilangnya data seed.
-3. Deploy API versi 0.32.0. Tidak ada env, secret, cron, n8n, app, website atau AMS baru yang diperlukan untuk fondasi ini.
+   Pembaruan installer 13 Oktober 2026: migration publik menampilkan peringatan `PE_SCHEMA_ONLY` bila bank soal belum terpasang. File lengkap privat memeriksa versi, 6 kompetensi, 24 SR, 12 SJT dan 6 pemetaan sebelum commit; hasil verifikasi hanya berisi ID/versi/jumlah, bukan soal/kunci. Jika hanya skema publik yang pernah dijalankan, gunakan file lengkap privat sebelum SQL 65. File lengkap boleh diulang dengan sumber yang sama setelah SQL 65 tanpa mereset jawaban atau review.
+3. Deploy API versi 0.32.0 untuk fondasi saja; delivery tahap 2 memakai 0.33.0/0.33.1. Tidak ada env, secret, cron, n8n, app, website atau AMS baru yang diperlukan untuk fondasi ini.
 4. Verifikasi secara read-only menggunakan akun database administratif:
 
 ```sql

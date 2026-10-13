@@ -1,6 +1,11 @@
--- Phase 1 only: private, versioned PE instrument and INTERNAL TEST attempts.
--- No public launch, lead creation, email, catalog activation, paid/free entitlement or AI.
--- Run after SQL 63. Applying this migration does not start a pilot with participants.
+-- PE_SCHEMA_ONLY_BEGIN
+-- SQL 64 PUBLIC: SCHEMA ONLY. This file does NOT contain the CEO question bank.
+-- For a complete installation, run 0064_personal_effectiveness_COMPLETE.private.sql
+-- from the local/private deployment folder, then run SQL 65 in the SAME database.
+-- The complete private file includes this schema plus the immutable CEO source.
+-- Never commit the complete file or paste its private contents into public logs.
+-- Run after SQL 63. No participant attempts, email or public pilot are started here.
+-- PE_SCHEMA_ONLY_END
 begin;
 
 do $$ begin
@@ -411,4 +416,13 @@ grant execute on function public.pe_start_internal_attempt(uuid,uuid,uuid,text,t
   public.pe_get_internal_attempt(uuid,uuid,uuid),public.pe_write_internal_attempt(uuid,uuid,uuid,int,jsonb,text),
   public.pe_delete_internal_attempt(uuid,uuid,uuid) to service_role;
 
+-- PE_SCHEMA_ONLY_STATUS_BEGIN
+do $$ begin
+  if not exists(select 1 from public.pe_instrument_versions
+    where instrument_id='BINAINSIGHTS-PE-V1' and version='1.0.0-draft.1') then
+    raise warning 'PE_SCHEMA_ONLY: tables installed, but the private CEO instrument is not registered'
+      using hint='Run 0064_personal_effectiveness_COMPLETE.private.sql before SQL 65, in this same database.';
+  end if;
+end; $$;
+-- PE_SCHEMA_ONLY_STATUS_END
 commit;
