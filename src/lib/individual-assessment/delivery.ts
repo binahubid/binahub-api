@@ -42,7 +42,8 @@ export function createPEParticipantStore(db:Pick<SupabaseClient,'rpc'>,ownerId:s
       if(error) {
         const code=/\bPE_[A-Z_]+\b/.exec(error.message||'')?.[0];
         const allowed=['PE_ATTEMPT_NOT_FOUND','PE_START_CONFLICT','PE_REVISION_CONFLICT','PE_ATTEMPT_FINALIZED',
-          'PE_ANSWERS_INCOMPLETE','PE_ENTITLEMENT_REQUIRED','PE_CONSENT_REQUIRED','PE_DELIVERY_SETUP_REQUIRED'];
+          'PE_ANSWERS_INCOMPLETE','PE_ENTITLEMENT_REQUIRED','PE_CONSENT_REQUIRED','PE_DELIVERY_SETUP_REQUIRED',
+          'PE_PILOT_PAUSED','PE_PILOT_SETUP_REQUIRED'];
         throw new PEDeliveryError(code&&allowed.includes(code)?code:'PE_STORAGE_UNAVAILABLE');
       }
       return data;
@@ -55,8 +56,9 @@ export function createPEParticipantStore(db:Pick<SupabaseClient,'rpc'>,ownerId:s
   }
   return {
     async start(input:unknown) {const value=PEStartSchema.parse(input);
-      return attempt('pe_start_participant',{p_id:value.id,p_context:value.context,
-        p_consent_version:value.consentVersion,p_privacy_version:value.privacyVersion});},
+      return attempt('pe_start_participant_v2',{p_id:value.id,p_context:value.context,
+        p_consent_version:value.consentVersion,p_privacy_version:value.privacyVersion,
+        p_sharing_version:value.sharingConsentVersion||null,p_channel:value.channel});},
     async read(id:string){return attempt('pe_read_participant',{p_id:z.uuid().parse(id)});},
     async write(id:string,input:unknown){const value=PEWriteSchema.parse(input);
       return attempt('pe_write_participant',{p_id:z.uuid().parse(id),p_revision:value.revision,

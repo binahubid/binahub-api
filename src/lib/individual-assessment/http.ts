@@ -41,6 +41,8 @@ export function peFailure(error:unknown) {
     PE_RESULT_NOT_READY:[409,'Hasil belum tersedia. Selesaikan pengisian terlebih dahulu.'],
     PE_INVALID_REQUEST:[400,'Permintaan tidak valid. Periksa isian Anda.'],
     PE_BODY_TOO_LARGE:[413,'Ukuran permintaan terlalu besar.'],
+    PE_PILOT_PAUSED:[409,'Pengisian baru sedang dijeda. Draft dan hasil yang sudah tersimpan tetap dapat dibuka.'],
+    PE_PILOT_SETUP_REQUIRED:[503,'Diagnosis individu sedang disiapkan. Silakan coba lagi nanti.'],
   };
   const [status,message]=map[code]||[503,'Asesmen individu belum dapat diakses. Silakan coba lagi nanti.'];
   if(status>=500)console.error('[Personal Effectiveness]',code); // Code only. Never log answers, PII, DB errors or keys.

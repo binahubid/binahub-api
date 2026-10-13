@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.34.0] - 2026-10-13
+
+### Added
+
+- SQL 66/tahap 3–4: izin review individu terpisah, admin melihat brief/jawaban/hasil konkret hanya setelah izin peserta, tanpa membuka hasil historis secara retroaktif. Profil diambil setelah otorisasi; laporan/katalog sama dengan peserta, tanpa kunci atau Area terkunci.
+- Riwayat owner lintas perangkat, pemberian/pencabutan izin, feedback opsional dan izin evaluasi terpisah. Retensi/penghapusan attempt juga menghapus izin dan feedback.
+- Dashboard pilot agregat, sampel peserta berizin (bukan retake), pembatas kelompok kecil, kontrol jeda/resume di database dengan revision guard, audit dan trigger. Jeda tidak memutus draft/hasil lama. Readiness publik mengikuti status pilot.
+- Sumber individu berupa klasifikasi kanal saja, bukan UTM mentah/identitas kampanye. Tidak membuat lead organisasi, CC hasil atau integrasi AMS. Kamus membedakan tiga Area individu dari 26 kompetensi katalog.
+
+### Deployment
+
+- Pasangan app 0.34.0, SQL 66 setelah SQL 64 lengkap/64B + SQL 65. Tidak ada env/secret/n8n baru. Rilis dalam satu jendela karena start RPC legacy diganti entry point terjaga. Website 0.2.28 tetap berlaku.
+- Scoring, soal CEO dan hasil historis tidak diubah. Belum menambah narasi AI individu, format final PDF/email/proposal, harga/pembayaran, atau klaim pilot empiris telah selesai.
+
 ## [0.33.2] - 2026-10-13
 
 ### Fixed

@@ -33,10 +33,15 @@ export async function GET(req: NextRequest) {
     if (!framework.data) return NextResponse.json({ success: false, code: "COMPETENCY_SETUP_REQUIRED",
       error: "Data kamus kompetensi belum tersedia. Tim teknis perlu memeriksa SQL 63." }, { status: 503, headers: privateHeaders });
 
+    let individualAvailable=false;
+    try { const ready=await db.rpc('pe_pilot_ready');individualAvailable=!ready.error&&ready.data===true; } catch { /* Older schema keeps the read-only dictionary usable. */ }
+
     return NextResponse.json({ success: true, framework: framework.data,
       competencies: competencies.data || [], mappings: mappings.data || [],
       // Assessment activation is deliberately a separate release, even after KPI definitions arrive.
       assessmentIntegrationActive: false,
+      individualIntegration: { available:individualAvailable, instrument:'BINAINSIGHTS-PE-V1',
+        version:'1.0.0-draft.1', freeAreas:['Self-Development','Adaptability','Pressure Management'] },
     }, { headers: privateHeaders });
   } catch (error) {
     console.error("[admin/competencies] Load failed", error);

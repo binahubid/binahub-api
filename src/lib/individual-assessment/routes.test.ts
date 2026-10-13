@@ -20,7 +20,8 @@ const request=(method='GET',body?:unknown)=>new NextRequest(`https://api.binahub
   method,headers:{Authorization:'Bearer verified-test','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
 beforeEach(()=>{
   vi.clearAllMocks();deps.auth.mockResolvedValue({user:{id:owner,email_confirmed_at:now}});deps.limit.mockResolvedValue(null);
-  deps.db.mockReturnValue({from:deps.from,rpc:deps.rpc});deps.rpc.mockResolvedValue({data:attempt,error:null});
+  deps.db.mockReturnValue({from:deps.from,rpc:deps.rpc});deps.rpc.mockImplementation(async(name:string)=>({
+    data:name==='pe_owner_review_access'?{shared:false,evaluationConsent:false,clarity:null,usefulness:null}:name==='pe_pilot_ready'?true:attempt,error:null}));
   deps.from.mockImplementation((table:string)=>{
     const data=table==='pe_instrument_versions'?{manifest:bundle,bundle_sha256:hashPEInstrument(bundle)}:
       {id:'pe-free3-2026-10-13-v1',instrument_version:'1.0.0-draft.1',release_status:'development_pilot',content_review:'ceo_reviewed',
@@ -55,7 +56,7 @@ describe('PE HTTP access/input/private-data boundary',()=>{
     const ctx={params:Promise.resolve({id})};
     expect((await read(request(),ctx)).status).toBe(200);
     expect((await PATCH(request('PATCH',{revision:0,responses:{SR05:3}}),ctx)).status).toBe(200);
-    expect(deps.rpc.mock.calls[1][1]).toMatchObject({p_owner:owner,p_id:id,p_revision:0,p_responses:{SR05:3}});
+    expect(deps.rpc.mock.calls.find(([name])=>name==='pe_write_participant')?.[1]).toMatchObject({p_owner:owner,p_id:id,p_revision:0,p_responses:{SR05:3}});
     deps.rpc.mockResolvedValueOnce({data:null,error:{message:'PE_REVISION_CONFLICT PRIVATE DETAIL'}});
     const response=await PATCH(request('PATCH',{revision:0,responses:{}}),ctx);
     expect(response.status).toBe(409);expect(JSON.stringify(await response.json())).not.toContain('PRIVATE DETAIL');

@@ -5,11 +5,14 @@ export const PE_FREE_CODES=['PE-02','PE-04','PE-06'] as const;
 export const PE_POLICY_ID='pe-free3-2026-10-13-v1';
 export const PE_CONSENT_VERSION='pe-development-consent-v1';
 export const PE_PRIVACY_VERSION='pe-personal-privacy-v1';
+export const PE_REVIEW_CONSENT_VERSION='pe-consultant-review-v1';
+export const PEChannelSchema=z.enum(['direct','instagram','tiktok','linkedin','google','email','website','other']);
 export const PEContextSchema=z.object({role:z.string().trim().min(1).max(100),goal:z.string().trim().min(1).max(600),
   relevance:z.object({'PE-02':z.enum(['low','normal','high']),'PE-04':z.enum(['low','normal','high']),
     'PE-06':z.enum(['low','normal','high'])}).strict()}).strict();
 export const PEStartSchema=z.object({id:z.uuid(),context:PEContextSchema,
-  consentVersion:z.literal(PE_CONSENT_VERSION),privacyVersion:z.literal(PE_PRIVACY_VERSION)}).strict();
+  consentVersion:z.literal(PE_CONSENT_VERSION),privacyVersion:z.literal(PE_PRIVACY_VERSION),
+  sharingConsentVersion:z.literal(PE_REVIEW_CONSENT_VERSION).optional(),channel:PEChannelSchema.default('direct')}).strict();
 export const PEWriteSchema=z.object({revision:z.number().int().nonnegative(),responses:PEResponsesSchema,
   submissionKey:z.string().regex(/^[A-Za-z0-9_-]{16,128}$/).optional()}).strict();
 export const PEDeliveryResultSchema=z.object({instrumentId:z.literal('BINAINSIGHTS-PE-V1'),instrumentVersion:z.string(),

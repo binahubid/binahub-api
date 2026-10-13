@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requirePEOwner,readPEBody,peFailure,peJson } from '@/lib/individual-assessment/http';
-import { buildPEDevelopmentReport,createPEParticipantStore,loadPEPersonalSolutions } from '@/lib/individual-assessment/delivery';
-import { loadPEInstrument } from '@/lib/individual-assessment/definition';
+import { createPEParticipantStore } from '@/lib/individual-assessment/delivery';
+import { getPEReviewAccess,loadPEReportView } from '@/lib/individual-assessment/pilot';
 
 type Context={params:Promise<{id:string}>};
 export async function GET(req:NextRequest,context:Context) {
@@ -9,10 +9,9 @@ export async function GET(req:NextRequest,context:Context) {
     const actor=await requirePEOwner(req);if(actor instanceof Response)return actor;
     const {id}=await context.params;
     const attempt=await createPEParticipantStore(actor.db,actor.ownerId).read(id);
-    const instrument=await loadPEInstrument(actor.db);
-    const report=attempt.status==='submitted'?buildPEDevelopmentReport(attempt,instrument):null;
-    const solutions=report?await loadPEPersonalSolutions(actor.db,report.priorities.map(p=>p.code)):null;
-    return peJson({success:true,attempt,report:report?{...report,solutions}:null});
+    const {report}=await loadPEReportView(actor.db,attempt);
+    const access=await getPEReviewAccess(actor.db,attempt.id,actor.ownerId);
+    return peJson({success:true,attempt,report,access});
   }catch(error){return peFailure(error);}
 }
 export async function PATCH(req:NextRequest,context:Context) {

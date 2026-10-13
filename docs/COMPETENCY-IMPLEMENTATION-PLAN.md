@@ -7,11 +7,14 @@ Keputusan pengguna pada 10 Oktober 2026: mulai dari kamus kompetensi berdasarkan
 - Diagnosis Tim/Organisasi dan Individu akan menjadi dua jalur terpisah setelah pengguna menekan tombol diagnosis di website.
 - Tim/Organisasi mendapat diagnosis lengkap secara gratis.
 - Individu mendapat tiga kompetensi tetap secara gratis. CEO belum menentukan ketiganya. Kompetensi lain berbayar; harga, paket, akses setelah pembayaran, dan aturan pengulangan masih perlu ditetapkan.
+- Pembaruan 13 Oktober: tiga gratis telah disahkan (Self-Development, Adaptability, Pressure Management). Pernyataan menunggu tiga gratis pada catatan awal di bawah adalah historis; keputusan harga/format final tetap belum tersedia.
 - Harga katalog tidak ditampilkan di website publik. Judul solusi tetap berbahasa Inggris. Copy isi mengikuti sumber CEO, dengan terjemahan Indonesia yang setara.
 - Proposal untuk klien tidak memakai istilah internal seperti standar/custom atau katalog dasar dalam judul dan narasi publik.
 - Skor minat penjualan tidak dicampur dengan skor kompetensi.
 
 Persetujuan 13 Oktober: tiga gratis adalah Self-Development, Adaptability, Pressure Management; enam crosswalk PE/katalog dan usulan retensi pilot enam bulan disetujui. CEO adalah ahli/penelaah isi, bukan reviewer eksternal yang masih ditunggu. Tahap 2 memasang delivery gratis 18 soal/hasil web; harga dan format final email/PDF/proposal tetap belum ditetapkan. Lihat `PERSONAL-EFFECTIVENESS-PHASE-2.md`.
+
+Tahap 3–4 (API/app 0.34.0 + SQL 66): admin dapat meninjau hasil konkret dengan izin peserta, riwayat owner lintas perangkat, sumber kanal, dan dashboard/kontrol/evaluasi pilot. Hasil admin/peserta memakai model yang sama. Hasil historis tidak dibuka retroaktif; tidak ada AI individu baru, template/harga asumsi, atau klaim validasi empiris. Lihat `PERSONAL-EFFECTIVENESS-PHASE-3-4.md`.
 
 ## Tahap yang dibangun sekarang
 
