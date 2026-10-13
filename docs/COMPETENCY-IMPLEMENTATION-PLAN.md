@@ -11,6 +11,8 @@ Keputusan pengguna pada 10 Oktober 2026: mulai dari kamus kompetensi berdasarkan
 - Proposal untuk klien tidak memakai istilah internal seperti standar/custom atau katalog dasar dalam judul dan narasi publik.
 - Skor minat penjualan tidak dicampur dengan skor kompetensi.
 
+Persetujuan 13 Oktober: tiga gratis adalah Self-Development, Adaptability, Pressure Management; enam crosswalk PE/katalog dan usulan retensi pilot enam bulan disetujui. CEO adalah ahli/penelaah isi, bukan reviewer eksternal yang masih ditunggu. Tahap 2 memasang delivery gratis 18 soal/hasil web; harga dan format final email/PDF/proposal tetap belum ditetapkan. Lihat `PERSONAL-EFFECTIVENESS-PHASE-2.md`.
+
 ## Tahap yang dibangun sekarang
 
 Pembaruan 13 Oktober: paket CEO Personal Effectiveness menyediakan enam kompetensi individu, 36 soal, definisi dan key actions, serta aturan scoring draft. Fondasi tahap 1 ditambahkan pada SQL 64/API 0.32.0; lihat [PERSONAL-EFFECTIVENESS-PHASE-1.md](PERSONAL-EFFECTIVENESS-PHASE-1.md). Paket ini tidak melengkapi seluruh 26 kompetensi, tidak memperbarui soal organisasi, dan belum menetapkan tiga kompetensi gratis. Instrumen individu tetap terpisah dan belum aktif untuk peserta.

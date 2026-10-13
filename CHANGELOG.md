@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.33.0] - 2026-10-13
+
+### Added
+
+- SQL 65: delivery pilot pengembangan PE gratis tiga Area/18 soal, kebijakan serta persetujuan substansi CEO, enam crosswalk approved, consent dan retensi enam bulan. Snapshot draft sumber dan hasil internal SQL 64 tidak ditimpa; tidak mengklaim validasi statistik.
+- API individu memverifikasi token/email dan ownership: definisi gratis yang difilter server, draft/resume/save/submit idempotent, hasil web dua metode, kandidat latihan kontekstual, serta delete milik sendiri. Jawaban Area berbayar ditolak di database, bukan disembunyikan di UI saja.
+- Solusi terkait memakai crosswalk approved/Core dan produk individu publik ready/aktif/non-mock tanpa harga. Tidak membuat lead, mengubah skor minat, atau menyalin jawaban ke perusahaan/AMS.
+- Worker asesmen yang sudah ada juga melakukan purge retensi PE; schema belum terpasang atau gangguan purge tidak menghentikan recovery organisasi. Tidak ada scheduler/credential baru.
+- Pengujian SQL, HTTP boundary, projection dan report memakai sumber sintetis. Runbook tahap 2 mencatat keputusan serta batas yang belum diaktifkan.
+
+### Changed
+
+- `.gitignore` diperluas untuk sumber privat, ekspor/backup/output dan laporan tes. Dua PDF contoh hasil generasi dikeluarkan dari Git index tanpa menghapus salinan lokal.
+
+### Deployment
+
+- Jalankan SQL 65 sesudah SQL 64 lengkap/privat, deploy API/app 0.33.0 dan website 0.2.28. Pastikan scheduler `/api/assessment/worker` yang sudah ada tetap aktif untuk purge fisik; akses kedaluwarsa tetap ditutup tanpa scheduler.
+- Harga, pembayaran, paket enam Area berbayar, proposal individu serta format final email/PDF belum ditetapkan/diaktifkan. Tidak ada env baru atau kebutuhan n8n.
+
 ## [0.32.0] - 2026-10-13
 
 ### Added

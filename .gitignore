@@ -51,3 +51,31 @@ CLAUDE.md
 *.private.sql
 *.private.test.ts
 src/lib/individual-assessment/private/
+# Files required to build/test/deploy remain tracked; local/private outputs do not.
+# Local-only data, private CEO sources, exports, and generated QA artifacts
+/private/
+/local-data/
+/backups/
+/exports/
+/output/
+/artifacts/
+/screenshots/
+/.codex_tmp/
+/playwright-report/
+/test-results/
+*.private.json
+*.private.sql
+*.private.test.ts
+*.inspect.ndjson
+*.jsonl
+*.bak
+*.tmp
+*.dmp
+*.pfx
+*.p12
+*.key
+BinaInsights_*_Developer_Pack*/
+BinaInsights_*_Config*.json
+BinaInsights_*_ItemBank*.xlsx
+BinaInsights_*_Spec*.docx
+BinaHub_Signature_Solutions_Catalog*.docx

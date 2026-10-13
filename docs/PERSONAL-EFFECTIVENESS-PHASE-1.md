@@ -2,6 +2,8 @@
 
 Status 13 Oktober 2026: implementasi teknis draft untuk pengujian internal. Bukan aktivasi diagnosis individu, bukan izin melakukan pilot pada peserta, dan bukan instrumen tervalidasi.
 
+Pembaruan tahap 2: pengguna mengonfirmasi persetujuan semua rekomendasi dan bahwa CEO menjadi ahli/penelaah substansi. Tiga kompetensi gratis dan retensi enam bulan disiapkan pada SQL 65 tanpa mengubah snapshot tahap 1. Lihat [panduan tahap 2](PERSONAL-EFFECTIVENESS-PHASE-2.md). Pernyataan “menunggu CEO” di bawah merekam keadaan saat fondasi tahap 1 dibuat.
+
 ## Sumber dan batas produk
 
 Paket CEO `BinaInsights_Online_Assessment_Developer_Pack_v1` berisi spesifikasi DOCX, konfigurasi JSON, dan bank soal XLSX. Snapshot menyimpan SHA-256 ketiga sumber. Teks soal, opsi, definisi, key action, kunci dan partial credit dipertahankan. Dokumen asli tidak diubah.

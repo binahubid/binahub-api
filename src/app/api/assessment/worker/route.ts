@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { processAssessmentJob } from '@/lib/assessment-worker';
+import { createServerSupabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -12,6 +13,16 @@ export async function GET(request: NextRequest) {
     || !timingSafeEqual(Buffer.from(token), Buffer.from(secret))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  try { return NextResponse.json(await processAssessmentJob(), { headers: { 'Cache-Control': 'no-store' } }); }
+  try {
+    // Existing scheduler also enforces PE's six-month retention. Missing SQL 65
+    // must not interrupt legacy assessment recovery during a rolling deployment.
+    let personalDataPurged: number | null = null;
+    try {
+      const { data, error } = await createServerSupabase().rpc('pe_purge_expired_participants', { p_limit: 100 });
+      if (!error) personalDataPurged = typeof data === 'number' ? data : null;
+      else if (!['42883', 'PGRST202'].includes(error.code || '')) console.error('[PE retention] Cleanup unavailable');
+    } catch { console.error('[PE retention] Cleanup unavailable'); }
+    return NextResponse.json({ ...await processAssessmentJob(), personalDataPurged }, { headers: { 'Cache-Control': 'no-store' } });
+  }
   catch { return NextResponse.json({ error: 'Assessment worker unavailable' }, { status: 503 }); }
 }
