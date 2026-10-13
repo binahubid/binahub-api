@@ -23,6 +23,16 @@ Keputusan produk dikonfirmasi pengguna pada 13 Oktober 2026: CEO menyetujui reko
 4. Pastikan scheduler worker asesmen yang sudah ada tetap memanggil endpointnya. Kredensial `FOLLOW_UP_CRON_SECRET` tetap berlaku. Bila worker belum dijadwalkan, akses tetap berakhir setelah enam bulan tetapi pembersihan fisik otomatis belum berjalan; sambungkan scheduler yang ada, tidak memerlukan n8n.
 5. Buka website → diagnosis → pilih Individu → masuk dengan akun sendiri. Cek bahwa ada tiga Area/18 soal, simpan satu jawaban, reload, lanjutkan, tinjau, submit, reload hasil. Jangan mengirim email atau membuat transaksi nyata untuk pengujian ini.
 
+### Pemulihan jika SQL 65 masih melaporkan `PE_PRIVATE_SOURCE_REQUIRED`
+
+Error ini berarti instrumen versi yang dibutuhkan belum terlihat di database tempat SQL 65 dijalankan, bukan alasan untuk menghapus pengecekan. Bila skema SQL 64 sudah ada, gunakan file lokal privat `0064B_IMPORT_BANK_SOAL_CEO.private.sql`: hanya mengimpor snapshot/kunci CEO dan enam pemetaan lewat fungsi registrasi admin, tanpa menjalankan ulang DDL. File dapat dibuat di luar repo dengan:
+
+```text
+node scripts/prepare-pe-deployment.mjs <bundle-privat.json> <lokasi-di-luar-repo.private.sql> --source-only
+```
+
+Di Supabase, buka **tab SQL baru**, pilih database proyek yang sama dengan konfigurasi API dan role database administrator (`postgres`), lalu salin dan jalankan **seluruh isi** file privat (jangan hanya query lama/teks yang terseleksi). Jika transaksi session sebelumnya gagal, lakukan `ROLLBACK;` terlebih dahulu. Hasil impor harus satu baris dengan ID/versi serta jumlah **6 / 24 / 12 / 6**; baru jalankan SQL 65. Jangan kirim isi file, manifest atau kunci ke chat/GitHub. Jika impor gagal, cukup kirim pesan error dan nama file yang dijalankan. Pengulangan sumber sama tidak menimpa review/attempt; sumber berbeda dengan versi sama ditolak.
+
 Endpoint:
 
 ```text

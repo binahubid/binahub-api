@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import catalog from '@/data/competency-catalog-2026.json';
-import { preparePEDeployment, PRIVATE_INSTALL_VERIFICATION } from '../../../scripts/prepare-pe-deployment.mjs';
+import { preparePEDeployment, preparePEPrivateSourceImport, PRIVATE_INSTALL_VERIFICATION } from '../../../scripts/prepare-pe-deployment.mjs';
 import { makeSyntheticPEInstrument } from './synthetic-fixture';
 
 const db = new PGlite();
@@ -26,6 +26,14 @@ beforeAll(async () => {
 afterAll(() => db.close());
 
 describe('SQL 64 complete installation and SQL 65 recovery sequence', () => {
+  it('rejects source-only import before SQL 64 exists without creating schema or registering data', async () => {
+    const empty = new PGlite();
+    try {
+      await expect(empty.exec(preparePEPrivateSourceImport(bundle))).rejects.toThrow('PE_SQL64_REQUIRED');
+      await empty.exec('rollback;');
+      expect((await empty.query("select to_regclass('public.pe_instrument_versions')::text as name")).rows).toEqual([{ name: null }]);
+    } finally { await empty.close(); }
+  });
   it('reproduces the missing private source after public SQL 64 and rolls back SQL 65', async () => {
     expect((await db.query('select count(*)::int as n from pe_instrument_versions')).rows).toEqual([{ n: 0 }]);
     await expect(db.exec(delivery)).rejects.toThrow('PE_PRIVATE_SOURCE_REQUIRED');
@@ -35,7 +43,7 @@ describe('SQL 64 complete installation and SQL 65 recovery sequence', () => {
     await db.exec('rollback;');
   });
   it('installs the private source and six mappings before SQL 65 succeeds', async () => {
-    const outputs = await db.exec(complete);
+    const outputs = await db.exec(preparePEPrivateSourceImport(bundle));
     expect(outputs.flatMap(output => output.rows)).toContainEqual({
       instrument_id: 'BINAINSIGHTS-PE-V1', version: '1.0.0-draft.1', competency_count: 6,
       self_report_question_count: 24, scenario_question_count: 12, catalog_mapping_count: 6,
@@ -60,6 +68,7 @@ describe('SQL 64 complete installation and SQL 65 recovery sequence', () => {
     const beforeAttempts = (await db.query('select * from pe_participant_attempts order by id')).rows;
     const beforeReviews = (await db.query('select * from pe_catalog_crosswalks order by pe_code')).rows;
     await db.exec(complete);
+    await db.exec(preparePEPrivateSourceImport(bundle));
     await db.exec(delivery);
     expect((await db.query('select * from pe_participant_attempts order by id')).rows).toEqual(beforeAttempts);
     expect((await db.query('select * from pe_catalog_crosswalks order by pe_code')).rows).toEqual(beforeReviews);

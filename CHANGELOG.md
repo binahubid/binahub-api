@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.2] - 2026-10-13
+
+### Fixed
+
+- Generator installer mendukung `--source-only` untuk memulihkan registry kosong setelah skema SQL 64 terpasang. SQL privat 64B hanya mengimpor instrumen CEO melalui registrasi admin, memeriksa prasyarat, dan memverifikasi jumlah sebelum commit; tidak mengubah DDL/soal/scoring atau melewati pengaman SQL 65.
+- Panduan membedakan eksekusi file privat lengkap dari query lama/seleksi parsial dan proyek database lain. Tes memastikan impor 64B diikuti SQL 65 serta pengulangan mempertahankan snapshot, jawaban, hasil dan persetujuan.
+
 ## [0.33.1] - 2026-10-13
 
 ### Fixed
