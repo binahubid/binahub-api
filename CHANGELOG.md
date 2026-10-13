@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.31.0] - 2026-10-13
+
+### Added
+
+- Respons dashboard admin menyertakan jumlah total lead exact, jumlah record dimuat, ketersediaan kolom tahap, dan indikator error. App dapat menandai respons terbatas/fallback tanpa menganggap semua lead berada di Awareness atau gagal load sebagai nol peluang.
+- Pengujian autentikasi sebelum akses data serta metadata respons lengkap/terbatas/fallback/error untuk sales funnel app 0.31.0.
+
+### Deployment
+
+- Tidak ada migrasi SQL atau perubahan env. App 0.31.0 memakai metadata baru untuk sales funnel interaktif; query tetap read-only di balik autentikasi admin yang sudah ada.
+- Tidak mengubah skor minat, tahap pipeline, status klien, pengiriman proposal/email, atau diagnosis kompetensi.
+
 ## [0.30.0] - 2026-10-10
 
 ### Added

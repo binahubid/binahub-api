@@ -535,7 +535,7 @@ export async function GET(req: NextRequest) {
   const [leadQuery, inquiryQuery] = await Promise.all([
       db
         .from("leads")
-        .select("id, name, email, company, industry, location, qualification_profile, phone, source, lead_score, lead_status, lead_temperature, lead_score_confidence, lead_score_reason, lead_score_evidence, lead_score_rule_version, lifecycle_stage, opportunity_stage, opportunity_owner, next_action, next_action_due_at, lead_time_zone, opportunity_value, lost_reason, won_at, lost_at, outreach_paused, outreach_pause_reason, outreach_paused_at, outreach_paused_by, pipeline_updated_at, source_metadata, notes, created_at")
+        .select("id, name, email, company, industry, location, qualification_profile, phone, source, lead_score, lead_status, lead_temperature, lead_score_confidence, lead_score_reason, lead_score_evidence, lead_score_rule_version, lifecycle_stage, opportunity_stage, opportunity_owner, next_action, next_action_due_at, lead_time_zone, opportunity_value, lost_reason, won_at, lost_at, outreach_paused, outreach_pause_reason, outreach_paused_at, outreach_paused_by, pipeline_updated_at, source_metadata, notes, created_at", { count: "exact" })
         .order("created_at", { ascending: false }),
       db
         .from("inquiries")
@@ -547,7 +547,7 @@ export async function GET(req: NextRequest) {
   const fallbackLeadQuery = leadQuery.error
     ? await db
         .from("leads")
-        .select("id, name, email, company, phone, source, lead_score, lead_status, notes, created_at")
+        .select("id, name, email, company, phone, source, lead_score, lead_status, notes, created_at", { count: "exact" })
         .order("created_at", { ascending: false })
     : leadQuery;
   const fallbackInquiryQuery = inquiryQuery.error
@@ -1191,6 +1191,12 @@ export async function GET(req: NextRequest) {
         && new Date(item.end_time || item.start_time || 0).getTime() >= Date.now(),
     })),
     pipelineLeads,
+    salesFunnelCoverage: {
+      loaded: pipelineLeads.length,
+      total: fallbackLeadQuery.count ?? null,
+      stageDataAvailable: !leadQuery.error,
+      loadError: Boolean(fallbackLeadQuery.error),
+    },
     opportunityActivities: opportunityActivityRows.map((item) => ({
       id: item.id,
       leadId: item.lead_id,
