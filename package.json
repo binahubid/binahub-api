@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -67,6 +67,9 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "sharp": "^0.35.5"
   },
   "description": "Backend API untuk BinaHub, ditargetkan ke `api.binahub.id` dan dikonsumsi frontend `app.binahub.id`.",
   "main": "index.js",

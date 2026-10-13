@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.31.1] - 2026-10-13
+
+### Security
+
+- Minimum transitive `sharp` untuk Next.js dipastikan `^0.35.5` melalui npm override dan lockfile baru, memperbaiki GHSA-wq5f-xc86-pv6w (CVE-2026-96889) pada dependensi librsvg/prebuilt.
+- Tidak mengubah API, perilaku diagnosis/proposal, atau pengiriman email. Tidak membutuhkan SQL/env baru; redeploy API diperlukan untuk menggunakan dependensi patched.
+- Audit produksi setelah patch masih mencatat tiga entri moderate dari rantai `mammoth` → `argparse` → `sprintf-js` (GHSA-hp3w-g68c-fv3c), terpisah dari `sharp`; advisory belum menyediakan patched release saat diperiksa. Tidak melakukan downgrade parser dokumen sebagai perbaikan semu.
+- Audit seluruh dependensi API masih mencatat enam entri high pada tooling pengembangan (`braces`/`brace-expansion` beserta rantai ESLint). Temuan tersebut terpisah dari patch runtime `sharp` dalam rilis ini; audit produksi API tidak lagi memiliki temuan high/critical.
+
 ## [0.31.0] - 2026-10-13
 
 ### Added
