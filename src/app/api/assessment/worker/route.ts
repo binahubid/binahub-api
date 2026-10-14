@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { processAssessmentJob } from '@/lib/assessment-worker';
 import { createServerSupabase } from '@/lib/supabase';
+import { processPEReportEmail } from '@/lib/individual-assessment/email';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -22,7 +23,9 @@ export async function GET(request: NextRequest) {
       if (!error) personalDataPurged = typeof data === 'number' ? data : null;
       else if (!['42883', 'PGRST202'].includes(error.code || '')) console.error('[PE retention] Cleanup unavailable');
     } catch { console.error('[PE retention] Cleanup unavailable'); }
-    return NextResponse.json({ ...await processAssessmentJob(), personalDataPurged }, { headers: { 'Cache-Control': 'no-store' } });
+    let personalEmail: { processed: boolean; status?: string } = { processed: false };
+    try { personalEmail = await processPEReportEmail(); } catch { console.error('[PE email] PE_WORKER_UNAVAILABLE'); }
+    return NextResponse.json({ ...await processAssessmentJob(), personalDataPurged, personalEmail }, { headers: { 'Cache-Control': 'no-store' } });
   }
   catch { return NextResponse.json({ error: 'Assessment worker unavailable' }, { status: 503 }); }
 }

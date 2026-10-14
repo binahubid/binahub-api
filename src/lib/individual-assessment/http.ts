@@ -6,7 +6,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { createServerSupabase } from '@/lib/supabase';
 import { PEDeliveryError } from './delivery';
 
-export const peHeaders={'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow, noarchive'};
+export const peHeaders={'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow, noarchive','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'};
 export const peJson=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:peHeaders});
 export async function requirePEOwner(req:NextRequest,write=false) {
   const auth=await getUserFromBearer(req);
@@ -43,6 +43,11 @@ export function peFailure(error:unknown) {
     PE_BODY_TOO_LARGE:[413,'Ukuran permintaan terlalu besar.'],
     PE_PILOT_PAUSED:[409,'Pengisian baru sedang dijeda. Draft dan hasil yang sudah tersimpan tetap dapat dibuka.'],
     PE_PILOT_SETUP_REQUIRED:[503,'Diagnosis individu sedang disiapkan. Silakan coba lagi nanti.'],
+    PE_GUEST_SETUP_REQUIRED:[503,'Diagnosis individu sedang disiapkan. Silakan coba lagi nanti.'],
+    PE_INVALID_REPORT:[503,'Laporan sedang disiapkan. Jawaban Anda tetap tersimpan.'],
+    PE_LINK_EXPIRED:[410,'Tautan sudah digunakan atau kedaluwarsa. Minta tautan baru melalui email Anda.'],
+    PE_EVALUATION_SAMPLE_SMALL:[409,'Data evaluasi belum mencapai lima pengisian dengan izin ekspor. Statistik ringkas tetap tersedia.'],
+    PE_EXPORT_LIMIT:[409,'Data melebihi batas ekspor aman. Hubungi penanggung jawab evaluasi untuk ekspor terjadwal.'],
   };
   const [status,message]=map[code]||[503,'Asesmen individu belum dapat diakses. Silakan coba lagi nanti.'];
   if(status>=500)console.error('[Personal Effectiveness]',code); // Code only. Never log answers, PII, DB errors or keys.

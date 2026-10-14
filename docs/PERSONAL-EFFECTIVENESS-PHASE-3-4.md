@@ -1,5 +1,7 @@
 # Personal Effectiveness — tahap 3 dan 4
 
+Update 0.35.0: ketentuan alur tanpa akun, email privat, laporan frozen dan ekspor evaluasi berizin ada di [runbook terbaru](PERSONAL-EFFECTIVENESS-GUEST-REPORTS.md). Ketentuan login/ekspor agregat saja di bawah merupakan implementasi historis 0.34.0.
+
 Implementasi 13 Oktober 2026, pasangan API/app **0.34.0**. Sumber CEO tetap `BINAINSIGHTS-PE-V1 / 1.0.0-draft.1`; teks, kunci, metode skor dan hasil historis tidak diubah. Penelaahan substansi CEO sudah dikonfirmasi pengguna. Tahap 4 menyediakan alat operasional pilot, bukan klaim pilot empiris atau validasi statistik telah selesai.
 
 ## Tahap 3: integrasi dan peninjauan konkret
@@ -49,4 +51,4 @@ Tes SQL PGlite, route dan React memakai instrumen sintetis. Browser memakai akun
 
 ## Yang belum diaktifkan
 
-Format final email/PDF/proposal individu, paket/harga/pembayaran, enam kompetensi berbayar, instrumen organisasi baru, seluruh 26 kompetensi, narasi AI individu baru, sharing perusahaan/AMS, serta validasi empiris/pilot dengan peserta nyata. Jangan menganggap jumlah feedback sebagai pengganti review pengukuran. CEO tetap menentukan revisi instrumen/template/komersial.
+Format final email/PDF/proposal individu, paket/harga/pembayaran, tiga kompetensi tambahan untuk akses lengkap enam Area, instrumen organisasi baru, seluruh 26 kompetensi, narasi AI individu baru, sharing perusahaan/AMS, serta validasi empiris/pilot dengan peserta nyata. Jangan menganggap jumlah feedback sebagai pengganti review pengukuran. CEO tetap menentukan revisi instrumen/template/komersial.

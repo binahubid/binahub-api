@@ -1,7 +1,11 @@
-import { NextRequest } from 'next/server';
+import { after,NextRequest } from 'next/server';
 import { requirePEOwner,readPEBody,peFailure,peJson } from '@/lib/individual-assessment/http';
 import { createPEParticipantStore } from '@/lib/individual-assessment/delivery';
 import { getPEReviewAccess,loadPEReportView } from '@/lib/individual-assessment/pilot';
+import { preparePEAccountContact,queuePEGuestReport } from '@/lib/individual-assessment/guest';
+import { PEWriteSchema } from '@/lib/individual-assessment/delivery-contracts';
+import { processPEReportEmail } from '@/lib/individual-assessment/email';
+export const maxDuration=120;
 
 type Context={params:Promise<{id:string}>};
 export async function GET(req:NextRequest,context:Context) {
@@ -18,7 +22,13 @@ export async function PATCH(req:NextRequest,context:Context) {
   try {
     const actor=await requirePEOwner(req,true);if(actor instanceof Response)return actor;
     const {id}=await context.params;
-    const attempt=await createPEParticipantStore(actor.db,actor.ownerId).write(id,await readPEBody(req));
+    const input=PEWriteSchema.parse(await readPEBody(req));
+    const draftKey=input.submissionKey?await preparePEAccountContact(actor.db,id,actor.ownerId):null;
+    const attempt=await createPEParticipantStore(actor.db,actor.ownerId).write(id,input);
+    if(attempt.status==='submitted'&&draftKey){
+      await queuePEGuestReport(actor.db,id,draftKey,attempt);
+      after(async()=>{try{await processPEReportEmail(id);}catch{console.error('[PE email] PE_WORKER_RETRY');}});
+    }
     return peJson({success:true,attempt});
   }catch(error){return peFailure(error);}
 }

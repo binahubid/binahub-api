@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.35.0] - 2026-10-14
+
+### Added
+
+- SQL 67: kontak guest, capability draft berhash, snapshot laporan immutable, tautan email sekali pakai, sesi hasil berhash/30 menit, antrean email dengan lease/CAS/retry dan audit terbatas. RLS/revoke menutup tabel/RPC dari browser; FK cascade mengikuti penghapusan/retensi.
+- API individu tanpa akun dengan 18 soal gratis saja. Hasil tidak dikembalikan melalui capability draft atau submit; hanya akses dari tautan email yang sah. Reissue memakai respons generik dan batas pengiriman, tidak mencocokkan email untuk memberikan akses langsung atau mengikat akun lama.
+- Snapshot laporan v2 memuat tanggal/versi/kelengkapan, interpretasi pengalaman kerja dan SJT yang terpisah, praktik key action kontekstual, indikator observasi dan tanggal tinjau 14 hari. Skor/soal CEO tidak berubah. Solusi publik terkait dibekukan bersama laporan; admin/peserta membaca isi sama.
+- Antrean email idempotent, body/link/pengirim/origin stabil saat retry, status uncertain setelah batas dedup provider, serta recovery pengisian submitted yang belum memiliki job. `after` membantu kirim cepat; scheduler `/api/assessment/worker` tetap diperlukan untuk recovery/purge dan tidak mengganggu worker organisasi bila SQL baru belum tersedia.
+- Consent evaluasi v2 dan ekspor pseudonymous admin (5–1000 hasil), tanpa identitas/konteks/UUID/kunci/rationale. Izin statistik lama tidak di-upgrade otomatis. Distribusi item/NA, batas sel kecil dan durasi termasuk jeda dijelaskan sebagai deskriptif, bukan validasi/norma.
+- Pengisian akun lama yang baru disubmit memakai email akun terverifikasi. Hasil historis tidak dikirim atau dibagikan retroaktif. Admin melihat status diterima provider, bukan klaim inbox/delivery.
+
+### Deployment
+
+- Jalankan SQL **67** setelah **66**, pada database yang sama dengan 64B/65. Rilis API/app **0.35.0**; website 0.2.28 dan AMS tidak berubah.
+- Tidak ada secret/env toggle baru. Memakai `PROPOSAL_LINK_SECRET` minimal 32 karakter, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_PUBLIC_URL`, serta scheduler/credential worker asesmen existing. Tidak memasang cron/n8n atau mengubah secret produksi; cek scheduler yang sudah ada sebelum uji nyata.
+- Pembayaran, tiga Area tambahan, template PDF/proposal final, seluruh 26 kompetensi, instrumen organisasi terbaru serta pilot/validasi empiris tetap belum diaktifkan. Tes menggunakan sumber sintetis; SQL/email produksi tidak dijalankan developer.
+
+Runbook: `docs/PERSONAL-EFFECTIVENESS-GUEST-REPORTS.md`.
+
 ## [0.34.0] - 2026-10-13
 
 ### Added

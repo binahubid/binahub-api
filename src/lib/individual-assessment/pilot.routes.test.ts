@@ -8,6 +8,7 @@ vi.mock('@/lib/auth-role',()=>({getUserFromBearer:deps.owner}));
 vi.mock('@/lib/rate-limit',()=>({enforceRateLimit:deps.limit}));
 vi.mock('@/lib/supabase',()=>({createServerSupabase:deps.db}));
 import { GET,PATCH } from '@/app/api/admin/assessments/individual/route';
+import { GET as exportGET } from '@/app/api/admin/assessments/individual/export/route';
 import { PATCH as access } from '@/app/api/assessment/individual/[id]/access/route';
 import { GET as history } from '@/app/api/assessment/individual/history/route';
 import { PEReviewAccessSchema,loadPEAdminCase } from './pilot';
@@ -33,6 +34,14 @@ beforeEach(()=>{
         consent_version:'pe-development-consent-v1',privacy_version:'pe-personal-privacy-v1'}})}));
 });
 describe('PE admin and owner route boundaries',()=>{
+  it('protects evaluation export with admin auth/rate limits and preserves sample-size errors',async()=>{
+    deps.admin.mockResolvedValueOnce({error:'PRIVATE AUTH DETAIL',status:403});
+    expect((await exportGET(request())).status).toBe(403);expect(deps.db).not.toHaveBeenCalled();
+    deps.limit.mockResolvedValueOnce(new Response('{}',{status:429}));expect((await exportGET(request())).status).toBe(429);
+    deps.rpc.mockResolvedValueOnce({data:null,error:{message:'PE_EVALUATION_SAMPLE_SMALL PRIVATE SQL'}});
+    const res=await exportGET(request());expect(res.status).toBe(409);expect(JSON.stringify(await res.json())).not.toContain('PRIVATE SQL');
+    expect(deps.rpc.mock.calls.at(-1)).toEqual(['pe_export_evaluation',{p_actor:owner}]);
+  });
   it('denies non-admin before data/profile access, rate limits authorized readers and rejects bad cursors',async()=>{
     deps.admin.mockResolvedValueOnce({error:'PRIVATE AUTH DETAIL',status:403});expect((await GET(request())).status).toBe(403);
     expect(deps.db).not.toHaveBeenCalled();expect(deps.profile).not.toHaveBeenCalled();

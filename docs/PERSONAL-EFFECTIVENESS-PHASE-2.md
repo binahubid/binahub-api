@@ -1,5 +1,7 @@
 # Personal Effectiveness: tahap 2
 
+Update 0.35.0: alur baru tanpa akun/email privat dan ekspor evaluasi dijelaskan di [runbook terbaru](PERSONAL-EFFECTIVENESS-GUEST-REPORTS.md). Ketentuan login di bawah merupakan implementasi historis 0.33.0.
+
 Keputusan produk dikonfirmasi pengguna pada 13 Oktober 2026: CEO menyetujui rekomendasi tahap 1 dan juga merupakan ahli bidang yang menyusun/menelaah soal. Tidak menunggu reviewer eksternal sebagai prasyarat implementasi. Catatan review disimpan sebagai `ceo_reviewed`, bukan klaim review independen atau validasi statistik.
 
 ## Yang disiapkan
@@ -49,7 +51,7 @@ Semua respons pribadi `no-store`/noindex. Tabel RLS ditutup dari anon/authentica
 ## Batas tahap ini
 
 - Public pilot pengembangan, bukan klaim bahwa instrumen telah tervalidasi untuk seleksi/promosi. Kompetensi gratis dan crosswalk disahkan, tetapi hanya enam kompetensi PE yang tersedia, bukan seluruh 26.
-- Belum membuka paket enam Area berbayar, checkout/webhook atau proposal individu. Harga masih belum ditetapkan. Tidak menambahkan harga perkiraan sebagai pengganti keputusan CEO.
+- Belum membuka paket lengkap enam Area (tiga gratis + tiga tambahan), checkout/webhook atau proposal individu. Harga masih belum ditetapkan. Tidak menambahkan harga perkiraan sebagai pengganti keputusan CEO.
 - Belum ada laporan email/PDF individu baru atau penjadwalan follow-up hasil individu. Laporan web menggunakan template pengembangan sementara yang berversi, bukan mengklaim format final CEO sudah tersedia.
 - Hasil individu tidak masuk lead/pipeline, tidak mengubah skor minat, dan tidak otomatis disalin ke AMS/perusahaan. Integrasi tersebut perlu izin serta tujuan yang sesuai.
 - Review statistik, format final laporan/email/proposal dan keputusan komersial tetap merupakan pekerjaan berikutnya.
