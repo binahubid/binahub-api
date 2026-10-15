@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
     const ready = await pePilotRPC(db, 'pe_pilot_ready');
     return peJson({ success: true, definition: { ...definition, acceptingNew: ready === true,
       features: { pilot: true, history: false }, sharingConsentVersion: 'pe-consultant-review-v1',
-      sharingNotice: 'Dengan izin Anda, tim BinaHub dapat meninjau identitas, konteks, jawaban, dan hasil untuk rekomendasi pengembangan. Tidak dibagikan otomatis kepada perusahaan.',
-      privacyNotice: 'Nama dan email dipakai untuk mengirim tautan hasil pribadi. Jawaban disimpan enam bulan; akses tim dapat dicabut dan pengisian dapat dihapus dari halaman hasil. Bantuan terkait data: admin@binahub.id.',
+      sharingNotice: 'Atas persetujuan Anda, tim BinaHub dapat meninjau nama, informasi pekerjaan, jawaban, dan hasil asesmen untuk memberikan rekomendasi pengembangan. Informasi ini tidak dibagikan secara otomatis kepada perusahaan Anda.',
+      privacyNotice: 'Nama dan alamat email digunakan untuk mengirim tautan hasil pribadi Anda. Jawaban disimpan selama enam bulan. Melalui halaman hasil, Anda dapat mencabut izin akses tim BinaHub atau menghapus data pengisian lebih awal. Untuk bantuan terkait data pribadi, hubungi admin@binahub.id.',
     } });
   } catch (error) { return peFailure(error); }
 }

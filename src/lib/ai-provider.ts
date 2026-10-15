@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { orderedProviders, type AIRoutingPolicy } from "./ai-routing-policy";
 
 export type AIMessageContent = string | Array<
   | { type: "text"; text: string }
@@ -40,6 +41,7 @@ function normalizeLapakVipModel(value: string) {
 export function buildAIProviderAttempts(
   environment: NodeJS.ProcessEnv = process.env,
   purpose: AIPurpose = "general",
+  policy?: AIRoutingPolicy | null,
 ): AIProviderAttempt[] {
   const attempts: AIProviderAttempt[] = [];
   const lapakVipKey = environment.LAPAKVIP_API_KEY?.trim();
@@ -68,7 +70,7 @@ export function buildAIProviderAttempts(
   // Keep the old deployment usable until LAPAKVIP_API_KEY is set, but never
   // spend time on the known-broken CodeCraft account after LapakVIP is active.
   const codeCraftKey = environment.CODECRAFT_API_KEY?.trim();
-  if (!lapakVipKey && codeCraftKey) {
+  if ((policy || !lapakVipKey) && codeCraftKey) {
     const generalModels = [
       environment.CODECRAFT_MODEL?.trim() || "claude-sonnet-5",
       ...commaList(environment.CODECRAFT_FALLBACK_MODELS || "gpt-5.6-sol,claude-opus-5,qwen3.8-max"),
@@ -101,7 +103,8 @@ export function buildAIProviderAttempts(
       apiKey: openRouterKey,
     });
   }
-  return attempts;
+  if (!policy) return attempts;
+  return orderedProviders(policy).flatMap((provider) => attempts.filter((attempt) => attempt.provider === provider));
 }
 
 function statusCode(error: unknown) {
@@ -124,13 +127,17 @@ function publicFailure(error: unknown) {
 export async function callRoutedAI(input: {
   messages: AIRoutedMessage[];
   jsonMode?: boolean;
+  temperature?: number;
   purpose?: AIPurpose;
   environment?: NodeJS.ProcessEnv;
+  routingPolicy?: AIRoutingPolicy | null;
   validateContent?: (content: string) => void;
   budget?: AIRequestBudget;
 }) {
   const environment = input.environment || process.env;
-  const attempts = buildAIProviderAttempts(environment, input.purpose);
+  const policy = input.routingPolicy !== undefined ? input.routingPolicy
+    : input.environment ? null : await (await import("./ai-provider-settings")).loadAIRoutingPolicy();
+  const attempts = buildAIProviderAttempts(environment, input.purpose, policy);
   if (!attempts.length) {
     throw new Error("AI provider belum dikonfigurasi. Isi LAPAKVIP_API_KEY pada environment API.");
   }
@@ -163,6 +170,7 @@ export async function callRoutedAI(input: {
         model: attempt.model,
         messages: input.messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
         max_tokens: maxTokens,
+        temperature: input.temperature,
         response_format: input.jsonMode
           && (attempt.provider === "lapakvip"
             ? environment.LAPAKVIP_JSON_MODE_ENABLED === "true"

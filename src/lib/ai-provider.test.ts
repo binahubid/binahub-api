@@ -5,6 +5,19 @@ import { describe, expect, it } from "vitest";
 import { buildAIProviderAttempts, callRoutedAI } from "./ai-provider";
 
 describe("AI provider routing", () => {
+  it("honors every selected primary and excludes disabled providers for all purposes", () => {
+    const environment: NodeJS.ProcessEnv = { NODE_ENV: "test", LAPAKVIP_API_KEY: "test", CODECRAFT_API_KEY: "test", OPENROUTER_API_KEY: "test" };
+    for (const primaryProvider of ["lapakvip", "codecraft", "openrouter"] as const) {
+      for (const purpose of ["general", "reasoning", "vision"] as const) {
+        const attempts = buildAIProviderAttempts(environment, purpose, { primaryProvider, enabledProviders: [primaryProvider] });
+        expect(attempts.length).toBeGreaterThan(0);
+        expect(new Set(attempts.map((item) => item.provider))).toEqual(new Set([primaryProvider]));
+      }
+    }
+    const attempts = buildAIProviderAttempts(environment, "general", { primaryProvider: "codecraft", enabledProviders: ["openrouter", "codecraft"] });
+    expect(attempts[0].provider).toBe("codecraft"); expect(attempts.at(-1)?.provider).toBe("openrouter");
+    expect(attempts.some((item) => item.provider === "lapakvip")).toBe(false);
+  });
   it("uses LapakVIP first and skips the broken CodeCraft account when configured", () => {
     const attempts = buildAIProviderAttempts({
       LAPAKVIP_API_KEY: "lapakvip-test-key",

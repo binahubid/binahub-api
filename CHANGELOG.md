@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.36.0] - 2026-10-15
+
+### Added
+
+- SQL **68**: singleton pilihan provider AI, satu primary/allowlist aktif, update CAS atomik dan audit. RLS/revoke melarang akses browser; hanya service role melalui RPC yang dapat mengubah pengaturan.
+- GET/POST `/api/admin/ai-settings` memakai autentikasi admin authoritative, validasi credential server, no-store, respons metadata non-secret dan konflik 409. Tidak ada panggilan AI saat membaca/menyimpan pengaturan.
+- Router AI mematuhi primary dan provider cadangan aktif untuk general/reasoning/vision. Codecraft dapat dipilih walau LapakVIP sudah dikonfigurasi. Tidak memakai cache konfigurasi lintas-request; kegagalan DB tidak membuka kembali provider yang dimatikan. Sebelum migrasi/penyimpanan pertama, rute legacy tetap dipertahankan.
+- Endpoint OpenAI-compatible bertanda tangan HMAC untuk panggilan AI server AMS: pesan/anggaran dibatasi, provider tidak dapat dioverride caller, JSON divalidasi dan error upstream disamarkan. Memakai integrasi AMS existing, bukan proxy publik.
+
+### Changed
+
+- Teks privasi/persetujuan awal diagnosis individu diperjelas tanpa mengubah hak akses, retensi atau cakupan persetujuan.
+
+### Deployment
+
+- Jalankan SQL **68**, deploy API **0.36.0**, lalu app **0.36.0** dan AMS **0.11.0**. Tidak ada secret baru, tidak ada migrasi model/provider ke layanan lain. Baca `docs/AI-PROVIDER-SETTINGS.md` untuk scope AMS dan konfigurasi existing.
+
 ## [0.35.0] - 2026-10-14
 
 ### Added
