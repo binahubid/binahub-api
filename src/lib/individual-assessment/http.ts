@@ -44,6 +44,7 @@ export function peFailure(error:unknown) {
     PE_PILOT_PAUSED:[409,'Pengisian baru sedang dijeda. Draft dan hasil yang sudah tersimpan tetap dapat dibuka.'],
     PE_PILOT_SETUP_REQUIRED:[503,'Diagnosis individu sedang disiapkan. Silakan coba lagi nanti.'],
     PE_GUEST_SETUP_REQUIRED:[503,'Diagnosis individu sedang disiapkan. Silakan coba lagi nanti.'],
+    PE_COMMERCE_SETUP_REQUIRED:[503,'Ruang transaksi belum siap. Jalankan SQL 69 pada database API, lalu coba lagi.'],
     PE_INVALID_REPORT:[503,'Laporan sedang disiapkan. Jawaban Anda tetap tersimpan.'],
     PE_LINK_EXPIRED:[410,'Tautan sudah digunakan atau kedaluwarsa. Minta tautan baru melalui email Anda.'],
     PE_EVALUATION_SAMPLE_SMALL:[409,'Data evaluasi belum mencapai lima pengisian dengan izin ekspor. Statistik ringkas tetap tersedia.'],

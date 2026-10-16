@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.37.0] - 2026-10-16
+
+### Added
+
+- SQL **69** fondasi internal asesmen berbayar: draft paket append-only, optimistic
+  concurrency dan audit; tabel pelanggan, pesanan, upaya/event pembayaran, hak
+  asesmen dan outbox terpisah tanpa data transaksi contoh.
+- GET/PUT `/api/admin/assessments/individual/commerce`: autentikasi admin,
+  rate limit, validasi input, pencarian/filter transaksi terikat, kesiapan yang
+  eksplisit belum dapat dijual, harga/kebijakan unknown tetap null.
+- RLS dan revoke menutup seluruh akses tabel langsung termasuk service role;
+  hanya dua RPC persiapan yang dapat dieksekusi service role. Penjualan dikunci
+  tertutup; tidak ada charge/checkout/mark-paid/grant API atau worker berbayar.
+
+### Deployment
+
+- Jalankan SQL 69 setelah source privat dan SQL 67 tersedia; deploy API sebelum
+  app **0.38.0**. Tidak menambah secret atau mengubah alur gratis/AI/AMS.
+- Gateway, identitas pelanggan passwordless ber-scope, checkout/webhook/refund,
+  rekonsiliasi dan paid delivery/report tetap tahap berikutnya. Tidak menerima
+  pembayaran nyata, menjalankan SQL produksi atau mengirim email saat pengujian.
+- Runbook dan batas verifikasi: `docs/INDIVIDUAL-COMMERCE-FOUNDATION.md`.
+
 ## [0.36.0] - 2026-10-15
 
 ### Added
