@@ -9,7 +9,12 @@ export async function GET(req: NextRequest) {
   if ("error" in admin) return adminError(admin.error || "Akses admin diperlukan.", admin.status, "ADMIN_REQUIRED");
   try {
     const settings = await loadSalesFollowUpSettings(createServerSupabase());
-    return NextResponse.json({ success: true, ready: Boolean(settings), settings, blockers: salesFollowUpSetupBlockers() }, { headers: { "Cache-Control": "no-store" } });
+    let worker: {state:'recent'|'stale'|'unknown';lastRunAt:string|null}={state:'unknown',lastRunAt:null};
+    try{
+      const run=await createServerSupabase().from('automation_runs').select('started_at').eq('workflow_key','follow_up_scheduler').eq('dry_run',false).order('started_at',{ascending:false}).limit(1).maybeSingle();
+      if(!run.error){const at=run.data?.started_at||null,age=at?Date.now()-Date.parse(at):NaN;worker={state:Number.isFinite(age)&&age>=0&&age<26*60*60_000?'recent':'stale',lastRunAt:at};}
+    }catch{ /* Unavailable heartbeat is not proof that processing is running. */ }
+    return NextResponse.json({ success: true, ready: Boolean(settings), settings, worker, blockers: salesFollowUpSetupBlockers() }, { headers: { "Cache-Control": "no-store" } });
   } catch { return adminError("Pengaturan tindak lanjut belum dapat dimuat.", 503, "SALES_SETTINGS_UNAVAILABLE"); }
 }
 export async function PATCH(req: NextRequest) {
@@ -21,5 +26,5 @@ export async function PATCH(req: NextRequest) {
   if (input.enabled && salesFollowUpSetupBlockers().length) return adminError(salesFollowUpSetupBlockers().join(" "), 409, "SALES_EMAIL_NOT_READY");
   const result = await createServerSupabase().rpc("save_sales_follow_up_settings", { p_enabled: input.enabled, p_expected_version: input.expectedVersion, p_actor: admin.email });
   if (result.error) return adminError("Pengaturan belum tersimpan atau sudah berubah. Perbarui untuk memeriksa statusnya.", result.error.message.includes("SALES_SETTINGS_CONFLICT") ? 409 : 503, "SALES_SETTINGS_SAVE_FAILED");
-  return NextResponse.json({ success: true, settings: result.data, message: input.enabled ? "Tindak lanjut otomatis aktif untuk percakapan baru setelah aktivasi ini." : "Tindak lanjut otomatis dijeda. Email yang sudah diproses tidak dapat ditarik kembali." });
+  return NextResponse.json({ success: true, settings: result.data, message: input.enabled ? "Pengiriman tindak lanjut diizinkan untuk percakapan baru. Periksa aktivitas pemrosesan untuk memastikan pengiriman berjalan." : "Tindak lanjut otomatis dijeda. Email yang sudah diproses tidak dapat ditarik kembali." });
 }

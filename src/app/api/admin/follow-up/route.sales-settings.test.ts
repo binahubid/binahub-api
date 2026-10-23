@@ -18,7 +18,9 @@ beforeEach(() => {
   mocks.claimRun.mockResolvedValue({ claimed: true, runId: "run" }); mocks.finishRun.mockResolvedValue({});
   mocks.sender.mockResolvedValue({ data: { id: "email-proof" } });
   mocks.template.mockImplementation(async () => { return { subject: "Follow-up", html: "Hello", version: "v1" }; });
-  mocks.rpc.mockResolvedValue({ error: null });
+  mocks.rpc.mockImplementation(async (name: string) => name === 'sales_due_followups'
+    ? { data: { inquiries: [{ id: "new", email: "internal@example.com", name: "Internal", status: "Baru", follow_up_level: 0, reply_sent_at: "2026-10-01T01:00:00Z", created_at: "2026-10-01T00:30:00Z" }], assessments: [] }, error: null }
+    : { error: null });
   mocks.db.mockReturnValue({ rpc: mocks.rpc, from: (table: string) => {
     const record = { id: "new", email: "internal@example.com", name: "Internal", status: "Baru", follow_up_level: 0, reply_sent_at: "2026-10-01T01:00:00Z", created_at: "2026-10-01T00:30:00Z" };
     const query = { select: () => query, eq: () => query, in: () => query, gte: () => query, order: () => query, limit: () => query, update: () => query, insert: () => query, maybeSingle: async () => ({ data: null, error: null }),
@@ -28,6 +30,14 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 describe("sales-controlled follow-up scheduler", () => {
+  it("uses due work from SQL and a new run key for the next five-minute slot", async () => {
+    await GET(request());
+    expect(mocks.rpc).toHaveBeenCalledWith('sales_due_followups', { p_since: '2026-10-01T00:00:00Z', p_limit: 100 });
+    const first = mocks.claimRun.mock.calls[0][1].idempotencyKey;
+    vi.setSystemTime(new Date('2026-10-06T03:05:00Z'));
+    await GET(request());
+    expect(mocks.claimRun.mock.calls[1][1].idempotencyKey).not.toBe(first);
+  });
   it("uses the app switch, ignores legacy flags, and excludes old conversations", async () => {
     const response = await GET(request());
     expect(response.status).toBe(200);

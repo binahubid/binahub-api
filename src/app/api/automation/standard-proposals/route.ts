@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
   if ("error" in worker) return NextResponse.json({ success: false, error: worker.error }, { status: worker.status });
   if (process.env.STANDARD_PROPOSAL_RETRY_ENABLED !== "true") return NextResponse.json({ success: false, code: "STANDARD_PROPOSAL_RETRY_DISABLED" }, { status: 423 });
   const db = createServerSupabase();
+  const stalled=await db.rpc('flag_stalled_standard_proposals',{p_limit:20});
+  if(stalled.error)return NextResponse.json({success:false,code:'STANDARD_PROPOSAL_RECOVERY_SETUP_REQUIRED'},{status:503});
   const before = new Date(Date.now() - 2 * 60 * 1000).toISOString();
   const pending = await db.from("assessments").select("id,proposal_requested_at")
     .in("proposal_status", ["Diminta", "Gagal Otomatis"]).is("proposal_sent_at", null)

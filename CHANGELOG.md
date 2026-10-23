@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.39.0] - 2026-10-23
+
+### Added
+
+- Fondasi backend SPIN setelah persetujuan CEO: snapshot katalog V6 dalam
+  scope SS-01–SS-31, pencocokan AI terbatas rujukan jawaban/tujuan belajar,
+  validator dan perhitungan investasi dasar tarif harian termasuk trainer/modul.
+- Adapter memakai provider settings existing. Harga, pajak, diskon dan komponen
+  tidak dibuat model; kasus di luar ketentuan diarahkan ke konsultasi.
+- Intake SPIN lima tahap, consent terpisah, revisi/ownership, konfirmasi brief,
+  submit atomik/idempotent dan worker durable. SQL **71** menambah penyimpanan
+  SPIN tanpa penghapusan otomatis; tidak mengubah program atau assessment lama.
+- Laporan publik enam bagian web/PDF/email, akses hasil pribadi, antrean dengan
+  lease/idempotensi dan lampiran/sender/origin yang dibekukan untuk retry.
+- Workspace admin dan integrasi inquiry follow-up hanya setelah penerimaan oleh
+  penyedia. Pemulihan memakai scheduler existing tanpa mengaktifkan antrean lama.
+- 699 tes lulus/tiga dilewati pada suite penuh, termasuk cleanup. Default file
+  operasi cleanup dikembalikan ke preview untuk publikasi, tanpa eksekusi DB.
+- Pengguna mengonfirmasi SQL 71 sudah dijalankan; deployment dan uji kirim
+  diperiksa setelah push. Lihat `docs/SPIN-RELEASE-RUNBOOK.md`.
+
+## Unreleased — 2026-10-21
+
+### Added
+
+- Registry fingerprint paket BinaInsights 20 Oktober dan alat persiapan lokal
+  tanpa aktivasi/database: verifikasi 15 sumber, private/public equivalence,
+  struktur PE V2, pemetaan katalog serta ekspor privat di luar semua Git checkout.
+- Adapter preview PE V2 untuk 18/19/37 soal, coverage Integrity 2/3–3/3,
+  input/hak akses ketat, DTO tanpa kunci/editorial dan diff source V1/V2.
+  Runtime V1, hasil lama, SQL, pengiriman, SPIN dan pembayaran tidak diubah.
+- Lihat `docs/BINAINSIGHTS-V3-PREPARATION.md` untuk verifikasi dan batas integrasi.
+
+## [0.38.0] - 2026-10-18
+
+### Safety correction
+
+- Cleanup massal diganti v2 selektif setelah satu program nyata teridentifikasi.
+  Default pratinjau tanpa perubahan persisten; FK aktual, referensi UUID/JSON dan
+  email konservatif melindungi program beserta relasinya. Eksekusi owner-only
+  memakai arsip privat dan pemeriksaan utuh seluruh data yang dipertahankan.
+  Data global/log ambigu dipertahankan, bukan dipaksakan ikut terhapus.
+
+### Fixed
+
+- SQL **70**: transisi tahap aktivitas forward-only dan terkunci per-lead;
+  assessment, proposal dan Cal.com tidak mengembalikan klien ke tahap awal.
+- Antrean follow-up disaring di SQL sebelum LIMIT, dengan booking, jeda,
+  suppression, batas opportunity dan klaim pengiriman tetap dihormati. Kunci
+  run default per lima menit, bukan satu kesempatan per hari.
+- Worker recovery menandai proposal terputus lebih dari sepuluh menit untuk
+  rekonsiliasi. Tidak mengirim ulang secara buta atau mengubah status terkirim.
+
+### Added
+
+- Penyimpanan attribution terbatas pada kontak individu dan RPC konsultasi
+  idempotent, terikat owner/sesi hasil dan izin review aktif. Tidak menyalin
+  jawaban/skor ke inquiry atau membuat langganan marketing.
+- Metadata pemanggilan scheduler terpisah dari izin pengiriman pada API
+  sales-settings; gagal membaca heartbeat tidak dianggap sebagai worker aktif.
+- Script owner-only cleanup operasional uji selektif: satu transaksi, arsip
+  privat, pelepasan tautan organisasi uji pada akun saja, urutan FK dan rollback
+  bila siklus atau efek samping tak dikenal ditemukan. Tidak ada endpoint wipe.
+
+### Deployment
+
+- SQL 70 setelah 69, lalu API 0.38.0/app 0.39.0/website 0.2.30. Tidak memasang
+  scheduler, mengaktifkan sending atau menambah secret. Cleanup terpisah,
+  **belum dieksekusi** produksi. Baca `docs/SALES-JOURNEY-HARDENING.md`.
+
 ## [0.37.0] - 2026-10-16
 
 ### Added

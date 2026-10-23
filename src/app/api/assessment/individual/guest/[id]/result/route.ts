@@ -54,7 +54,13 @@ export async function PATCH(req: NextRequest, context: Context) {
     const limited = await enforceRateLimit(req, 'pe-email-result-access', 30, 3600); if (limited) return limited;
     const { id } = await context.params, db = createServerSupabase();
     const owner = await readPEGuest(db, id, sessionKey(req, id), 'result');
-    const input = PEReviewUpdateSchema.parse(await readPEBody(req));
+    const raw=await readPEBody(req);
+    if(raw && typeof raw==='object' && 'action' in raw && raw.action==='request_consultation'){
+      z.object({action:z.literal('request_consultation')}).strict().parse(raw);
+      const consultation=await pePilotRPC(db,'pe_request_consultation',{p_id:id,p_owner:owner.ownerId});
+      return peJson({success:true,consultation});
+    }
+    const input = PEReviewUpdateSchema.parse(raw);
     const access = await updatePEReviewAccess(db,id,owner.ownerId,input);
     return peJson({ success: true, access });
   } catch (error) { return peFailure(error); }

@@ -1,0 +1,1062 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "6.0-SS32",
+  "scopeVersion": "spin-ss01-31-v1",
+  "sourceFile": "BinaHub_Signature_Solutions_Catalog_V6_SS32.docx",
+  "sourceSha256": "10b439e277cc823cdb0b8dd10cc2892830e821607c75488df0e7a82eb1c1cc99",
+  "scopeCodes": [
+    "SS-01",
+    "SS-02",
+    "SS-03",
+    "SS-04",
+    "SS-05",
+    "SS-06",
+    "SS-07",
+    "SS-08",
+    "SS-09",
+    "SS-10",
+    "SS-11",
+    "SS-12",
+    "SS-13",
+    "SS-14",
+    "SS-15",
+    "SS-16",
+    "SS-17",
+    "SS-18",
+    "SS-19",
+    "SS-20",
+    "SS-21",
+    "SS-22",
+    "SS-23",
+    "SS-24",
+    "SS-25",
+    "SS-26",
+    "SS-27",
+    "SS-28",
+    "SS-29",
+    "SS-30",
+    "SS-31"
+  ],
+  "excludedCodes": [
+    "SS-32"
+  ],
+  "modules": [
+    {
+      "code": "SS-01",
+      "name": "Emotional Intelligence",
+      "sourceParagraphStart": 45,
+      "sourceParagraphEnd": 82,
+      "objectives": [
+        {
+          "id": "SS-01.LO01",
+          "text": "Mengenali pemicu emosi dan pola perilaku pribadi yang memengaruhi interaksi di tempat kerja"
+        },
+        {
+          "id": "SS-01.LO02",
+          "text": "Menerapkan strategi regulasi diri yang praktis untuk menjaga perilaku tetap efektif saat berada di bawah tekanan"
+        },
+        {
+          "id": "SS-01.LO03",
+          "text": "Menunjukkan empati dengan mempertimbangkan sudut pandang orang lain dan menanggapi secara konstruktif"
+        },
+        {
+          "id": "SS-01.LO04",
+          "text": "Menggunakan perilaku komunikasi dan pengelolaan konflik yang memperkuat hubungan profesional"
+        }
+      ],
+      "audience": "Profesional, manajer, pemimpin, dan tim",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Kenali Diri. Terhubung Lebih Baik.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Mengenali pemicu emosi dan pola perilaku pribadi yang memengaruhi interaksi di tempat kerja\n• Menerapkan strategi regulasi diri yang praktis untuk menjaga perilaku tetap efektif saat berada di bawah tekanan\n• Menunjukkan empati dengan mempertimbangkan sudut pandang orang lain dan menanggapi secara konstruktif\n• Menggunakan perilaku komunikasi dan pengelolaan konflik yang memperkuat hubungan profesional\nOVERVIEW / KONTEN\n• Memahami kesadaran diri, emosi, pemicu, dan pola perilaku\n• Pengelolaan diri dan regulasi diri dalam situasi yang menantang\n• Membaca isyarat sosial dan memahami sudut pandang orang lain\n• Empati dan pengelolaan hubungan\n• Penerapan pada komunikasi, kolaborasi, konflik, dan kepemimpinan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Relationship Building\n• Communication\n• Pressure Management\n• Collaboration\n• Conflict Management\n• Self-Development\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mengidentifikasi pola pribadi utama dan area pengembangan.\nPeserta memiliki strategi praktis untuk mengelola respons emosional.\nPeserta meningkatkan kemampuan memahami perspektif dan respons interpersonal.\nTindakan pengembangan individu atau tim teridentifikasi.\nCocok Untuk: Profesional, manajer, pemimpin, dan tim\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaInsights / BinaLab\nCatatan: Asesmen seperti DISC atau perangkat perilaku/kepribadian lain dapat digunakan bila relevan."
+    },
+    {
+      "code": "SS-02",
+      "name": "Professional Excellence",
+      "sourceParagraphStart": 83,
+      "sourceParagraphEnd": 119,
+      "objectives": [
+        {
+          "id": "SS-02.LO01",
+          "text": "Menunjukkan integritas dengan menyelaraskan tindakan dengan komitmen dan standar profesional"
+        },
+        {
+          "id": "SS-02.LO02",
+          "text": "Menerapkan kriteria kualitas yang disepakati dan memeriksa hasil kerja sebelum diserahkan"
+        },
+        {
+          "id": "SS-02.LO03",
+          "text": "Memperjelas hasil yang diharapkan, memantau komitmen, dan menuntaskan pekerjaan secara andal"
+        },
+        {
+          "id": "SS-02.LO04",
+          "text": "Mengidentifikasi dan menerapkan satu perbaikan untuk memperkuat efektivitas profesional"
+        }
+      ],
+      "audience": "Profesional, staf, supervisor, dan manajer",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Pola Pikir dan Perilaku di Balik Dampak Profesional.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menunjukkan integritas dengan menyelaraskan tindakan dengan komitmen dan standar profesional\n• Menerapkan kriteria kualitas yang disepakati dan memeriksa hasil kerja sebelum diserahkan\n• Memperjelas hasil yang diharapkan, memantau komitmen, dan menuntaskan pekerjaan secara andal\n• Mengidentifikasi dan menerapkan satu perbaikan untuk memperkuat efektivitas profesional\nOVERVIEW / KONTEN\n• Pola pikir dan sikap profesional\n• Rasa kepemilikan (ownership), akuntabilitas, dan keandalan\n• Perilaku profesional dan standar tempat kerja\n• Pola pikir unggul dan perbaikan diri berkelanjutan\n• Penerapan pada kebiasaan kerja, kolaborasi, dan penyelesaian pekerjaan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Integrity\n• Initiative\n• Quality Orientation\n• Achievement Orientation\n• Follow-Through\n• Self-Development\n• Professional Presence\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta memahami perilaku yang berkaitan dengan dampak profesional.\nKomitmen pribadi yang jelas untuk kepemilikan dan akuntabilitas yang lebih kuat.\nPerubahan perilaku praktis yang dapat langsung diterapkan di pekerjaan.\nCocok Untuk: Profesional, staf, supervisor, dan manajer\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaLab"
+    },
+    {
+      "code": "SS-03",
+      "name": "Personal Productivity & Effectiveness",
+      "sourceParagraphStart": 120,
+      "sourceParagraphEnd": 154,
+      "objectives": [
+        {
+          "id": "SS-03.LO01",
+          "text": "Memprioritaskan pekerjaan berdasarkan sasaran, urgensi, dan dampak"
+        },
+        {
+          "id": "SS-03.LO02",
+          "text": "Menerjemahkan prioritas menjadi rencana, jadwal, dan pilihan sumber daya yang realistis"
+        },
+        {
+          "id": "SS-03.LO03",
+          "text": "Memantau kemajuan, menangani keterlambatan, dan menuntaskan hasil kerja yang disepakati"
+        },
+        {
+          "id": "SS-03.LO04",
+          "text": "Menjaga kualitas dan fokus saat mengelola tuntutan yang saling bersaing"
+        }
+      ],
+      "audience": "Profesional, manajer, dan kontributor individu",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Bekerja Lebih Baik. Fokus Lebih Baik. Capai Lebih Banyak.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Memprioritaskan pekerjaan berdasarkan sasaran, urgensi, dan dampak\n• Menerjemahkan prioritas menjadi rencana, jadwal, dan pilihan sumber daya yang realistis\n• Memantau kemajuan, menangani keterlambatan, dan menuntaskan hasil kerja yang disepakati\n• Menjaga kualitas dan fokus saat mengelola tuntutan yang saling bersaing\nOVERVIEW / KONTEN\n• Prioritisasi dan pengelolaan fokus\n• Manajemen waktu dan perhatian\n• Disiplin eksekusi dan tindak lanjut (follow-through)\n• Pembentukan kebiasaan dan sistem kerja pribadi\n• Mengelola beban kerja, gangguan, dan prioritas yang saling bersaing\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Planning & Organizing\n• Achievement Orientation\n• Follow-Through\n• Quality Orientation\n• Pressure Management\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta menetapkan prioritas dan rutinitas eksekusi yang lebih jelas.\nSistem produktivitas pribadi atau rencana aksi yang praktis.\nKebiasaan dan komitmen spesifik untuk meningkatkan efektivitas kerja.\nCocok Untuk: Profesional, manajer, dan kontributor individu\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaLab"
+    },
+    {
+      "code": "SS-04",
+      "name": "Communication & Presentation",
+      "sourceParagraphStart": 155,
+      "sourceParagraphEnd": 189,
+      "objectives": [
+        {
+          "id": "SS-04.LO01",
+          "text": "Menyusun pesan menjadi struktur yang jelas dan logis sesuai audiens"
+        },
+        {
+          "id": "SS-04.LO02",
+          "text": "Menggunakan mendengarkan aktif dan klarifikasi untuk membangun pemahaman bersama"
+        },
+        {
+          "id": "SS-04.LO03",
+          "text": "Menyampaikan presentasi dengan percaya diri menggunakan teknik verbal, nonverbal, dan visual yang efektif"
+        },
+        {
+          "id": "SS-04.LO04",
+          "text": "Menggunakan komunikasi yang berpusat pada audiens untuk memperoleh pemahaman dan dukungan terhadap gagasan"
+        },
+        {
+          "id": "SS-04.LO05",
+          "text": "Menunjukkan kehadiran profesional (professional presence) yang sesuai dengan audiens dan konteks"
+        }
+      ],
+      "audience": "Profesional, manajer, pemimpin, presenter, dan tim yang berhadapan dengan klien",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Berkomunikasi Jelas. Memengaruhi Secara Efektif.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menyusun pesan menjadi struktur yang jelas dan logis sesuai audiens\n• Menggunakan mendengarkan aktif dan klarifikasi untuk membangun pemahaman bersama\n• Menyampaikan presentasi dengan percaya diri menggunakan teknik verbal, nonverbal, dan visual yang efektif\n• Menggunakan komunikasi yang berpusat pada audiens untuk memperoleh pemahaman dan dukungan terhadap gagasan\n• Menunjukkan kehadiran profesional (professional presence) yang sesuai dengan audiens dan konteks\nOVERVIEW / KONTEN\n• Dasar-dasar komunikasi dan kejelasan pesan\n• Komunikasi interpersonal dan mendengarkan aktif\n• Struktur, penyampaian, dan kehadiran dalam presentasi\n• Public speaking dan penanganan pertanyaan\n• Memengaruhi melalui kebutuhan audiens dan rancangan pesan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Communication\n• Influencing\n• Presentation & Public Speaking\n• Professional Presence\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mampu menyusun dan menyampaikan pesan yang lebih jelas.\nTeknik presentasi dan komunikasi yang lebih baik.\nKomitmen komunikasi pribadi dan umpan balik dari latihan.\nCocok Untuk: Profesional, manajer, pemimpin, presenter, dan tim yang berhadapan dengan klien\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaLab"
+    },
+    {
+      "code": "SS-05",
+      "name": "Service Excellence",
+      "sourceParagraphStart": 190,
+      "sourceParagraphEnd": 226,
+      "objectives": [
+        {
+          "id": "SS-05.LO01",
+          "text": "Mengidentifikasi kebutuhan dan ekspektasi pelanggan serta menghubungkannya dengan layanan yang diberikan"
+        },
+        {
+          "id": "SS-05.LO02",
+          "text": "Menyampaikan informasi layanan secara jelas, santun, dan akurat"
+        },
+        {
+          "id": "SS-05.LO03",
+          "text": "Menanggapi keluhan secara konstruktif dan memilih tindakan pemulihan layanan (service recovery) yang tepat"
+        },
+        {
+          "id": "SS-05.LO04",
+          "text": "Menunjukkan empati dan keramahan serta mengantisipasi kebutuhan pelanggan yang belum disampaikan"
+        },
+        {
+          "id": "SS-05.LO05",
+          "text": "Menerapkan standar layanan yang konsisten dan memegang tanggung jawab atas hasil bagi pelanggan"
+        }
+      ],
+      "audience": "Tim yang berhadapan dengan pelanggan, tim layanan, supervisor, dan manajer; terutama lingkungan perhotelan/layanan",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Ciptakan Layanan yang Diingat Pelanggan.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Mengidentifikasi kebutuhan dan ekspektasi pelanggan serta menghubungkannya dengan layanan yang diberikan\n• Menyampaikan informasi layanan secara jelas, santun, dan akurat\n• Menanggapi keluhan secara konstruktif dan memilih tindakan pemulihan layanan (service recovery) yang tepat\n• Menunjukkan empati dan keramahan serta mengantisipasi kebutuhan pelanggan yang belum disampaikan\n• Menerapkan standar layanan yang konsisten dan memegang tanggung jawab atas hasil bagi pelanggan\nOVERVIEW / KONTEN\n• Pola pikir layanan dan orientasi pelanggan\n• Kebutuhan pelanggan dan pengalaman pelanggan (customer experience)\n• Komunikasi layanan dan pengelolaan ekspektasi\n• Penanganan keluhan dan pemulihan layanan\n• Kepemilikan, responsivitas, dan perilaku layanan yang konsisten\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Customer Orientation\n• Conflict Management\n• Communication\n• Integrity\n• Quality Orientation\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta memahami perilaku yang membentuk pengalaman pelanggan.\nTeknik respons dan pemulihan layanan yang praktis.\nStandar layanan pribadi/tim dan komitmen tindakan.\nCocok Untuk: Tim yang berhadapan dengan pelanggan, tim layanan, supervisor, dan manajer; terutama lingkungan perhotelan/layanan\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaLab\nCatatan: Perhotelan dapat digunakan sebagai konteks industri; konten dapat dikonfigurasi untuk lingkungan layanan lainnya."
+    },
+    {
+      "code": "SS-06",
+      "name": "Problem Solving, Decision Making, & Innovation",
+      "sourceParagraphStart": 227,
+      "sourceParagraphEnd": 262,
+      "objectives": [
+        {
+          "id": "SS-06.LO01",
+          "text": "Merumuskan masalah, hasil yang diinginkan, dan kendala yang relevan sebelum memilih solusi"
+        },
+        {
+          "id": "SS-06.LO02",
+          "text": "Menganalisis penyebab dan pola menggunakan informasi yang relevan serta asumsi yang telah diuji"
+        },
+        {
+          "id": "SS-06.LO03",
+          "text": "Membandingkan alternatif berdasarkan kriteria, manfaat, risiko, dan konsekuensi sebelum memutuskan"
+        },
+        {
+          "id": "SS-06.LO04",
+          "text": "Menghasilkan, menguji, dan menyempurnakan gagasan perbaikan menggunakan bukti dari eksperimen atau umpan balik"
+        }
+      ],
+      "audience": "Profesional, manajer, pemimpin, tim perbaikan, dan tim inovasi",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari atau journey yang lebih panjang",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Berpikir Jernih. Menyelesaikan Secara Efektif. Ciptakan Hal Berikutnya.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari atau journey yang lebih panjang\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Merumuskan masalah, hasil yang diinginkan, dan kendala yang relevan sebelum memilih solusi\n• Menganalisis penyebab dan pola menggunakan informasi yang relevan serta asumsi yang telah diuji\n• Membandingkan alternatif berdasarkan kriteria, manfaat, risiko, dan konsekuensi sebelum memutuskan\n• Menghasilkan, menguji, dan menyempurnakan gagasan perbaikan menggunakan bukti dari eksperimen atau umpan balik\nOVERVIEW / KONTEN\n• Pembingkaian masalah dan berpikir kritis\n• Analisis akar masalah dan pemecahan masalah terstruktur\n• Pengambilan keputusan di bawah keterbatasan dan ketidakpastian\n• Berpikir kreatif dan pola pikir inovasi\n• Design thinking, eksperimen, dan belajar dari hasil\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Problem Solving & Decision Making\n• Information Literacy & Critical Evaluation\n• Innovation & Creativity\n• Initiative\n• Risk Taking\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta dapat membingkai dan menganalisis masalah secara lebih sistematis.\nPendekatan solusi atau keputusan terstruktur yang diterapkan pada kasus nyata.\nGagasan, eksperimen, atau tindakan perbaikan yang dapat dilanjutkan.\nCocok Untuk: Profesional, manajer, pemimpin, tim perbaikan, dan tim inovasi\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaLab / BinaAcademy\nCatatan: Design Thinking digunakan sebagai metode/komponen, bukan sebagai Signature Solution tersendiri."
+    },
+    {
+      "code": "SS-07",
+      "name": "First-Time Leader",
+      "sourceParagraphStart": 263,
+      "sourceParagraphEnd": 299,
+      "objectives": [
+        {
+          "id": "SS-07.LO01",
+          "text": "Memperjelas tanggung jawab dan perilaku yang diharapkan dari people leader yang baru pertama kali memimpin"
+        },
+        {
+          "id": "SS-07.LO02",
+          "text": "Menetapkan arah tim dan mendelegasikan tugas dengan hasil, kewenangan, dan tindak lanjut yang jelas"
+        },
+        {
+          "id": "SS-07.LO03",
+          "text": "Melakukan percakapan umpan balik dan pengembangan yang konstruktif untuk mendukung pertumbuhan karyawan"
+        },
+        {
+          "id": "SS-07.LO04",
+          "text": "Membangun akuntabilitas dan kepercayaan saat bertransisi dari rekan sejawat menjadi pemimpin"
+        }
+      ],
+      "audience": "Pemimpin yang baru pertama kali memimpin, supervisor yang baru diangkat, dan people manager pemula",
+      "duration": "1–2 hari + tindak lanjut opsional",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Dari Kontributor Individu Menjadi People Leader.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari + tindak lanjut opsional\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Memperjelas tanggung jawab dan perilaku yang diharapkan dari people leader yang baru pertama kali memimpin\n• Menetapkan arah tim dan mendelegasikan tugas dengan hasil, kewenangan, dan tindak lanjut yang jelas\n• Melakukan percakapan umpan balik dan pengembangan yang konstruktif untuk mendukung pertumbuhan karyawan\n• Membangun akuntabilitas dan kepercayaan saat bertransisi dari rekan sejawat menjadi pemimpin\nOVERVIEW / KONTEN\n• Transisi dari kontributor individu menjadi people leader\n• Identitas, pola pikir, dan ekspektasi kepemimpinan\n• Memimpin mantan rekan sejawat dan menetapkan arah tim\n• Delegasi, umpan balik, percakapan coaching, dan motivasi\n• Akuntabilitas dan pengelolaan kinerja orang tingkat dasar\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Team Leadership\n• Communication\n• Delegation\n• Follow-Through\n• Developing Others\n• Inspiring Others\n• Trust Building\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta memperjelas peran dan ekspektasi kepemimpinan mereka.\nAlat bantu delegasi, umpan balik, dan coaching yang praktis.\nRencana aksi kepemimpinan pribadi untuk transisi menjadi people leader.\nCocok Untuk: Pemimpin yang baru pertama kali memimpin, supervisor yang baru diangkat, dan people manager pemula\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaCoach"
+    },
+    {
+      "code": "SS-08",
+      "name": "Adaptive Leadership",
+      "sourceParagraphStart": 300,
+      "sourceParagraphEnd": 336,
+      "objectives": [
+        {
+          "id": "SS-08.LO01",
+          "text": "Menilai bagaimana perubahan dan ketidakpastian memengaruhi prioritas tim, pemangku kepentingan, dan kinerja"
+        },
+        {
+          "id": "SS-08.LO02",
+          "text": "Menyesuaikan pendekatan kepemimpinan dan prioritas seiring perubahan kondisi dan bukti"
+        },
+        {
+          "id": "SS-08.LO03",
+          "text": "Mengomunikasikan perubahan secara jelas dan mendukung orang melewati masa transisi"
+        },
+        {
+          "id": "SS-08.LO04",
+          "text": "Mengambil keputusan tepat waktu di tengah ketidakpastian dengan mempertimbangkan risiko serta menjaga efektivitas di bawah tekanan"
+        }
+      ],
+      "audience": "Manajer, pemimpin, change leader, dan profesional yang menghadapi perubahan signifikan",
+      "duration": "1–2 hari + tindak lanjut opsional",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Memimpin di Tengah Perubahan dan Ketidakpastian.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari + tindak lanjut opsional\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menilai bagaimana perubahan dan ketidakpastian memengaruhi prioritas tim, pemangku kepentingan, dan kinerja\n• Menyesuaikan pendekatan kepemimpinan dan prioritas seiring perubahan kondisi dan bukti\n• Mengomunikasikan perubahan secara jelas dan mendukung orang melewati masa transisi\n• Mengambil keputusan tepat waktu di tengah ketidakpastian dengan mempertimbangkan risiko serta menjaga efektivitas di bawah tekanan\nOVERVIEW / KONTEN\n• Prinsip kepemimpinan adaptif\n• Memimpin di tengah perubahan, ambiguitas, dan ketidakpastian\n• Pengambilan keputusan di bawah ketidakpastian\n• Komunikasi perubahan dan respons pemangku kepentingan\n• Ketahanan (resilience) dan kepemimpinan masa transisi\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Change Leadership\n• Communication\n• Adaptability\n• Risk Taking\n• Problem Solving & Decision Making\n• Pressure Management\n• Resilience & Perseverance\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mengidentifikasi tantangan kepemimpinan adaptif mereka.\nPendekatan praktis untuk memimpin perubahan dan ketidakpastian.\nRencana aksi pribadi/tim untuk kepemimpinan adaptif.\nCocok Untuk: Manajer, pemimpin, change leader, dan profesional yang menghadapi perubahan signifikan\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaCoach"
+    },
+    {
+      "code": "SS-09",
+      "name": "AI-Powered Professional",
+      "sourceParagraphStart": 337,
+      "sourceParagraphEnd": 373,
+      "objectives": [
+        {
+          "id": "SS-09.LO01",
+          "text": "Mengidentifikasi tugas kerja yang dapat diperkuat oleh alat digital atau AI dan yang tidak sesuai untuk itu"
+        },
+        {
+          "id": "SS-09.LO02",
+          "text": "Menggunakan AI untuk mendukung alur kerja yang telah ditetapkan dengan konteks, instruksi, dan kriteria keluaran yang jelas"
+        },
+        {
+          "id": "SS-09.LO03",
+          "text": "Memverifikasi informasi dan keluaran yang dihasilkan AI sebelum digunakan atau dibagikan"
+        },
+        {
+          "id": "SS-09.LO04",
+          "text": "Melindungi informasi sensitif serta tetap bertanggung jawab atas akurasi, pertimbangan, dan penggunaan yang bertanggung jawab"
+        }
+      ],
+      "audience": "Profesional, manajer, pekerja pengetahuan, dan tim yang beradaptasi dengan pekerjaan berbasis AI",
+      "duration": "1 hari standar; dapat dikonfigurasi menjadi 2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Bekerja Lebih Cerdas. Berpikir Kritis. Tetap Manusiawi.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; dapat dikonfigurasi menjadi 2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Mengidentifikasi tugas kerja yang dapat diperkuat oleh alat digital atau AI dan yang tidak sesuai untuk itu\n• Menggunakan AI untuk mendukung alur kerja yang telah ditetapkan dengan konteks, instruksi, dan kriteria keluaran yang jelas\n• Memverifikasi informasi dan keluaran yang dihasilkan AI sebelum digunakan atau dibagikan\n• Melindungi informasi sensitif serta tetap bertanggung jawab atas akurasi, pertimbangan, dan penggunaan yang bertanggung jawab\nOVERVIEW / KONTEN\n• Literasi AI dan contoh penggunaan praktis\n• Produktivitas berbantuan AI dan perancangan alur kerja\n• Prompting, alat bantu, dan kolaborasi manusia–AI\n• Berpikir kritis, verifikasi, dan pertimbangan\n• AI yang bertanggung jawab dan batasan profesional\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Digital & AI Fluency\n• Planning & Organizing\n• Information Literacy & Critical Evaluation\n• Initiative\n• Quality Orientation\n• Integrity\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mengidentifikasi kasus penggunaan AI yang relevan untuk pekerjaan mereka.\nAlur kerja atau eksperimen kerja berbantuan AI yang praktis.\nPrinsip yang jelas untuk penggunaan AI yang bertanggung jawab dan berpusat pada manusia.\nCocok Untuk: Profesional, manajer, pekerja pengetahuan, dan tim yang beradaptasi dengan pekerjaan berbasis AI\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaLab\nCatatan: Alat dan latihan dapat disesuaikan dengan lingkungan AI yang disetujui organisasi."
+    },
+    {
+      "code": "SS-10",
+      "name": "Coaching Skills for Leaders",
+      "sourceParagraphStart": 374,
+      "sourceParagraphEnd": 411,
+      "objectives": [
+        {
+          "id": "SS-10.LO01",
+          "text": "Memahami peran, prinsip, dan batasan coaching dalam kepemimpinan sehari-hari"
+        },
+        {
+          "id": "SS-10.LO02",
+          "text": "Mempraktikkan keterampilan mendengarkan aktif, pertanyaan terbuka, dan parafrasa untuk membantu anggota tim berpikir"
+        },
+        {
+          "id": "SS-10.LO03",
+          "text": "Memberikan umpan balik yang spesifik dan berorientasi pada perilaku serta dampak"
+        },
+        {
+          "id": "SS-10.LO04",
+          "text": "Membantu anggota tim menyepakati tujuan, langkah tindakan, dan tindak lanjut pengembangan"
+        }
+      ],
+      "audience": "Supervisor, manajer, team leader, dan people manager yang perlu mengembangkan anggota tim melalui coaching.",
+      "duration": "1 hari standar; opsi 2 hari untuk praktik dan simulasi lanjutan",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Coach with Purpose. Develop People. Enable Performance.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1 hari standar; opsi 2 hari untuk praktik dan simulasi lanjutan\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Memahami peran, prinsip, dan batasan coaching dalam kepemimpinan sehari-hari\n• Mempraktikkan keterampilan mendengarkan aktif, pertanyaan terbuka, dan parafrasa untuk membantu anggota tim berpikir\n• Memberikan umpan balik yang spesifik dan berorientasi pada perilaku serta dampak\n• Membantu anggota tim menyepakati tujuan, langkah tindakan, dan tindak lanjut pengembangan\nOVERVIEW / KONTEN\n• Prinsip dan etika coaching bagi pemimpin\n• Perbedaan coaching, mentoring, directing, dan counseling; batas rujukan\n• Active listening, pertanyaan terbuka, parafrasa, dan refleksi\n• Feedback berbasis perilaku dan dampak\n• Goal setting, action commitment, dan follow-through\n• Praktik percakapan coaching dengan skenario kerja dan umpan balik terstruktur\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Developing Others\n• Communication\n• Follow-Through\n• Trust Building\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mampu melakukan percakapan coaching terstruktur dengan anggota tim.\nPeserta mempraktikkan pertanyaan terbuka, mendengarkan aktif, dan parafrasa.\nPeserta memberikan umpan balik spesifik dan membantu coachee menyepakati langkah tindakan.\nPeserta menggunakan action plan dan tindak lanjut untuk mendukung pengembangan anggota tim.\nCocok Untuk: Supervisor, manajer, team leader, dan people manager yang perlu mengembangkan anggota tim melalui coaching.\nModel Harga: Tarif Harian Standar\nSub-brand: BinaLab\nCatatan: Workshop ini melatih keterampilan coaching dalam peran kepemimpinan; bukan layanan coaching individual atau terapi klinis.\nTEAM TRANSFORMATION"
+    },
+    {
+      "code": "SS-11",
+      "name": "Team Building",
+      "sourceParagraphStart": 412,
+      "sourceParagraphEnd": 449,
+      "objectives": [
+        {
+          "id": "SS-11.LO01",
+          "text": "Membangun kepercayaan dan keterbukaan melalui perilaku tim yang dapat diamati dan komitmen bersama"
+        },
+        {
+          "id": "SS-11.LO02",
+          "text": "Mengoordinasikan kontribusi dan memperkuat kolaborasi menuju tujuan bersama"
+        },
+        {
+          "id": "SS-11.LO03",
+          "text": "Mempraktikkan pemahaman perspektif dan komunikasi konstruktif saat menghadapi tantangan tim"
+        },
+        {
+          "id": "SS-11.LO04",
+          "text": "Menerjemahkan pembelajaran experiential menjadi kesepakatan tim dan tindakan praktis di tempat kerja"
+        }
+      ],
+      "audience": "Tim, departemen, tim proyek, tim kepemimpinan, dan kelompok organisasi",
+      "duration": "0,5–1 hari standar; dapat dikonfigurasi dari 2–4 jam hingga 2 hari",
+      "capacity": "Essential: hingga 30 peserta; Signature: 31–80; Enterprise: 81–150",
+      "pricingModel": "Paket Standar",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Essential Rp25.000.000,-; Signature Rp50.000.000,-; Enterprise Rp75.000.000,-; >150 peserta: +Rp450.000,-/peserta tambahan",
+      "sourceText": "Bangun Koneksi. Perkuat Kolaborasi. Ciptakan Energi Tim.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n0,5–1 hari standar; dapat dikonfigurasi dari 2–4 jam hingga 2 hari\nEssential: hingga 30 peserta; Signature: 31–80; Enterprise: 81–150\nEssential Rp25.000.000,-; Signature Rp50.000.000,-; Enterprise Rp75.000.000,-; >150 peserta: +Rp450.000,-/peserta tambahan\nSASARAN PEMBELAJARAN\n• Membangun kepercayaan dan keterbukaan melalui perilaku tim yang dapat diamati dan komitmen bersama\n• Mengoordinasikan kontribusi dan memperkuat kolaborasi menuju tujuan bersama\n• Mempraktikkan pemahaman perspektif dan komunikasi konstruktif saat menghadapi tantangan tim\n• Menerjemahkan pembelajaran experiential menjadi kesepakatan tim dan tindakan praktis di tempat kerja\nOVERVIEW / KONTEN\n• Koneksi dan kebersamaan tim\n• Kepercayaan dan keterbukaan\n• Kolaborasi dan sinergi\n• Empati dan pemahaman perspektif\n• Aktivasi nilai\n• budaya dan penyelarasan prioritas bisnis\n• Aktivitas experiential, simulasi, permainan, refleksi, dan komitmen tim\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Collaboration\n• Team Leadership\n• Trust Building\n• Relationship Building\n• Communication\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPengalaman tim bersama yang terkait dengan tujuan bisnis atau tim yang jelas.\nWawasan tim dan pola kolaborasi yang teridentifikasi.\nKomitmen atau tindakan tim yang konkret setelah pengalaman.\nCocok Untuk: Tim, departemen, tim proyek, tim kepemimpinan, dan kelompok organisasi\nModel Harga: Paket Standar\nBrand Layanan: BinaPlay / BinaLab\nCatatan: Nama paket menunjukkan skala/kapasitas peserta, bukan tingkatan kualitas. Team Building berorientasi hasil, bukan sekadar permainan atau acara rekreasi (outing)."
+    },
+    {
+      "code": "SS-12",
+      "name": "Trust & Psychological Safety",
+      "sourceParagraphStart": 450,
+      "sourceParagraphEnd": 486,
+      "objectives": [
+        {
+          "id": "SS-12.LO01",
+          "text": "Menunjukkan perilaku yang membangun keandalan, keterbukaan, dan kepercayaan interpersonal"
+        },
+        {
+          "id": "SS-12.LO02",
+          "text": "Berlatih menyampaikan pendapat, mendengarkan tanpa menghakimi lebih dulu, dan mengakui perbedaan pandangan"
+        },
+        {
+          "id": "SS-12.LO03",
+          "text": "Menangani perbedaan pendapat secara konstruktif sambil menjaga rasa hormat dan akuntabilitas"
+        },
+        {
+          "id": "SS-12.LO04",
+          "text": "Menyepakati norma tim yang mendukung kontribusi yang aman dan diskusi yang jujur"
+        }
+      ],
+      "audience": "Tim, pemimpin, dan organisasi yang menginginkan kepercayaan dan psychological safety yang lebih kuat",
+      "duration": "1–2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Ciptakan Tim Tempat Orang Berani Bicara, Mendengar, dan Berkontribusi.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menunjukkan perilaku yang membangun keandalan, keterbukaan, dan kepercayaan interpersonal\n• Berlatih menyampaikan pendapat, mendengarkan tanpa menghakimi lebih dulu, dan mengakui perbedaan pandangan\n• Menangani perbedaan pendapat secara konstruktif sambil menjaga rasa hormat dan akuntabilitas\n• Menyepakati norma tim yang mendukung kontribusi yang aman dan diskusi yang jujur\nOVERVIEW / KONTEN\n• Dasar-dasar kepercayaan dan psychological safety\n• Menyampaikan pendapat, mendengarkan, dan berinteraksi secara konstruktif\n• Menangani perbedaan pendapat dan kerentanan (vulnerability) di tempat kerja\n• Perilaku pemimpin\n• tim yang memperkuat psychological safety\n• Norma dan komitmen tim yang praktis\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Trust Building\n• Collaboration\n• Communication\n• Conflict Management\n• Integrity\n• Relationship Building\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mengidentifikasi perilaku yang memperkuat atau melemahkan kepercayaan.\nPerilaku atau norma tim yang disepakati untuk kolaborasi yang lebih aman.\nTindakan praktis untuk meningkatkan cara berbicara, mendengarkan, dan berkontribusi.\nCocok Untuk: Tim, pemimpin, dan organisasi yang menginginkan kepercayaan dan psychological safety yang lebih kuat\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaLab / BinaAcademy"
+    },
+    {
+      "code": "SS-13",
+      "name": "Team Synergy",
+      "sourceParagraphStart": 487,
+      "sourceParagraphEnd": 522,
+      "objectives": [
+        {
+          "id": "SS-13.LO01",
+          "text": "Menyelaraskan anggota tim di sekitar tujuan, peran, dan interdependensi bersama"
+        },
+        {
+          "id": "SS-13.LO02",
+          "text": "Mengoordinasikan kontribusi lintas fungsi dan menutup celah kepemilikan atau serah terima pekerjaan (handoff)"
+        },
+        {
+          "id": "SS-13.LO03",
+          "text": "Memecahkan masalah kerja secara kolektif dengan memadukan beragam perspektif dan bukti"
+        },
+        {
+          "id": "SS-13.LO04",
+          "text": "Mengubah keputusan tim menjadi komitmen yang jelas, penanggung jawab, dan tindak lanjut"
+        }
+      ],
+      "audience": "Tim lintas fungsi, departemen, tim proyek, dan tim kepemimpinan",
+      "duration": "1–2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Dari Kontribusi Individu Menuju Kinerja Kolektif.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menyelaraskan anggota tim di sekitar tujuan, peran, dan interdependensi bersama\n• Mengoordinasikan kontribusi lintas fungsi dan menutup celah kepemilikan atau serah terima pekerjaan (handoff)\n• Memecahkan masalah kerja secara kolektif dengan memadukan beragam perspektif dan bukti\n• Mengubah keputusan tim menjadi komitmen yang jelas, penanggung jawab, dan tindak lanjut\nOVERVIEW / KONTEN\n• Tujuan, sasaran, dan keselarasan tim\n• Kejelasan peran dan interdependensi\n• Kolaborasi lintas fungsi\n• Pemecahan masalah dan pengambilan keputusan kolektif\n• Praktik sinergi dan akuntabilitas bersama\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Collaboration\n• Team Leadership\n• Problem Solving & Decision Making\n• Communication\n• Follow-Through\n• Relationship Building\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPemahaman yang lebih jelas tentang peran dan interdependensi.\nHambatan kolaborasi dan tindakan perbaikan yang teridentifikasi.\nKesepakatan tim dan komitmen sinergi yang praktis.\nCocok Untuk: Tim lintas fungsi, departemen, tim proyek, dan tim kepemimpinan\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaLab / BinaAcademy"
+    },
+    {
+      "code": "SS-14",
+      "name": "Empathy Experience",
+      "sourceParagraphStart": 523,
+      "sourceParagraphEnd": 558,
+      "objectives": [
+        {
+          "id": "SS-14.LO01",
+          "text": "Mengidentifikasi bagaimana orang yang berbeda dapat mengalami situasi kerja yang sama secara berbeda"
+        },
+        {
+          "id": "SS-14.LO02",
+          "text": "Menggunakan pemahaman perspektif untuk membedakan asumsi dari apa yang mungkin dipikirkan, dirasakan, atau dibutuhkan orang lain"
+        },
+        {
+          "id": "SS-14.LO03",
+          "text": "Memilih respons yang menunjukkan empati sambil menjaga batasan yang sesuai"
+        },
+        {
+          "id": "SS-14.LO04",
+          "text": "Menerjemahkan refleksi menjadi perilaku spesifik yang memperbaiki hubungan dan kolaborasi di tempat kerja"
+        }
+      ],
+      "audience": "Tim, pemimpin, kelompok yang berhadapan dengan pelanggan, dan organisasi yang menginginkan hubungan antarmanusia yang lebih kuat",
+      "duration": "1–2 hari",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Experience. Awareness. Choice. Action.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Mengidentifikasi bagaimana orang yang berbeda dapat mengalami situasi kerja yang sama secara berbeda\n• Menggunakan pemahaman perspektif untuk membedakan asumsi dari apa yang mungkin dipikirkan, dirasakan, atau dibutuhkan orang lain\n• Memilih respons yang menunjukkan empati sambil menjaga batasan yang sesuai\n• Menerjemahkan refleksi menjadi perilaku spesifik yang memperbaiki hubungan dan kolaborasi di tempat kerja\nOVERVIEW / KONTEN\n• Empati dan pemahaman perspektif (perspective-taking)\n• Pengalaman dan kesadaran melalui simulasi\n• aktivitas experiential\n• Memahami SAYS → THINKS → FEELS → DOES\n• Pilihan dan respons perilaku\n• Tindakan dan penerapan pada hubungan kerja\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Relationship Building\n• Collaboration\n• Communication\n• Professional Presence\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mengalami situasi dari berbagai perspektif.\nKesadaran yang lebih besar akan asumsi, kebutuhan, dan reaksi.\nKomitmen empati-dalam-tindakan yang konkret.\nCocok Untuk: Tim, pemimpin, kelompok yang berhadapan dengan pelanggan, dan organisasi yang menginginkan hubungan antarmanusia yang lebih kuat\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaPlay / BinaLab\nCatatan: Urutan experiential inti: EXPERIENCE → AWARENESS → CHOICE → ACTION."
+    },
+    {
+      "code": "SS-15",
+      "name": "High Performing Team",
+      "sourceParagraphStart": 559,
+      "sourceParagraphEnd": 594,
+      "objectives": [
+        {
+          "id": "SS-15.LO01",
+          "text": "Menyelaraskan tujuan tim, ekspektasi kinerja, dan ukuran keberhasilan"
+        },
+        {
+          "id": "SS-15.LO02",
+          "text": "Memperjelas peran, hak pengambilan keputusan, dan cara kerja yang mendukung eksekusi yang andal"
+        },
+        {
+          "id": "SS-15.LO03",
+          "text": "Meninjau kemajuan dan kualitas, menangani kesenjangan kinerja, dan memperkuat akuntabilitas"
+        },
+        {
+          "id": "SS-15.LO04",
+          "text": "Membangun rutinitas tim untuk pembelajaran, perbaikan berkelanjutan, dan hasil yang berkelanjutan"
+        }
+      ],
+      "audience": "Tim kepemimpinan, tim manajemen, tim proyek, dan tim yang sudah mapan",
+      "duration": "1–2 hari + tindak lanjut opsional",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Bangun Kebiasaan Tim Berkinerja Tinggi.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari + tindak lanjut opsional\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menyelaraskan tujuan tim, ekspektasi kinerja, dan ukuran keberhasilan\n• Memperjelas peran, hak pengambilan keputusan, dan cara kerja yang mendukung eksekusi yang andal\n• Meninjau kemajuan dan kualitas, menangani kesenjangan kinerja, dan memperkuat akuntabilitas\n• Membangun rutinitas tim untuk pembelajaran, perbaikan berkelanjutan, dan hasil yang berkelanjutan\nOVERVIEW / KONTEN\n• Karakteristik dan kebiasaan tim berkinerja tinggi\n• Norma kinerja dan akuntabilitas\n• Kolaborasi, disiplin, dan eksekusi\n• Umpan balik dan siklus pembelajaran\n• Praktik perbaikan berkelanjutan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Team Leadership\n• Follow-Through\n• Collaboration\n• Communication\n• Achievement Orientation\n• Quality Orientation\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nKekuatan dan kesenjangan kinerja tim menjadi terlihat.\nNorma dan perilaku kinerja yang disepakati.\nRencana perbaikan tim yang praktis dan tindakan tindak lanjut.\nCocok Untuk: Tim kepemimpinan, tim manajemen, tim proyek, dan tim yang sudah mapan\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaLab / BinaAcademy / BinaCoach"
+    },
+    {
+      "code": "SS-16",
+      "name": "Team Agility",
+      "sourceParagraphStart": 595,
+      "sourceParagraphEnd": 629,
+      "objectives": [
+        {
+          "id": "SS-16.LO01",
+          "text": "Mengenali perubahan prioritas, ketergantungan, dan kondisi operasi tim sejak dini"
+        },
+        {
+          "id": "SS-16.LO02",
+          "text": "Menyesuaikan rencana dan metode kerja sambil menjaga tujuan bersama tetap terlihat"
+        },
+        {
+          "id": "SS-16.LO03",
+          "text": "Mengoordinasikan keputusan cepat dan eksperimen di antara anggota tim dengan pengendalian risiko yang memadai"
+        },
+        {
+          "id": "SS-16.LO04",
+          "text": "Pulih dari kemunduran, belajar dari hasil, dan menyesuaikan iterasi kerja berikutnya"
+        }
+      ],
+      "audience": "Tim yang menghadapi perubahan, transformasi, cara kerja baru, atau prioritas yang bergejolak",
+      "duration": "1–2 hari + tindak lanjut opsional",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Bangun Tim yang Mampu Beradaptasi.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari + tindak lanjut opsional\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Mengenali perubahan prioritas, ketergantungan, dan kondisi operasi tim sejak dini\n• Menyesuaikan rencana dan metode kerja sambil menjaga tujuan bersama tetap terlihat\n• Mengoordinasikan keputusan cepat dan eksperimen di antara anggota tim dengan pengendalian risiko yang memadai\n• Pulih dari kemunduran, belajar dari hasil, dan menyesuaikan iterasi kerja berikutnya\nOVERVIEW / KONTEN\n• Ketangkasan (agility) dan adaptabilitas tim\n• Kolaborasi cepat dan siklus keputusan\n• Eksperimen dan iterasi\n• Belajar dari umpan balik dan perubahan kondisi\n• Praktik tim yang mendukung responsivitas\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Adaptability\n• Resilience & Perseverance\n• Collaboration\n• Risk Taking\n• Initiative\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta mengidentifikasi hambatan dan peluang agility.\nPraktik atau eksperimen agility tim yang praktis.\nKomitmen tim untuk belajar dan beradaptasi lebih cepat.\nCocok Untuk: Tim yang menghadapi perubahan, transformasi, cara kerja baru, atau prioritas yang bergejolak\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaLab / BinaAcademy / BinaWorks"
+    },
+    {
+      "code": "SS-17",
+      "name": "Leading the Team",
+      "sourceParagraphStart": 630,
+      "sourceParagraphEnd": 666,
+      "objectives": [
+        {
+          "id": "SS-17.LO01",
+          "text": "Menetapkan arah, prioritas, peran, dan ekspektasi kinerja tim yang jelas"
+        },
+        {
+          "id": "SS-17.LO02",
+          "text": "Mendelegasikan hasil dengan kewenangan, sumber daya, dan akuntabilitas yang sesuai"
+        },
+        {
+          "id": "SS-17.LO03",
+          "text": "Melakukan coaching kepada anggota tim melalui percakapan umpan balik dan pengembangan"
+        },
+        {
+          "id": "SS-17.LO04",
+          "text": "Memantau komitmen tim, menangani masalah kinerja, dan menjaga motivasi menuju hasil bersama"
+        }
+      ],
+      "audience": "Supervisor, manajer, pemimpin tim, dan people manager",
+      "duration": "1–2 hari + coaching opsional",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1,
+        2
+      ],
+      "priceEvidence": "Rp25.000.000,-/hari",
+      "sourceText": "Selaraskan. Kembangkan. Gerakkan.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari + coaching opsional\nHingga 30 peserta\nRp25.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Menetapkan arah, prioritas, peran, dan ekspektasi kinerja tim yang jelas\n• Mendelegasikan hasil dengan kewenangan, sumber daya, dan akuntabilitas yang sesuai\n• Melakukan coaching kepada anggota tim melalui percakapan umpan balik dan pengembangan\n• Memantau komitmen tim, menangani masalah kinerja, dan menjaga motivasi menuju hasil bersama\nOVERVIEW / KONTEN\n• Kepemimpinan dan arah tim\n• Penyelarasan, delegasi, dan prioritisasi\n• Pengembangan orang dan coaching\n• Motivasi dan keterlibatan\n• Percakapan kinerja dan akuntabilitas\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Team Leadership\n• Communication\n• Delegation\n• Inspiring Others\n• Developing Others\n• Follow-Through\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta memperkuat perangkat kepemimpinan tim yang praktis.\nTindakan delegasi, pengembangan, dan komunikasi yang lebih jelas.\nRencana aksi kepemimpinan tim.\nCocok Untuk: Supervisor, manajer, pemimpin tim, dan people manager\nModel Harga: Tarif Harian Standar\nBrand Layanan: BinaAcademy / BinaCoach\nORGANIZATION TRANSFORMATION"
+    },
+    {
+      "code": "SS-18",
+      "name": "Culture Activation",
+      "sourceParagraphStart": 667,
+      "sourceParagraphEnd": 701,
+      "objectives": [
+        {
+          "id": "SS-18.LO01",
+          "text": "Menerjemahkan nilai organisasi menjadi perilaku kerja yang spesifik dan dapat diamati"
+        },
+        {
+          "id": "SS-18.LO02",
+          "text": "Menyelaraskan praktik kepemimpinan, rutinitas tim, dan pengakuan (recognition) dengan budaya yang diinginkan"
+        },
+        {
+          "id": "SS-18.LO03",
+          "text": "Meneladankan keputusan dan perilaku yang konsisten untuk memperkuat nilai yang dinyatakan"
+        },
+        {
+          "id": "SS-18.LO04",
+          "text": "Mengaktivasi perubahan budaya melalui pelibatan pemangku kepentingan, komunikasi, dan penguatan"
+        }
+      ],
+      "audience": "Organisasi, unit bisnis, tim kepemimpinan, dan inisiatif transformasi budaya",
+      "duration": "3–6 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Ubah Nilai Menjadi Perilaku Sehari-hari.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–6 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menerjemahkan nilai organisasi menjadi perilaku kerja yang spesifik dan dapat diamati\n• Menyelaraskan praktik kepemimpinan, rutinitas tim, dan pengakuan (recognition) dengan budaya yang diinginkan\n• Meneladankan keputusan dan perilaku yang konsisten untuk memperkuat nilai yang dinyatakan\n• Mengaktivasi perubahan budaya melalui pelibatan pemangku kepentingan, komunikasi, dan penguatan\nOVERVIEW / KONTEN\n• Penerjemahan nilai menjadi perilaku\n• Keselarasan budaya dan ekspektasi perilaku\n• Keteladanan kepemimpinan\n• Ritual, praktik, dan penguatan sehari-hari\n• Menanamkan budaya ke dalam rutinitas tim dan organisasi\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Vision & Values Leadership\n• Integrity\n• Change Leadership\n• Inspiring Others\n• Team Leadership\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nInterpretasi perilaku atas nilai-nilai organisasi.\nPerilaku budaya prioritas dan tindakan aktivasi.\nKomitmen pemimpin/tim dan mekanisme penguatan.\nCocok Untuk: Organisasi, unit bisnis, tim kepemimpinan, dan inisiatif transformasi budaya\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaLab / BinaAcademy / BinaWorks"
+    },
+    {
+      "code": "SS-19",
+      "name": "Change & Organizational Agility",
+      "sourceParagraphStart": 702,
+      "sourceParagraphEnd": 735,
+      "objectives": [
+        {
+          "id": "SS-19.LO01",
+          "text": "Menilai kesiapan organisasi, dampak perubahan, dan hambatan adopsi"
+        },
+        {
+          "id": "SS-19.LO02",
+          "text": "Merencanakan pelibatan pemangku kepentingan dan komunikasi yang mendukung pemahaman serta transisi"
+        },
+        {
+          "id": "SS-19.LO03",
+          "text": "Menyesuaikan rencana implementasi berdasarkan umpan balik, bukti, dan kondisi yang berkembang"
+        },
+        {
+          "id": "SS-19.LO04",
+          "text": "Mengidentifikasi risiko adopsi dan memantau tindakan yang menjaga keberlanjutan perubahan yang dimaksud"
+        }
+      ],
+      "audience": "Organisasi yang sedang bertransformasi, restrukturisasi, perubahan digital, atau pergeseran strategis besar",
+      "duration": "3–6 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Bangun Organisasi yang Mampu Beradaptasi.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–6 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menilai kesiapan organisasi, dampak perubahan, dan hambatan adopsi\n• Merencanakan pelibatan pemangku kepentingan dan komunikasi yang mendukung pemahaman serta transisi\n• Menyesuaikan rencana implementasi berdasarkan umpan balik, bukti, dan kondisi yang berkembang\n• Mengidentifikasi risiko adopsi dan memantau tindakan yang menjaga keberlanjutan perubahan yang dimaksud\nOVERVIEW / KONTEN\n• Kesiapan perubahan dan ketangkasan organisasi\n• Keselarasan pemangku kepentingan dan adopsi\n• Komunikasi perubahan dan transisi\n• Kapabilitas adaptif dan pembelajaran\n• Menanamkan perubahan ke dalam praktik organisasi\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Change Leadership\n• Communication\n• Adaptability\n• Risk Management\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nWawasan kesiapan perubahan dan adopsi.\nHambatan prioritas dan area tindakan.\nPeta jalan (roadmap) perubahan/adopsi atau rencana intervensi yang terstruktur.\nCocok Untuk: Organisasi yang sedang bertransformasi, restrukturisasi, perubahan digital, atau pergeseran strategis besar\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaLab / BinaWorks / BinaCoach"
+    },
+    {
+      "code": "SS-20",
+      "name": "Leadership Academy",
+      "sourceParagraphStart": 736,
+      "sourceParagraphEnd": 773,
+      "objectives": [
+        {
+          "id": "SS-20.LO01",
+          "text": "Menilai kekuatan kepemimpinan dan prioritas pengembangan terhadap ekspektasi peran"
+        },
+        {
+          "id": "SS-20.LO02",
+          "text": "Menerapkan praktik kepemimpinan orang dalam penetapan arah, delegasi, umpan balik, dan akuntabilitas"
+        },
+        {
+          "id": "SS-20.LO03",
+          "text": "Menghubungkan keputusan tim dan pengembangan kapabilitas dengan prioritas organisasi jangka panjang, dengan mempertimbangkan tren dan implikasi jangka panjang"
+        },
+        {
+          "id": "SS-20.LO04",
+          "text": "Mempraktikkan perilaku kepemimpinan melalui penugasan penerapan, umpan balik, dan tinjauan"
+        }
+      ],
+      "audience": "Organisasi yang mengembangkan supervisor, manajer, senior manajer, dan pemimpin",
+      "duration": "3–6 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Bangun Pemimpin di Setiap Level.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–6 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menilai kekuatan kepemimpinan dan prioritas pengembangan terhadap ekspektasi peran\n• Menerapkan praktik kepemimpinan orang dalam penetapan arah, delegasi, umpan balik, dan akuntabilitas\n• Menghubungkan keputusan tim dan pengembangan kapabilitas dengan prioritas organisasi jangka panjang, dengan mempertimbangkan tren dan implikasi jangka panjang\n• Mempraktikkan perilaku kepemimpinan melalui penugasan penerapan, umpan balik, dan tinjauan\nOVERVIEW / KONTEN\n• Pola pikir kepemimpinan dan kerangka kapabilitas\n• Kepemimpinan orang dan kinerja\n• Strategic thinking dan pengambilan keputusan\n• Memimpin perubahan dan memengaruhi\n• Praktik, refleksi, umpan balik, dan penerapan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Team Leadership\n• Delegation\n• Developing Others\n• Influencing\n• Strategic Thinking\n• Problem Solving & Decision Making\n• Vision & Values Leadership\n• Change Leadership\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeta jalan pengembangan kapabilitas kepemimpinan.\nProyek atau praktik kepemimpinan terapan.\nWawasan kemajuan dan rekomendasi pengembangan.\nCocok Untuk: Organisasi yang mengembangkan supervisor, manajer, senior manajer, dan pemimpin\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaAcademy / BinaCoach"
+    },
+    {
+      "code": "SS-21",
+      "name": "Future Leaders",
+      "sourceParagraphStart": 774,
+      "sourceParagraphEnd": 809,
+      "objectives": [
+        {
+          "id": "SS-21.LO01",
+          "text": "Menafsirkan tren bisnis dan organisasi yang dapat membentuk prioritas masa depan"
+        },
+        {
+          "id": "SS-21.LO02",
+          "text": "Menghubungkan pilihan strategis dengan penciptaan nilai, sumber daya, pemangku kepentingan, dan implikasi jangka panjang"
+        },
+        {
+          "id": "SS-21.LO03",
+          "text": "Merumuskan dan mengomunikasikan rekomendasi yang beralasan berdasarkan bukti dan asumsi"
+        },
+        {
+          "id": "SS-21.LO04",
+          "text": "Menyusun rencana pengembangan pribadi dan mencari peluang menantang (stretch) yang mempersiapkan tanggung jawab kepemimpinan yang lebih luas"
+        }
+      ],
+      "audience": "Karyawan potensi tinggi (high-potential), pemimpin yang sedang berkembang, dan kandidat jalur suksesi kepemimpinan (leadership pipeline)",
+      "duration": "3–6 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Siapkan Talenta Hari Ini untuk Kepemimpinan Esok.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–6 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menafsirkan tren bisnis dan organisasi yang dapat membentuk prioritas masa depan\n• Menghubungkan pilihan strategis dengan penciptaan nilai, sumber daya, pemangku kepentingan, dan implikasi jangka panjang\n• Merumuskan dan mengomunikasikan rekomendasi yang beralasan berdasarkan bukti dan asumsi\n• Menyusun rencana pengembangan pribadi dan mencari peluang menantang (stretch) yang mempersiapkan tanggung jawab kepemimpinan yang lebih luas\nOVERVIEW / KONTEN\n• Ekspektasi kepemimpinan masa depan\n• Strategic thinking dan perspektif bisnis\n• Paparan kepemimpinan dan pengaruh\n• Kesadaran diri, pengembangan, dan pertumbuhan karier\n• Praktik kepemimpinan terapan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Strategic Thinking\n• Initiative\n• Business Acumen\n• Influencing\n• Self-Development\n• Problem Solving & Decision Making\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPrioritas pengembangan individu.\nRencana aksi kesiapan kepemimpinan.\nProyek terapan, refleksi, dan bukti pengembangan.\nCocok Untuk: Karyawan potensi tinggi (high-potential), pemimpin yang sedang berkembang, dan kandidat jalur suksesi kepemimpinan (leadership pipeline)\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaAcademy / BinaCoach"
+    },
+    {
+      "code": "SS-22",
+      "name": "Internal Trainer & Facilitator Academy",
+      "sourceParagraphStart": 810,
+      "sourceParagraphEnd": 848,
+      "objectives": [
+        {
+          "id": "SS-22.LO01",
+          "text": "Mendiagnosis kebutuhan peserta belajar dan bisnis serta merumuskan hasil belajar yang terukur"
+        },
+        {
+          "id": "SS-22.LO02",
+          "text": "Merancang urutan pembelajaran yang logis dengan latihan, aktivitas, dan asesmen yang sesuai"
+        },
+        {
+          "id": "SS-22.LO03",
+          "text": "Memfasilitasi pembelajaran orang dewasa dengan presentasi, pertanyaan, dan pelibatan peserta yang jelas"
+        },
+        {
+          "id": "SS-22.LO04",
+          "text": "Menilai bukti pembelajaran, memberikan umpan balik konstruktif, dan memperbaiki penyampaian melalui refleksi dan latihan"
+        }
+      ],
+      "audience": "Trainer internal, subject-matter expert, fasilitator, dan tim HR/L&D",
+      "duration": "2–5 hari + tindak lanjut opsional 1–3 bulan",
+      "capacity": "Hingga 30 peserta",
+      "pricingModel": "Tarif Harian Khusus",
+      "dailyRateIdr": 30000000,
+      "allowedDays": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "priceEvidence": "Rp30.000.000,-/hari",
+      "sourceText": "Bangun Kapabilitas Pembelajaran Internal.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n2–5 hari + tindak lanjut opsional 1–3 bulan\nHingga 30 peserta\nRp30.000.000,-/hari\nSASARAN PEMBELAJARAN\n• Mendiagnosis kebutuhan peserta belajar dan bisnis serta merumuskan hasil belajar yang terukur\n• Merancang urutan pembelajaran yang logis dengan latihan, aktivitas, dan asesmen yang sesuai\n• Memfasilitasi pembelajaran orang dewasa dengan presentasi, pertanyaan, dan pelibatan peserta yang jelas\n• Menilai bukti pembelajaran, memberikan umpan balik konstruktif, dan memperbaiki penyampaian melalui refleksi dan latihan\nOVERVIEW / KONTEN\n• Prinsip pembelajaran orang dewasa (adult learning)\n• Desain pelatihan dan modul\n• Keterampilan fasilitasi dan presentasi\n• Metode pembelajaran dan pelibatan peserta\n• Asesmen, umpan balik, latihan, dan peningkatan kemampuan trainer\n• Train-the-Trainer (TTT) merupakan kurikulum\n• jalur inti\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Presentation & Public Speaking\n• Communication\n• Developing Others\n• Quality Orientation\n• Self-Development\n• Meeting Leadership\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPeserta dapat merancang dan memfasilitasi sesi pembelajaran internal.\nLatihan trainer/fasilitator dengan umpan balik terstruktur.\nRencana perbaikan pribadi dan standar trainer internal.\nCocok Untuk: Trainer internal, subject-matter expert, fasilitator, dan tim HR/L&D\nModel Harga: Tarif Harian Khusus\nBrand Layanan: BinaAcademy / BinaLab\nCatatan: Tarif khusus berlaku untuk SS-22."
+    },
+    {
+      "code": "SS-23",
+      "name": "Performance Acceleration",
+      "sourceParagraphStart": 849,
+      "sourceParagraphEnd": 883,
+      "objectives": [
+        {
+          "id": "SS-23.LO01",
+          "text": "Menerjemahkan prioritas bisnis menjadi hasil kinerja dan ukuran yang jelas"
+        },
+        {
+          "id": "SS-23.LO02",
+          "text": "Mengidentifikasi kesenjangan kinerja berdasarkan bukti dan menganalisis penyebab yang berkontribusi"
+        },
+        {
+          "id": "SS-23.LO03",
+          "text": "Memprioritaskan tindakan perbaikan, penanggung jawab, jadwal, dan sumber daya yang dibutuhkan"
+        },
+        {
+          "id": "SS-23.LO04",
+          "text": "Meninjau hasil terhadap target dan menyesuaikan tindakan untuk menjaga peningkatan kinerja"
+        }
+      ],
+      "audience": "Organisasi, unit bisnis, tim, dan fungsi dengan prioritas kinerja yang jelas",
+      "duration": "3–6 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Hubungkan Kapabilitas Orang dengan Kinerja Bisnis.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–6 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menerjemahkan prioritas bisnis menjadi hasil kinerja dan ukuran yang jelas\n• Mengidentifikasi kesenjangan kinerja berdasarkan bukti dan menganalisis penyebab yang berkontribusi\n• Memprioritaskan tindakan perbaikan, penanggung jawab, jadwal, dan sumber daya yang dibutuhkan\n• Meninjau hasil terhadap target dan menyesuaikan tindakan untuk menjaga peningkatan kinerja\nOVERVIEW / KONTEN\n• Penyelarasan dan prioritas kinerja\n• Keterkaitan kapabilitas dan kinerja\n• Disiplin eksekusi dan akuntabilitas\n• Praktik perbaikan kinerja\n• Tindakan, tinjauan, dan penguatan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Achievement Orientation\n• Planning & Organizing\n• Follow-Through\n• Business Acumen\n• Problem Solving & Decision Making\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nWawasan kesenjangan kinerja dan kapabilitas.\nTindakan perbaikan kinerja prioritas.\nRencana aksi yang menghubungkan pengembangan orang dengan hasil bisnis.\nCocok Untuk: Organisasi, unit bisnis, tim, dan fungsi dengan prioritas kinerja yang jelas\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaWorks / BinaImpact"
+    },
+    {
+      "code": "SS-24",
+      "name": "AI-Ready Organization",
+      "sourceParagraphStart": 884,
+      "sourceParagraphEnd": 919,
+      "objectives": [
+        {
+          "id": "SS-24.LO01",
+          "text": "Menilai peluang, kesiapan, kendala, dan kesenjangan kapabilitas AI organisasi"
+        },
+        {
+          "id": "SS-24.LO02",
+          "text": "Memprioritaskan kasus penggunaan (use case) berdasarkan nilai, kelayakan, kesiapan data, dan risiko"
+        },
+        {
+          "id": "SS-24.LO03",
+          "text": "Merumuskan praktik adopsi yang bertanggung jawab, pertimbangan tata kelola, dan akuntabilitas manusia"
+        },
+        {
+          "id": "SS-24.LO04",
+          "text": "Merencanakan pembangunan kapabilitas tenaga kerja dan adopsi perubahan untuk alur kerja yang dirancang ulang"
+        }
+      ],
+      "audience": "Organisasi yang merencanakan atau memperluas adopsi AI dan cara kerja berbasis AI",
+      "duration": "3–6 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Siapkan Orang untuk Tempat Kerja Berbasis AI.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–6 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menilai peluang, kesiapan, kendala, dan kesenjangan kapabilitas AI organisasi\n• Memprioritaskan kasus penggunaan (use case) berdasarkan nilai, kelayakan, kesiapan data, dan risiko\n• Merumuskan praktik adopsi yang bertanggung jawab, pertimbangan tata kelola, dan akuntabilitas manusia\n• Merencanakan pembangunan kapabilitas tenaga kerja dan adopsi perubahan untuk alur kerja yang dirancang ulang\nOVERVIEW / KONTEN\n• Kesiapan dan adopsi AI\n• Kolaborasi manusia–AI\n• Kesadaran AI yang bertanggung jawab dan tata kelola\n• Perancangan ulang pekerjaan dan peluang alur kerja\n• Pembangunan kapabilitas dan adopsi perubahan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Digital & AI Fluency\n• Risk Management\n• Change Leadership\n• Developing Others\n• Strategic Thinking\n• Business Acumen\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nWawasan kesiapan AI dan area prioritas.\nPeta jalan adopsi/use case yang praktis.\nTindakan kapabilitas dan perubahan untuk tempat kerja berbasis AI.\nCocok Untuk: Organisasi yang merencanakan atau memperluas adopsi AI dan cara kerja berbasis AI\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaWorks / BinaAcademy / BinaInsights"
+    },
+    {
+      "code": "SS-25",
+      "name": "Future-Ready Organization",
+      "sourceParagraphStart": 920,
+      "sourceParagraphEnd": 954,
+      "objectives": [
+        {
+          "id": "SS-25.LO01",
+          "text": "Mengidentifikasi tren eksternal dan kesenjangan kapabilitas internal yang dapat memengaruhi kinerja masa depan"
+        },
+        {
+          "id": "SS-25.LO02",
+          "text": "Mengembangkan skenario yang masuk akal dan menilai implikasinya terhadap strategi dan kapabilitas tenaga kerja"
+        },
+        {
+          "id": "SS-25.LO03",
+          "text": "Memprioritaskan investasi kapabilitas dan jalur pembelajaran yang terkait dengan kebutuhan organisasi di masa depan"
+        },
+        {
+          "id": "SS-25.LO04",
+          "text": "Menetapkan sinyal dan titik tinjauan untuk menyesuaikan rencana seiring perubahan asumsi dan kondisi"
+        }
+      ],
+      "audience": "Organisasi yang bersiap menghadapi pergeseran strategis, kesenjangan kapabilitas, atau kebutuhan tenaga kerja masa depan",
+      "duration": "3–12 bulan, dapat dikonfigurasi",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Transformasi Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Bangun Kapabilitas untuk Apa yang Akan Datang.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n3–12 bulan, dapat dikonfigurasi\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Mengidentifikasi tren eksternal dan kesenjangan kapabilitas internal yang dapat memengaruhi kinerja masa depan\n• Mengembangkan skenario yang masuk akal dan menilai implikasinya terhadap strategi dan kapabilitas tenaga kerja\n• Memprioritaskan investasi kapabilitas dan jalur pembelajaran yang terkait dengan kebutuhan organisasi di masa depan\n• Menetapkan sinyal dan titik tinjauan untuk menyesuaikan rencana seiring perubahan asumsi dan kondisi\nOVERVIEW / KONTEN\n• Kesiapan masa depan dan strategi kapabilitas\n• Kapabilitas tenaga kerja dan keterampilan kritis\n• Adaptabilitas dan budaya belajar\n• Kesiapan strategis dan berpikir skenario\n• Prioritas kapabilitas dan jalur pengembangan\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Strategic Thinking\n• Adaptability\n• Business Acumen\n• Developing Others\n• Risk Management\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPrioritas kapabilitas masa depan dan wawasan kesenjangan.\nPeta jalan kapabilitas strategis.\nRekomendasi tindakan pengembangan dan transformasi.\nCocok Untuk: Organisasi yang bersiap menghadapi pergeseran strategis, kesenjangan kapabilitas, atau kebutuhan tenaga kerja masa depan\nModel Harga: Transformasi Kustom\nBrand Layanan: BinaInsights / BinaAcademy / BinaWorks"
+    },
+    {
+      "code": "SS-26",
+      "name": "Impact Measurement & Transformation Review",
+      "sourceParagraphStart": 955,
+      "sourceParagraphEnd": 995,
+      "objectives": [
+        {
+          "id": "SS-26.LO01",
+          "text": "Menetapkan ukuran keberhasilan dan kebutuhan bukti yang terkait dengan tujuan transformasi"
+        },
+        {
+          "id": "SS-26.LO02",
+          "text": "Menilai kemajuan dan hasil menggunakan data yang andal, pemeriksaan sumber, dan kriteria yang transparan"
+        },
+        {
+          "id": "SS-26.LO03",
+          "text": "Membedakan bukti yang teramati dari asumsi serta mengidentifikasi kesenjangan antara hasil yang dimaksud dan hasil aktual"
+        },
+        {
+          "id": "SS-26.LO04",
+          "text": "Memprioritaskan rekomendasi, penanggung jawab, dan ukuran tindak lanjut untuk meningkatkan dampak dan akuntabilitas"
+        }
+      ],
+      "audience": "Organisasi yang telah menyelesaikan atau sedang menjalankan inisiatif transformasi, pembelajaran, budaya, kepemimpinan, atau kapabilitas",
+      "duration": "1–2 hari + tindak lanjut opsional 1–3 bulan",
+      "capacity": "Bergantung pada ruang lingkup",
+      "pricingModel": "Tinjauan Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Ukur. Belajar. Perbaiki. Tunjukkan Dampak.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\n1–2 hari + tindak lanjut opsional 1–3 bulan\nBergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menetapkan ukuran keberhasilan dan kebutuhan bukti yang terkait dengan tujuan transformasi\n• Menilai kemajuan dan hasil menggunakan data yang andal, pemeriksaan sumber, dan kriteria yang transparan\n• Membedakan bukti yang teramati dari asumsi serta mengidentifikasi kesenjangan antara hasil yang dimaksud dan hasil aktual\n• Memprioritaskan rekomendasi, penanggung jawab, dan ukuran tindak lanjut untuk meningkatkan dampak dan akuntabilitas\nOVERVIEW / KONTEN\n• Tinjauan tujuan, intervensi, dan bukti\n• Asesmen dan audit\n• tinjauan terstruktur\n• Diagnosis kesenjangan, kekuatan, dan inkonsistensi\n• Prioritisasi tindakan berikutnya\n• Pembelajaran dan rekomendasi\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Quality Orientation\n• Achievement Orientation\n• Problem Solving & Decision Making\n• Business Acumen\n• Information Literacy & Critical Evaluation\n• Follow-Through\n• Integrity\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nTransformation Health Map:  ● Mapan / Sesuai;  ● Sebagian / Belum Konsisten;  ● Perlu Perhatian.\nArea prioritas dan wawasan berbasis bukti.\nRekomendasi tindakan dan intervensi berikutnya.\nDiskusi tinjauan dan langkah lanjutan yang disepakati.\nCocok Untuk: Organisasi yang telah menyelesaikan atau sedang menjalankan inisiatif transformasi, pembelajaran, budaya, kepemimpinan, atau kapabilitas\nModel Harga: Tinjauan Kustom\nBrand Layanan: BinaImpact\nCatatan: Warna status adalah alat komunikasi, bukan skor generik atau sertifikasi; kriteria disepakati dengan klien dan dikaitkan dengan tujuan.\nSPECIALIZED"
+    },
+    {
+      "code": "SS-27",
+      "name": "Spiritual Leadership Journey",
+      "sourceParagraphStart": 996,
+      "sourceParagraphEnd": 1037,
+      "objectives": [
+        {
+          "id": "SS-27.LO01",
+          "text": "Menggunakan refleksi terstruktur untuk mengidentifikasi pola kepemimpinan, nilai, kekuatan, dan kebutuhan pengembangan"
+        },
+        {
+          "id": "SS-27.LO02",
+          "text": "Memperjelas niat, tujuan transformasi diri, dan komitmen perilaku sebelum perjalanan Umrah"
+        },
+        {
+          "id": "SS-27.LO03",
+          "text": "Memanfaatkan pengalaman Umrah sebagai ruang muhasabah, pembaruan perspektif, dan penguatan komitmen pribadi"
+        },
+        {
+          "id": "SS-27.LO04",
+          "text": "Menerjemahkan wawasan perjalanan menjadi sasaran, kebiasaan, dan tindakan transformasi diri selama 90 hari setelah Umrah"
+        },
+        {
+          "id": "SS-27.LO05",
+          "text": "Meninjau kemajuan dan menjaga konsistensi praktik setelah kembali ke rutinitas kerja"
+        }
+      ],
+      "audience": "Pemimpin, profesional Muslim, dan organisasi berbasis Syariah",
+      "duration": "Tetap 90 hari",
+      "capacity": "Dapat dikonfigurasi / bergantung pada ruang lingkup",
+      "pricingModel": "Journey Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Harga kustom sesuai ruang lingkup",
+      "sourceText": "Elevating Leadership, Beyond the Limit.\nDurasi Standar\nKapasitas Peserta\nInvestasi Standar\nTetap 90 hari\nDapat dikonfigurasi / bergantung pada ruang lingkup\nHarga kustom sesuai ruang lingkup\nSASARAN PEMBELAJARAN\n• Menggunakan refleksi terstruktur untuk mengidentifikasi pola kepemimpinan, nilai, kekuatan, dan kebutuhan pengembangan\n• Memperjelas niat, tujuan transformasi diri, dan komitmen perilaku sebelum perjalanan Umrah\n• Memanfaatkan pengalaman Umrah sebagai ruang muhasabah, pembaruan perspektif, dan penguatan komitmen pribadi\n• Menerjemahkan wawasan perjalanan menjadi sasaran, kebiasaan, dan tindakan transformasi diri selama 90 hari setelah Umrah\n• Meninjau kemajuan dan menjaga konsistensi praktik setelah kembali ke rutinitas kerja\nOVERVIEW / KONTEN\n• Persiapan perjalanan: niat, refleksi diri, dan tujuan pengembangan\n• Umrah sebagai pengalaman spiritual yang terintegrasi dengan proses self-transformation\n• Muhasabah — refleksi dan kesadaran diri\n• Niyyah — tujuan dan niat\n• Mujahadah — upaya disiplin dan praktik perubahan\n• Istiqamah — konsistensi dan kebiasaan berkelanjutan\n• 90-day post-Umrah transformation journey, refleksi berkala, dan Personal Transformation Project\nKOMPETENSI YANG DIKEMBANGKAN\nKOMPETENSI INTI (CORE)\nKOMPETENSI PENDUKUNG (SECONDARY)\n• Self-Development\n• Resilience & Perseverance\n• Integrity\n• Achievement Orientation\n• Vision & Values Leadership\nBasis: nomenklatur kompetensi mengacu pada BinaHub Generic Competency Dictionary — Final. Core = kompetensi utama yang paling langsung ditargetkan oleh sasaran pembelajaran; Secondary = kompetensi pendukung yang diperkuat oleh sasaran pembelajaran, konten, atau output modul.\nOUTPUT / DELIVERABLES\nPerjalanan transformasi pribadi 90 hari yang terstruktur.\nRefleksi pribadi dan komitmen kepemimpinan.\nPersonal Transformation Project.\nRencana praktik berkelanjutan setelah journey.\nCocok Untuk: Pemimpin, profesional Muslim, dan organisasi berbasis Syariah\nModel Harga: Journey Kustom\nBrand Layanan: BinaJourney\nCatatan: Solusi khusus yang mengintegrasikan Umrah dengan self-transformation. Perjalanan mencakup persiapan reflektif, pengalaman Umrah sebagai ruang muhasabah dan pembaruan niat, serta praktik transformasi diri selama 90 hari setelah perjalanan. Urutan pengembangan: Muhasabah → Niyyah → Mujahadah → Istiqamah.\nCAPABILITY ACCELERATORS — SOLUSI BARU\nSolusi baru ini menutup kekosongan portofolio yang teridentifikasi dalam audit kompetensi. Masing-masing memiliki sasaran pembelajaran dan kompetensi inti yang dapat ditelusuri ke BinaHub Generic Competency Dictionary — Final."
+    },
+    {
+      "code": "SS-28",
+      "name": "Influence & Inspire",
+      "sourceParagraphStart": 1038,
+      "sourceParagraphEnd": 1045,
+      "objectives": [
+        {
+          "id": "SS-28.LO01",
+          "text": "menyusun pesan yang mempertimbangkan kebutuhan audiens; membangun argumen dan rekomendasi yang didukung alasan; memengaruhi pemangku kepentingan secara etis; dan menghubungkan tujuan bersama dengan tindakan yang membangkitkan keterlibatan"
+        }
+      ],
+      "audience": null,
+      "duration": "1 hari",
+      "capacity": "hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1
+      ],
+      "priceEvidence": "Output: stakeholder message map, rekomendasi/pitch singkat, dan rencana pengaruh yang etis. Format: Training / Workshop. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari. Sub-brand: BinaLab.",
+      "sourceText": "Descriptor: Build Credibility. Move Ideas. Inspire Action.\nSASARAN PEMBELAJARAN\n•  menyusun pesan yang mempertimbangkan kebutuhan audiens; membangun argumen dan rekomendasi yang didukung alasan; memengaruhi pemangku kepentingan secara etis; dan menghubungkan tujuan bersama dengan tindakan yang membangkitkan keterlibatan\nOVERVIEW / KONTEN\n•  pemetaan pemangku kepentingan; pesan inti dan framing; persuasi berbasis bukti; keberatan dan negosiasi awal; komunikasi kredibel; storytelling profesional tanpa manipulasi; mengubah aspirasi menjadi ajakan bertindak\nKompetensi inti: Influencing; Inspiring Others. Kompetensi pendukung: Communication; Professional Presence; Relationship Building.\nOutput: stakeholder message map, rekomendasi/pitch singkat, dan rencana pengaruh yang etis. Format: Training / Workshop. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari. Sub-brand: BinaLab."
+    },
+    {
+      "code": "SS-29",
+      "name": "Meeting Excellence & Facilitation",
+      "sourceParagraphStart": 1046,
+      "sourceParagraphEnd": 1054,
+      "objectives": [
+        {
+          "id": "SS-29.LO01",
+          "text": "menetapkan tujuan dan hasil rapat; merancang agenda dan alokasi waktu; memfasilitasi diskusi serta partisipasi yang seimbang; mengelola penyimpangan diskusi dan perbedaan pendapat; serta mendokumentasikan keputusan, penanggung jawab, tenggat, dan tindak lanjut"
+        }
+      ],
+      "audience": null,
+      "duration": "1 hari",
+      "capacity": "hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1
+      ],
+      "priceEvidence": "Output: template agenda, fasilitasi simulasi rapat, decision log, dan action tracker. Format: Training / Workshop. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari. Sub-brand: BinaLab.",
+      "sourceText": "Descriptor: Make Meetings Clear, Inclusive, and Action-Oriented.\nSASARAN PEMBELAJARAN\n•  menetapkan tujuan dan hasil rapat; merancang agenda dan alokasi waktu; memfasilitasi diskusi serta partisipasi yang seimbang; mengelola penyimpangan diskusi dan perbedaan pendapat; serta mendokumentasikan keputusan, penanggung jawab, tenggat, dan tindak lanjut\nOVERVIEW / KONTEN\n•  desain rapat; agenda dan keputusan yang dibutuhkan; fasilitasi diskusi; inklusi suara peserta; pengelolaan waktu dan konflik; pencatatan keputusan; action log dan follow-through; rapat hybrid\n•  digital\nKompetensi inti: Meeting Leadership. Kompetensi pendukung: Communication; Follow-Through; Conflict Management; Professional Presence.\nOutput: template agenda, fasilitasi simulasi rapat, decision log, dan action tracker. Format: Training / Workshop. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari. Sub-brand: BinaLab."
+    },
+    {
+      "code": "SS-30",
+      "name": "Initiative & Resilience at Work",
+      "sourceParagraphStart": 1055,
+      "sourceParagraphEnd": 1062,
+      "objectives": [
+        {
+          "id": "SS-30.LO01",
+          "text": "mengenali masalah dan peluang lebih awal; mengambil langkah yang sesuai tanggung jawab tanpa menunggu instruksi; mencoba pendekatan alternatif saat menghadapi hambatan; mengambil pelajaran dari kemunduran; dan memulihkan momentum secara konstruktif"
+        }
+      ],
+      "audience": null,
+      "duration": "1 hari",
+      "capacity": "hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1
+      ],
+      "priceEvidence": "Output: personal initiative plan, setback reflection, dan eksperimen tindakan 30 hari. Format: Training / Workshop. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari. Sub-brand: BinaLab.",
+      "sourceText": "Descriptor: Take Ownership. Learn from Setbacks. Keep Moving.\nSASARAN PEMBELAJARAN\n•  mengenali masalah dan peluang lebih awal; mengambil langkah yang sesuai tanggung jawab tanpa menunggu instruksi; mencoba pendekatan alternatif saat menghadapi hambatan; mengambil pelajaran dari kemunduran; dan memulihkan momentum secara konstruktif\nOVERVIEW / KONTEN\n•  ownership dan inisiatif; batas kewenangan; action bias yang bertanggung jawab; ketekunan dan strategi alternatif; refleksi kegagalan; pemulihan momentum; rencana eksperimen perbaikan di tempat kerja\nKompetensi inti: Initiative; Resilience & Perseverance. Kompetensi pendukung: Self-Development; Follow-Through; Pressure Management.\nOutput: personal initiative plan, setback reflection, dan eksperimen tindakan 30 hari. Format: Training / Workshop. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari. Sub-brand: BinaLab."
+    },
+    {
+      "code": "SS-31",
+      "name": "Risk Intelligence & Management",
+      "sourceParagraphStart": 1063,
+      "sourceParagraphEnd": 1070,
+      "objectives": [
+        {
+          "id": "SS-31.LO01",
+          "text": "mengidentifikasi risiko yang dapat menghambat tujuan; menilai kemungkinan dan dampak; memprioritaskan risiko; menetapkan mitigasi, pemilik risiko, dan rencana kontingensi; serta memutuskan kapan risiko dapat diterima, perlu dimitigasi, atau harus dieskalasikan"
+        }
+      ],
+      "audience": null,
+      "duration": "1 hari",
+      "capacity": "hingga 30 peserta",
+      "pricingModel": "Tarif Harian Standar",
+      "dailyRateIdr": 25000000,
+      "allowedDays": [
+        1
+      ],
+      "priceEvidence": "Output: risk register sederhana, risk-priority map, dan rencana mitigasi dengan penanggung jawab. Format: Workshop / Applied Lab. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari; dapat dikustom untuk risiko operasional/strategis tertentu. Sub-brand: BinaWorks.",
+      "sourceText": "Descriptor: Anticipate Risk. Make Informed Choices. Protect Outcomes.\nSASARAN PEMBELAJARAN\n•  mengidentifikasi risiko yang dapat menghambat tujuan; menilai kemungkinan dan dampak; memprioritaskan risiko; menetapkan mitigasi, pemilik risiko, dan rencana kontingensi; serta memutuskan kapan risiko dapat diterima, perlu dimitigasi, atau harus dieskalasikan\nOVERVIEW / KONTEN\n•  risk identification; likelihood-impact assessment; risk appetite dan toleransi; risk register; mitigasi dan kontingensi; indikator risiko; monitoring dan eskalasi; perbedaan risk management dengan risk taking\nKompetensi inti: Risk Management. Kompetensi pendukung: Risk Taking; Problem Solving & Decision Making; Strategic Thinking.\nOutput: risk register sederhana, risk-priority map, dan rencana mitigasi dengan penanggung jawab. Format: Workshop / Applied Lab. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari; dapat dikustom untuk risiko operasional/strategis tertentu. Sub-brand: BinaWorks."
+    }
+  ]
+}

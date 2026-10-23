@@ -8,6 +8,17 @@ import { GET, PATCH } from "./route";
 const request = (body: Record<string, unknown> = {}) => new NextRequest("https://api.example.com/api/admin/sales-settings", { method: "PATCH", body: JSON.stringify({ enabled: true, expectedVersion: 1, confirmation: "SAVE_SALES_FOLLOW_UP", ...body }) });
 beforeEach(() => { vi.resetAllMocks(); mocks.auth.mockResolvedValue({ email: "admin@example.com" }); mocks.db.mockReturnValue({ rpc: mocks.rpc }); mocks.load.mockResolvedValue({ enabled: false, version: 1 }); mocks.blockers.mockReturnValue([]); mocks.rpc.mockResolvedValue({ data: { enabled: true, version: 2 }, error: null }); });
 describe("app-managed sales settings", () => {
+  it('does not describe an unavailable scheduler heartbeat as running',async()=>{
+    const response=await GET(new NextRequest('https://api.example.com/api/admin/sales-settings'));
+    expect((await response.json()).worker).toEqual({state:'unknown',lastRunAt:null});
+  });
+  it('returns recent invocation evidence separately from the sending permission',async()=>{
+    const at=new Date(Date.now()-60_000).toISOString();
+    const query={select:()=>query,eq:()=>query,order:()=>query,limit:()=>query,maybeSingle:async()=>({data:{started_at:at},error:null})};
+    mocks.db.mockReturnValue({rpc:mocks.rpc,from:()=>query});
+    const response=await GET(new NextRequest('https://api.example.com/api/admin/sales-settings'));
+    expect((await response.json()).worker).toEqual({state:'recent',lastRunAt:at});
+  });
   it("authenticates reads and mutations before touching privileged data", async () => {
     mocks.auth.mockResolvedValue({ error: "Denied", status: 403 });
     expect((await GET(new NextRequest("https://api.example.com/api/admin/sales-settings"))).status).toBe(403);

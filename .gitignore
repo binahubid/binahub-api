@@ -45,6 +45,7 @@ CLAUDE.md
 *.sql
 !supabase/migrations/*.sql
 !supabase/production_readiness.sql
+!supabase/operations/cleanup_operational_test_data.sql
 
 # CEO assessment material and generated seeds must never enter this public repository.
 *.private.json

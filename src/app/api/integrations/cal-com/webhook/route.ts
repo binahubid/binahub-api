@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { advanceSalesStage } from '@/lib/sales-stage';
 import { normalizeCalComWebhook, verifyCalComSignature } from "@/lib/cal-com-webhook";
 import { createServerSupabase } from "@/lib/supabase";
 
@@ -74,9 +75,8 @@ export async function POST(req: NextRequest) {
         leadOpportunityStage = existingLead.opportunity_stage || "identified";
         const leadUpdate: Record<string, unknown> = { last_meaningful_activity_at: new Date().toISOString() };
         if (["requested", "confirmed", "rescheduled"].includes(event.status)) {
-          leadUpdate.lifecycle_stage = "lead";
-          leadUpdate.opportunity_stage = "consultation";
-          leadOpportunityStage = "consultation";
+          const stage = await advanceSalesStage(db, String(existingLead.id), 'consultation');
+          leadOpportunityStage = stage.stage;
         }
         if (event.status === "no_show") {
           leadUpdate.outreach_paused = true;

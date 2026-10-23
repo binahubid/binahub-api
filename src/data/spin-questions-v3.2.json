@@ -1,0 +1,1707 @@
+{
+  "version": "spin-v3.2-ceo-2026-10-22",
+  "stages": [
+    "Konteks",
+    "Tantangan",
+    "Dampak",
+    "Hasil yang Diharapkan",
+    "Rekomendasi"
+  ],
+  "fields": [
+    {
+      "key": "role",
+      "questionId": "Q01",
+      "label": "Peran Anda",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "R1",
+          "label": "HR, People & Culture, L&D, atau OD."
+        },
+        {
+          "value": "R2",
+          "label": "Pimpinan atau pemilik usaha."
+        },
+        {
+          "value": "R3",
+          "label": "Manajer atau kepala unit."
+        },
+        {
+          "value": "R4",
+          "label": "Konsultan atau pihak ketiga yang mewakili perusahaan."
+        },
+        {
+          "value": "R5",
+          "label": "Peran lain."
+        }
+      ]
+    },
+    {
+      "key": "industry",
+      "questionId": "Q01",
+      "label": "Bidang usaha",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "IND1",
+          "label": "Manufaktur."
+        },
+        {
+          "value": "IND2",
+          "label": "Pertambangan dan energi."
+        },
+        {
+          "value": "IND3",
+          "label": "Farmasi dan kesehatan."
+        },
+        {
+          "value": "IND4",
+          "label": "Distribusi, ritel, atau FMCG."
+        },
+        {
+          "value": "IND5",
+          "label": "Jasa keuangan."
+        },
+        {
+          "value": "IND6",
+          "label": "Pendidikan atau lembaga sosial/keagamaan."
+        },
+        {
+          "value": "IND7",
+          "label": "Teknologi dan layanan profesional."
+        },
+        {
+          "value": "IND8",
+          "label": "Bidang lain."
+        }
+      ]
+    },
+    {
+      "key": "industryOther",
+      "questionId": "Q01",
+      "label": "Bidang usaha lainnya",
+      "type": "text",
+      "required": true,
+      "maxLength": 100,
+      "when": {
+        "key": "industry",
+        "values": [
+          "IND8"
+        ]
+      }
+    },
+    {
+      "key": "orgSize",
+      "questionId": "Q01",
+      "label": "Jumlah karyawan",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "SZ1",
+          "label": "Kurang dari 50."
+        },
+        {
+          "value": "SZ2",
+          "label": "50–250."
+        },
+        {
+          "value": "SZ3",
+          "label": "251–1.000."
+        },
+        {
+          "value": "SZ4",
+          "label": "Lebih dari 1.000."
+        },
+        {
+          "value": "SZ5",
+          "label": "Belum ingin menyebutkan."
+        }
+      ]
+    },
+    {
+      "key": "trigger",
+      "questionId": "Q02",
+      "label": "Apa yang paling mendorong perusahaan Anda mencari dukungan saat ini?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "T1",
+          "label": "Perlu mengatasi tantangan kinerja atau cara kerja yang sedang terjadi."
+        },
+        {
+          "value": "T2",
+          "label": "Ingin meningkatkan kemampuan atau efektivitas karyawan atau tim."
+        },
+        {
+          "value": "T3",
+          "label": "Sedang mempersiapkan perubahan, target, atau tanggung jawab baru."
+        },
+        {
+          "value": "T4",
+          "label": "Menindaklanjuti hasil asesmen, evaluasi, audit, atau program sebelumnya."
+        },
+        {
+          "value": "T5",
+          "label": "Sedang menyusun agenda pengembangan SDM untuk periode mendatang."
+        },
+        {
+          "value": "T6",
+          "label": "Masih menjajaki kebutuhan dan ingin mendapat rekomendasi."
+        }
+      ]
+    },
+    {
+      "key": "businessContext",
+      "questionId": "Q02",
+      "label": "Konteks bisnis atau perubahan yang perlu kami pahami",
+      "type": "text",
+      "required": false,
+      "maxLength": 300,
+      "when": {
+        "key": "trigger",
+        "values": [
+          "T3"
+        ]
+      }
+    },
+    {
+      "key": "audienceGroups",
+      "questionId": "Q03",
+      "label": "Kelompok utama",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "frontline",
+          "label": "Operator atau staf frontline."
+        },
+        {
+          "value": "professional",
+          "label": "Staf atau profesional."
+        },
+        {
+          "value": "new_leader",
+          "label": "Supervisor, foreman, atau first-time manager."
+        },
+        {
+          "value": "manager",
+          "label": "Manajer atau kepala departemen."
+        },
+        {
+          "value": "senior_leader",
+          "label": "Pimpinan senior atau jajaran manajemen."
+        },
+        {
+          "value": "trainer",
+          "label": "Trainer internal, fasilitator, atau tim HR/L&D."
+        },
+        {
+          "value": "mixed",
+          "label": "Beberapa jenjang atau fungsi sekaligus."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ditentukan.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 8
+    },
+    {
+      "key": "countStatus",
+      "questionId": "Q03",
+      "label": "Jumlah peserta",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "known",
+          "label": "Sudah diketahui"
+        },
+        {
+          "value": "estimate",
+          "label": "Masih perkiraan"
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ditentukan"
+        }
+      ]
+    },
+    {
+      "key": "participantCount",
+      "questionId": "Q03",
+      "label": "Perkiraan jumlah peserta",
+      "type": "number",
+      "required": true,
+      "when": {
+        "key": "countStatus",
+        "values": [
+          "known",
+          "estimate"
+        ]
+      },
+      "max": 100000
+    },
+    {
+      "key": "programScope",
+      "questionId": "Q03",
+      "label": "Cakupan",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "one_team",
+          "label": "Satu tim atau departemen."
+        },
+        {
+          "value": "multiple_teams",
+          "label": "Beberapa tim atau departemen."
+        },
+        {
+          "value": "organization",
+          "label": "Seluruh organisasi atau sebagian besar karyawan."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ditentukan."
+        }
+      ]
+    },
+    {
+      "key": "problemCluster",
+      "questionId": "Q04",
+      "label": "Tantangan mana yang paling ingin diatasi terlebih dahulu?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "C1",
+          "label": "Pemimpin atau manajer belum optimal mengarahkan, mendelegasikan, atau mengembangkan tim."
+        },
+        {
+          "value": "C2",
+          "label": "Komunikasi, kolaborasi, atau koordinasi antar orang atau fungsi belum lancar."
+        },
+        {
+          "value": "C3",
+          "label": "Kinerja, produktivitas, atau kebiasaan kerja individu belum optimal."
+        },
+        {
+          "value": "C4",
+          "label": "Pelayanan pelanggan belum konsisten."
+        },
+        {
+          "value": "C5",
+          "label": "Penjualan, negosiasi, atau kemampuan memengaruhi belum efektif."
+        },
+        {
+          "value": "C6",
+          "label": "Masalah terjadi berulang, keputusan lambat atau kurang tepat, atau inovasi minim."
+        },
+        {
+          "value": "C7",
+          "label": "Pemanfaatan AI dan teknologi dalam pekerjaan belum optimal."
+        },
+        {
+          "value": "C8",
+          "label": "Kesiapan trainer internal, fasilitator, atau tim HR/L&D belum memadai."
+        },
+        {
+          "value": "C9",
+          "label": "Budaya kerja, penerapan perubahan, atau efektivitas organisasi perlu diperbaiki."
+        },
+        {
+          "value": "C10",
+          "label": "Risiko, keselamatan kerja, atau kepatuhan prosedur perlu diperkuat."
+        },
+        {
+          "value": "C11",
+          "label": "Dampak program pengembangan belum terukur atau belum jelas."
+        },
+        {
+          "value": "other",
+          "label": "Tantangan lain."
+        },
+        {
+          "value": "C0",
+          "label": "Belum yakin; perlu dibantu menentukan prioritas."
+        }
+      ]
+    },
+    {
+      "key": "problemOther",
+      "questionId": "Q04",
+      "label": "Tantangan lain",
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "when": {
+        "key": "problemCluster",
+        "values": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "symptoms",
+      "questionId": "Q05",
+      "label": "Gejala mana yang paling sering terlihat?",
+      "type": "multi",
+      "required": true,
+      "options": [],
+      "maxSelected": 3,
+      "optionGroups": {
+        "C1": [
+          {
+            "value": "S1",
+            "label": "Atasan masih mengerjakan tugas anggota (delegasi lemah)."
+          },
+          {
+            "value": "S2",
+            "label": "Anggota tim menunggu arahan dan kurang mandiri."
+          },
+          {
+            "value": "S3",
+            "label": "Percakapan kinerja atau coaching tidak rutin."
+          },
+          {
+            "value": "S4",
+            "label": "Pemimpin baru belum siap menjalankan peran barunya."
+          }
+        ],
+        "C2": [
+          {
+            "value": "S1",
+            "label": "Pesan tidak tersampaikan jelas sehingga terjadi salah paham."
+          },
+          {
+            "value": "S2",
+            "label": "Koordinasi antar bagian tersendat."
+          },
+          {
+            "value": "S3",
+            "label": "Konflik atau kurang percaya antar anggota atau unit."
+          },
+          {
+            "value": "S4",
+            "label": "Informasi tidak mengalir."
+          }
+        ],
+        "C3": [
+          {
+            "value": "S1",
+            "label": "Prioritas sering berubah dan target terlewat."
+          },
+          {
+            "value": "S2",
+            "label": "Pekerjaan menumpuk atau sering terlambat."
+          },
+          {
+            "value": "S3",
+            "label": "Kebiasaan kerja belum konsisten."
+          },
+          {
+            "value": "S4",
+            "label": "Sulit menyeimbangkan banyak tugas."
+          }
+        ],
+        "C4": [
+          {
+            "value": "S1",
+            "label": "Keluhan pelanggan berulang."
+          },
+          {
+            "value": "S2",
+            "label": "Standar layanan tidak konsisten antar orang atau shift."
+          },
+          {
+            "value": "S3",
+            "label": "Respons terhadap pelanggan lambat."
+          },
+          {
+            "value": "S4",
+            "label": "Sulit menangani pelanggan yang sulit."
+          }
+        ],
+        "C5": [
+          {
+            "value": "S1",
+            "label": "Tim sulit menangani keberatan atau menutup penjualan."
+          },
+          {
+            "value": "S2",
+            "label": "Presentasi atau negosiasi kurang meyakinkan."
+          },
+          {
+            "value": "S3",
+            "label": "Pendekatan ke pelanggan tidak terstruktur."
+          },
+          {
+            "value": "S4",
+            "label": "Umpan balik sulit disampaikan atau diterima."
+          }
+        ],
+        "C6": [
+          {
+            "value": "S1",
+            "label": "Masalah yang sama terjadi berulang."
+          },
+          {
+            "value": "S2",
+            "label": "Keputusan lambat atau kurang berbasis data."
+          },
+          {
+            "value": "S3",
+            "label": "Analisis akar masalah jarang dilakukan."
+          },
+          {
+            "value": "S4",
+            "label": "Ide perbaikan jarang muncul atau diterapkan."
+          }
+        ],
+        "C7": [
+          {
+            "value": "S1",
+            "label": "Alat digital atau AI tersedia tetapi jarang dipakai."
+          },
+          {
+            "value": "S2",
+            "label": "Penggunaan belum aman atau konsisten (data, etika)."
+          },
+          {
+            "value": "S3",
+            "label": "Pekerjaan berulang masih manual."
+          },
+          {
+            "value": "S4",
+            "label": "Kemampuan antar karyawan sangat timpang."
+          }
+        ],
+        "C8": [
+          {
+            "value": "S1",
+            "label": "Pelatihan internal kurang menarik atau berdampak."
+          },
+          {
+            "value": "S2",
+            "label": "Trainer internal belum punya metode terstruktur."
+          },
+          {
+            "value": "S3",
+            "label": "Rapat atau diskusi kelompok kurang efektif."
+          },
+          {
+            "value": "S4",
+            "label": "Kebutuhan pelatihan belum dianalisis secara sistematis."
+          }
+        ],
+        "C9": [
+          {
+            "value": "S1",
+            "label": "Nilai atau budaya belum tercermin dalam perilaku harian."
+          },
+          {
+            "value": "S2",
+            "label": "Perubahan sulit diterima atau diterapkan."
+          },
+          {
+            "value": "S3",
+            "label": "Strategi belum dipahami atau diterjemahkan ke unit."
+          },
+          {
+            "value": "S4",
+            "label": "Kinerja antar unit timpang."
+          }
+        ],
+        "C10": [
+          {
+            "value": "S1",
+            "label": "Pelanggaran prosedur atau insiden berulang."
+          },
+          {
+            "value": "S2",
+            "label": "Kesadaran risiko rendah."
+          },
+          {
+            "value": "S3",
+            "label": "Standar belum dijalankan konsisten."
+          },
+          {
+            "value": "S4",
+            "label": "Perlu memenuhi persyaratan audit atau regulasi."
+          }
+        ],
+        "C11": [
+          {
+            "value": "S1",
+            "label": "Dampak program pelatihan tidak diketahui."
+          },
+          {
+            "value": "S2",
+            "label": "Tidak ada ukuran sebelum–sesudah."
+          },
+          {
+            "value": "S3",
+            "label": "Peserta kembali ke kebiasaan lama."
+          },
+          {
+            "value": "S4",
+            "label": "Manajemen meminta bukti hasil."
+          }
+        ],
+        "C0": [
+          {
+            "value": "unknown",
+            "label": "Belum bisa menilai"
+          }
+        ],
+        "other": [
+          {
+            "value": "unknown",
+            "label": "Belum bisa menilai"
+          }
+        ]
+      },
+      "optionGroupKey": "problemCluster",
+      "commonOptions": [
+        {
+          "value": "other",
+          "label": "Gejala lain"
+        },
+        {
+          "value": "unknown",
+          "label": "Belum bisa menilai",
+          "exclusive": true
+        }
+      ]
+    },
+    {
+      "key": "symptomOther",
+      "questionId": "Q05",
+      "label": "Gejala lain",
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "when": {
+        "key": "symptoms",
+        "values": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "example",
+      "questionId": "Q06",
+      "label": "Ceritakan satu contoh terakhir ketika hal ini terjadi.",
+      "type": "text",
+      "required": false,
+      "maxLength": 400
+    },
+    {
+      "key": "effects",
+      "questionId": "Q07",
+      "label": "Di bagian mana kondisi tersebut sudah terasa dampaknya?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "E1",
+          "label": "Pekerjaan terlambat atau perlu dikerjakan ulang."
+        },
+        {
+          "value": "E2",
+          "label": "Kualitas hasil kerja belum konsisten."
+        },
+        {
+          "value": "E3",
+          "label": "Target atau prioritas kerja sulit dicapai."
+        },
+        {
+          "value": "E4",
+          "label": "Koordinasi, komunikasi, atau kolaborasi belum efektif."
+        },
+        {
+          "value": "E5",
+          "label": "Manajer perlu terlalu sering mengingatkan atau turun tangan."
+        },
+        {
+          "value": "E6",
+          "label": "Pengalaman pelanggan atau kualitas layanan terdampak."
+        },
+        {
+          "value": "E7",
+          "label": "Karyawan atau tim belum siap menghadapi tanggung jawab atau perubahan baru."
+        },
+        {
+          "value": "E8",
+          "label": "Belum ada dampak yang jelas; ini kebutuhan pengembangan ke depan.",
+          "exclusive": true
+        },
+        {
+          "value": "E9",
+          "label": "Belum dapat menilai.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 2
+    },
+    {
+      "key": "priorEfforts",
+      "questionId": "Q08",
+      "label": "Apa yang sudah dicoba perusahaan?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "P1",
+          "label": "Diskusi, coaching informal, atau umpan balik dari atasan."
+        },
+        {
+          "value": "P2",
+          "label": "Pelatihan atau workshop."
+        },
+        {
+          "value": "P3",
+          "label": "Asesmen atau evaluasi kebutuhan."
+        },
+        {
+          "value": "P4",
+          "label": "Coaching atau pendampingan terstruktur."
+        },
+        {
+          "value": "P5",
+          "label": "Perubahan proses, pembagian peran, atau cara kerja."
+        },
+        {
+          "value": "P6",
+          "label": "Penyesuaian sistem, alat, atau teknologi."
+        },
+        {
+          "value": "P7",
+          "label": "Upaya lain."
+        },
+        {
+          "value": "P8",
+          "label": "Belum ada upaya khusus.",
+          "exclusive": true
+        },
+        {
+          "value": "P9",
+          "label": "Saya belum mengetahui upaya sebelumnya.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 7
+    },
+    {
+      "key": "priorOther",
+      "questionId": "Q08",
+      "label": "Upaya lainnya",
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "when": {
+        "key": "priorEfforts",
+        "values": [
+          "P7"
+        ]
+      }
+    },
+    {
+      "key": "priorOutcome",
+      "questionId": "Q08",
+      "label": "Bagaimana hasilnya?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "sustained",
+          "label": "Membantu dan bertahan."
+        },
+        {
+          "value": "partial",
+          "label": "Membantu sebagian."
+        },
+        {
+          "value": "no_impact",
+          "label": "Belum terlihat dampaknya."
+        },
+        {
+          "value": "reverted",
+          "label": "Membantu sesaat, lalu kembali ke kebiasaan lama."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum diketahui."
+        }
+      ],
+      "when": {
+        "key": "$prior",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "barriers",
+      "questionId": "Q09",
+      "label": "Selain kemampuan individu atau tim, adakah hal lain yang mungkin memengaruhi keberhasilan?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "B1",
+          "label": "Peran, tanggung jawab, atau kewenangan belum jelas."
+        },
+        {
+          "value": "B2",
+          "label": "Proses kerja atau koordinasi belum mendukung."
+        },
+        {
+          "value": "B3",
+          "label": "Atasan belum memiliki waktu atau mekanisme untuk mendukung penerapan."
+        },
+        {
+          "value": "B4",
+          "label": "Sistem, alat, atau informasi belum memadai."
+        },
+        {
+          "value": "B5",
+          "label": "Waktu, beban kerja, atau sumber daya terbatas."
+        },
+        {
+          "value": "B6",
+          "label": "Kesempatan untuk mempraktikkan kemampuan masih terbatas."
+        },
+        {
+          "value": "B7",
+          "label": "Ukuran kinerja, ekspektasi, atau insentif belum selaras."
+        },
+        {
+          "value": "other",
+          "label": "Hambatan lain"
+        },
+        {
+          "value": "none",
+          "label": "Tidak ada hambatan khusus yang diketahui.",
+          "exclusive": true
+        },
+        {
+          "value": "unknown",
+          "label": "Belum dapat menilai.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 8
+    },
+    {
+      "key": "barrierOther",
+      "questionId": "Q09",
+      "label": "Hambatan lain",
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "when": {
+        "key": "barriers",
+        "values": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "implications",
+      "questionId": "Q10",
+      "label": "Jika kondisi ini belum banyak berubah dalam 3–6 bulan ke depan, apa yang paling mungkin terdampak?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "I1",
+          "label": "Target atau prioritas perusahaan berisiko tidak tercapai."
+        },
+        {
+          "value": "I2",
+          "label": "Waktu, biaya, atau beban kerja tim dapat meningkat, termasuk pekerjaan ulang atau proses terhenti lebih lama."
+        },
+        {
+          "value": "I3",
+          "label": "Kualitas hasil kerja atau layanan dapat menurun, termasuk keluhan pelanggan."
+        },
+        {
+          "value": "I4",
+          "label": "Beban supervisi atau keterlibatan atasan dapat meningkat."
+        },
+        {
+          "value": "I5",
+          "label": "Motivasi, kepercayaan, atau retensi karyawan dapat terpengaruh."
+        },
+        {
+          "value": "I6",
+          "label": "Keselamatan kerja, kepatuhan, atau risiko operasional dapat terdampak."
+        },
+        {
+          "value": "I7",
+          "label": "Keberhasilan program atau inisiatif perusahaan dapat terhambat."
+        },
+        {
+          "value": "I8",
+          "label": "Kesiapan menghadapi perubahan atau tanggung jawab baru dapat terhambat."
+        },
+        {
+          "value": "other",
+          "label": "Konsekuensi lain"
+        },
+        {
+          "value": "unknown",
+          "label": "Belum dapat memperkirakan dampaknya.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 3
+    },
+    {
+      "key": "implicationOther",
+      "questionId": "Q10",
+      "label": "Konsekuensi lain",
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "when": {
+        "key": "implications",
+        "values": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "impactScope",
+      "questionId": "Q11",
+      "label": "Seberapa luas dampaknya saat ini?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "people",
+          "label": "Satu atau dua orang."
+        },
+        {
+          "value": "team",
+          "label": "Satu tim atau unit."
+        },
+        {
+          "value": "units",
+          "label": "Beberapa unit."
+        },
+        {
+          "value": "organization",
+          "label": "Hampir seluruh organisasi."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum tahu."
+        }
+      ]
+    },
+    {
+      "key": "impactFrequency",
+      "questionId": "Q11",
+      "label": "Seberapa sering dampaknya terjadi?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "F1",
+          "label": "Hampir setiap hari."
+        },
+        {
+          "value": "F2",
+          "label": "Setiap minggu."
+        },
+        {
+          "value": "F3",
+          "label": "Setiap bulan."
+        },
+        {
+          "value": "F4",
+          "label": "Sesekali."
+        },
+        {
+          "value": "F5",
+          "label": "Belum tahu."
+        }
+      ]
+    },
+    {
+      "key": "impactWeight",
+      "questionId": "Q11",
+      "label": "Seberapa besar dampaknya?",
+      "type": "select",
+      "required": false,
+      "options": [
+        {
+          "value": "small",
+          "label": "Relatif kecil; masih dapat ditoleransi."
+        },
+        {
+          "value": "moderate",
+          "label": "Cukup terasa; mulai memengaruhi target, biaya, atau hubungan kerja."
+        },
+        {
+          "value": "significant",
+          "label": "Signifikan; sudah memengaruhi hasil bisnis atau risiko."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum pernah dihitung atau belum tahu."
+        },
+        {
+          "value": "consult",
+          "label": "Lebih nyaman membahasnya bersama konsultan."
+        }
+      ]
+    },
+    {
+      "key": "priority",
+      "questionId": "Q12",
+      "label": "Seberapa menjadi prioritas kebutuhan ini bagi perusahaan saat ini?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "high",
+          "label": "Prioritas tinggi; perlu mulai ditangani dalam waktu dekat."
+        },
+        {
+          "value": "planned",
+          "label": "Penting, tetapi masih perlu direncanakan."
+        },
+        {
+          "value": "long_term",
+          "label": "Bagian dari agenda pengembangan jangka menengah/panjang."
+        },
+        {
+          "value": "internal",
+          "label": "Masih perlu disepakati secara internal."
+        }
+      ]
+    },
+    {
+      "key": "outcomeHelp",
+      "questionId": "Q13",
+      "label": "Hasil yang diharapkan",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "own",
+          "label": "Saya ingin menjelaskan hasil yang diharapkan"
+        },
+        {
+          "value": "help",
+          "label": "Kami ingin dibantu menentukan hasil yang realistis."
+        }
+      ]
+    },
+    {
+      "key": "desiredOutcome",
+      "questionId": "Q13",
+      "label": "Apa yang seharusnya dilakukan atau dihasilkan dengan lebih baik oleh peserta?",
+      "type": "text",
+      "required": true,
+      "maxLength": 500,
+      "when": {
+        "key": "outcomeHelp",
+        "values": [
+          "own"
+        ]
+      }
+    },
+    {
+      "key": "benefits",
+      "questionId": "Q14",
+      "label": "Jika perubahan tersebut tercapai, manfaat apa yang paling penting?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "I1",
+          "label": "Target dan prioritas perusahaan lebih terbantu pencapaiannya."
+        },
+        {
+          "value": "I2",
+          "label": "Pelaksanaan kerja lebih lancar dan efisien."
+        },
+        {
+          "value": "I3",
+          "label": "Kualitas hasil dan layanan membaik; pengalaman pelanggan lebih baik."
+        },
+        {
+          "value": "I4",
+          "label": "Manajer lebih efektif memimpin dan mengembangkan tim; tim lebih mandiri."
+        },
+        {
+          "value": "I5",
+          "label": "Kolaborasi dan kepercayaan membaik; karyawan lebih terlibat."
+        },
+        {
+          "value": "I6",
+          "label": "Risiko dan insiden lebih terkendali."
+        },
+        {
+          "value": "I7",
+          "label": "Penerapan inisiatif perusahaan lebih berhasil."
+        },
+        {
+          "value": "I8",
+          "label": "Karyawan lebih siap menghadapi perubahan atau tanggung jawab baru."
+        },
+        {
+          "value": "investment",
+          "label": "Investasi pengembangan SDM lebih terarah dan dapat dievaluasi."
+        },
+        {
+          "value": "other",
+          "label": "Manfaat lain"
+        },
+        {
+          "value": "unknown",
+          "label": "Belum dapat ditentukan.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 2,
+      "mirrorKey": "implications"
+    },
+    {
+      "key": "benefitOther",
+      "questionId": "Q14",
+      "label": "Manfaat lain",
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "when": {
+        "key": "benefits",
+        "values": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "successMeasures",
+      "questionId": "Q15",
+      "label": "Apa yang paling masuk akal untuk digunakan sebagai tanda kemajuan?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "M1",
+          "label": "Peserta menerapkan keterampilan dalam pekerjaan."
+        },
+        {
+          "value": "M2",
+          "label": "Perubahan perilaku dapat diamati oleh atasan atau rekan kerja."
+        },
+        {
+          "value": "M3",
+          "label": "Ada umpan balik dari peserta dan pihak terkait."
+        },
+        {
+          "value": "M4",
+          "label": "Ada hasil evaluasi belajar atau asesmen sebelum/sesudah."
+        },
+        {
+          "value": "M5",
+          "label": "Ada kemajuan pada indikator kerja yang sudah dipantau."
+        },
+        {
+          "value": "M6",
+          "label": "Kami perlu dibantu menentukan indikator yang sesuai."
+        }
+      ],
+      "maxSelected": 2
+    },
+    {
+      "key": "measureDetail",
+      "questionId": "Q15",
+      "label": "Indikator kerja yang sudah dipantau (tanpa angka rahasia)",
+      "type": "text",
+      "required": false,
+      "maxLength": 150,
+      "when": {
+        "key": "successMeasures",
+        "values": [
+          "M5"
+        ]
+      }
+    },
+    {
+      "key": "approaches",
+      "questionId": "Q17",
+      "label": "Pendekatan mana yang terbuka untuk Anda pertimbangkan?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "A1",
+          "label": "Pelatihan atau workshop."
+        },
+        {
+          "value": "A2",
+          "label": "Program pengembangan tim."
+        },
+        {
+          "value": "A3",
+          "label": "Coaching atau pendampingan."
+        },
+        {
+          "value": "A4",
+          "label": "Asesmen dan pembahasan hasil."
+        },
+        {
+          "value": "A5",
+          "label": "Konsultasi untuk memahami atau memperbaiki cara kerja."
+        },
+        {
+          "value": "A6",
+          "label": "Program bertahap yang mencakup pembelajaran dan penerapan."
+        },
+        {
+          "value": "A7",
+          "label": "Saya ingin BinaHub merekomendasikan pendekatan yang paling sesuai.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 3
+    },
+    {
+      "key": "spiritualOptIn",
+      "questionId": "QS01",
+      "label": "Jika relevan dengan kebutuhan Anda, apakah Anda ingin mengeksplorasi program pengembangan yang mengintegrasikan pengalaman spiritual atau Umrah?",
+      "type": "select",
+      "required": false,
+      "options": [
+        {
+          "value": "yes",
+          "label": "Ya, ingin mengetahui pilihan yang sesuai."
+        },
+        {
+          "value": "no",
+          "label": "Tidak, saya ingin opsi tanpa komponen spiritual."
+        },
+        {
+          "value": "unknown",
+          "label": "Saya belum yakin; ingin memahami pendekatannya."
+        }
+      ],
+      "when": {
+        "key": "$spiritual",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "decisionRole",
+      "questionId": "Q18",
+      "label": "Peran Anda dalam keputusan",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "decision_maker",
+          "label": "Pengambil keputusan akhir."
+        },
+        {
+          "value": "sponsor",
+          "label": "Sponsor atau pemberi rekomendasi kepada pengambil keputusan."
+        },
+        {
+          "value": "implementer",
+          "label": "Pelaksana program (HR/L&D)."
+        },
+        {
+          "value": "research",
+          "label": "Mengumpulkan informasi awal."
+        }
+      ]
+    },
+    {
+      "key": "stakeholders",
+      "questionId": "Q18",
+      "label": "Pihak yang perlu dilibatkan",
+      "type": "multi",
+      "required": true,
+      "options": [
+        {
+          "value": "ST1",
+          "label": "Atasan atau pimpinan unit."
+        },
+        {
+          "value": "ST2",
+          "label": "HR/People & Culture/L&D."
+        },
+        {
+          "value": "ST3",
+          "label": "Direksi atau pimpinan perusahaan."
+        },
+        {
+          "value": "ST4",
+          "label": "Keuangan atau pengadaan."
+        },
+        {
+          "value": "ST5",
+          "label": "Belum ditentukan.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 4
+    },
+    {
+      "key": "timeline",
+      "questionId": "Q19",
+      "label": "Kapan perusahaan berharap program atau dukungan ini mulai dilakukan?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "1",
+          "label": "Dalam 1 bulan."
+        },
+        {
+          "value": "1_3",
+          "label": "Dalam 1–3 bulan."
+        },
+        {
+          "value": "3_6",
+          "label": "Dalam 3–6 bulan."
+        },
+        {
+          "value": "6_plus",
+          "label": "Lebih dari 6 bulan."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ditentukan."
+        }
+      ]
+    },
+    {
+      "key": "budget",
+      "questionId": "Q20",
+      "label": "Anggaran",
+      "type": "select",
+      "required": false,
+      "options": [
+        {
+          "value": "available",
+          "label": "Sudah tersedia."
+        },
+        {
+          "value": "proposed",
+          "label": "Sedang diusulkan atau dipertimbangkan."
+        },
+        {
+          "value": "unavailable",
+          "label": "Belum tersedia."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum dapat ditentukan."
+        },
+        {
+          "value": "consult",
+          "label": "Lebih nyaman membahasnya bersama konsultan."
+        }
+      ]
+    },
+    {
+      "key": "procurement",
+      "questionId": "Q20",
+      "label": "Proses persetujuan internal",
+      "type": "multi",
+      "required": false,
+      "options": [
+        {
+          "value": "PR1",
+          "label": "Perlu persetujuan atasan atau pimpinan."
+        },
+        {
+          "value": "PR2",
+          "label": "Perlu persetujuan HR/L&D atau unit terkait."
+        },
+        {
+          "value": "PR3",
+          "label": "Perlu proses pengadaan atau pendaftaran vendor."
+        },
+        {
+          "value": "PR4",
+          "label": "Perlu menyesuaikan kalender atau siklus anggaran perusahaan."
+        },
+        {
+          "value": "PR5",
+          "label": "Belum ada informasi.",
+          "exclusive": true
+        }
+      ],
+      "maxSelected": 4
+    },
+    {
+      "key": "format",
+      "questionId": "Q21",
+      "label": "Format mana yang paling sesuai?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "company_workshop",
+          "label": "Program khusus untuk perusahaan kami."
+        },
+        {
+          "value": "public_class",
+          "label": "Kelas terbuka yang diikuti beberapa peserta."
+        },
+        {
+          "value": "coaching",
+          "label": "Pendampingan individual atau kelompok kecil."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum tahu; minta rekomendasi BinaHub."
+        }
+      ],
+      "when": {
+        "key": "$delivery",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "deliveryMode",
+      "questionId": "Q22",
+      "label": "Apa preferensi pelaksanaannya?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "onsite",
+          "label": "Tatap muka."
+        },
+        {
+          "value": "online",
+          "label": "Daring."
+        },
+        {
+          "value": "hybrid",
+          "label": "Gabungan tatap muka dan daring."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ada preferensi."
+        }
+      ],
+      "when": {
+        "key": "$delivery",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "duration",
+      "questionId": "Q23",
+      "label": "Apakah sudah ada perkiraan waktu yang tersedia?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "half",
+          "label": "Setengah hari."
+        },
+        {
+          "value": "one",
+          "label": "Satu hari."
+        },
+        {
+          "value": "two",
+          "label": "Dua hari."
+        },
+        {
+          "value": "series",
+          "label": "Beberapa sesi selama beberapa minggu atau bulan."
+        },
+        {
+          "value": "other",
+          "label": "Durasi lain."
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ditentukan; minta rekomendasi."
+        }
+      ],
+      "when": {
+        "key": "$delivery",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "durationOther",
+      "questionId": "Q23",
+      "label": "Durasi lainnya",
+      "type": "text",
+      "required": true,
+      "maxLength": 100,
+      "when": {
+        "key": "duration",
+        "values": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "location",
+      "questionId": "Q24",
+      "label": "Kota atau lokasi pelaksanaan",
+      "type": "text",
+      "required": false,
+      "maxLength": 120,
+      "when": {
+        "key": "deliveryMode",
+        "values": [
+          "onsite",
+          "hybrid"
+        ]
+      }
+    },
+    {
+      "key": "dates",
+      "questionId": "Q24",
+      "label": "Tanggal atau rentang tanggal (boleh belum ditentukan)",
+      "type": "text",
+      "required": false,
+      "maxLength": 120,
+      "when": {
+        "key": "$delivery",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "venue",
+      "questionId": "Q25",
+      "label": "Tempat kegiatan tim",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "indoor",
+          "label": "Indoor"
+        },
+        {
+          "value": "outdoor",
+          "label": "Outdoor"
+        },
+        {
+          "value": "mixed",
+          "label": "Kombinasi"
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ada preferensi"
+        }
+      ],
+      "when": {
+        "key": "$venue",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "facilities",
+      "questionId": "Q25",
+      "label": "Fasilitas kegiatan",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "ready",
+          "label": "Sudah tersedia"
+        },
+        {
+          "value": "partial",
+          "label": "Sebagian tersedia"
+        },
+        {
+          "value": "needed",
+          "label": "Perlu disediakan dalam penawaran"
+        },
+        {
+          "value": "unknown",
+          "label": "Belum ditentukan"
+        }
+      ],
+      "when": {
+        "key": "$venue",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "accessibility",
+      "questionId": "Q25",
+      "label": "Aksesibilitas atau batasan aktivitas (tanpa diagnosis atau riwayat kesehatan)",
+      "type": "text",
+      "required": false,
+      "maxLength": 300,
+      "when": {
+        "key": "$venue",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "implementationOwner",
+      "questionId": "Q26",
+      "label": "Siapa yang dapat mendampingi penerapan setelah program?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "self",
+          "label": "Saya sendiri."
+        },
+        {
+          "value": "leader",
+          "label": "Atasan atau pemimpin tim."
+        },
+        {
+          "value": "hr",
+          "label": "Tim HR/L&D."
+        },
+        {
+          "value": "owner",
+          "label": "Penanggung jawab program yang sudah ditunjuk."
+        },
+        {
+          "value": "unknown",
+          "label": "Akan ditentukan kemudian."
+        }
+      ],
+      "when": {
+        "key": "$owner",
+        "values": [
+          "yes"
+        ]
+      }
+    },
+    {
+      "key": "nextStep",
+      "questionId": "Q27",
+      "label": "Apa yang paling membantu bagi Anda setelah menerima rekomendasi awal?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "proposal_email",
+          "label": "Menerima proposal awal melalui email."
+        },
+        {
+          "value": "consultant_discussion",
+          "label": "Menjadwalkan diskusi singkat (sekitar 30 menit) dengan konsultan BinaHub."
+        },
+        {
+          "value": "both",
+          "label": "Keduanya: terima proposal lebih dulu, lalu berdiskusi."
+        },
+        {
+          "value": "clarify_needs",
+          "label": "Mendapatkan bantuan untuk memperjelas kebutuhan terlebih dahulu."
+        }
+      ]
+    }
+  ],
+  "screens": [
+    [
+      "Q01"
+    ],
+    [
+      "Q02"
+    ],
+    [
+      "Q03"
+    ],
+    [
+      "Q04"
+    ],
+    [
+      "Q05",
+      "Q06"
+    ],
+    [
+      "Q07"
+    ],
+    [
+      "Q08"
+    ],
+    [
+      "Q09"
+    ],
+    [
+      "Q10"
+    ],
+    [
+      "Q11"
+    ],
+    [
+      "Q12"
+    ],
+    [
+      "Q13"
+    ],
+    [
+      "Q14"
+    ],
+    [
+      "Q15"
+    ],
+    [
+      "Q16"
+    ],
+    [
+      "Q17",
+      "QS01"
+    ],
+    [
+      "Q18",
+      "Q19",
+      "Q20"
+    ],
+    [
+      "Q21",
+      "Q22",
+      "Q23"
+    ],
+    [
+      "Q24",
+      "Q25",
+      "Q26"
+    ],
+    [
+      "Q27"
+    ],
+    [
+      "Q28"
+    ]
+  ]
+}

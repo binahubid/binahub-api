@@ -9,7 +9,7 @@ vi.mock('@/lib/supabase',()=>({createServerSupabase:deps.db}));
 vi.mock('./email',()=>({processPEReportEmail:deps.email}));
 import { GET,POST } from '@/app/api/assessment/individual/guest/route';
 import { PATCH } from '@/app/api/assessment/individual/guest/[id]/route';
-import { GET as resultGET,POST as resultPOST } from '@/app/api/assessment/individual/guest/[id]/result/route';
+import { GET as resultGET,POST as resultPOST,PATCH as resultPATCH } from '@/app/api/assessment/individual/guest/[id]/result/route';
 import { POST as requestLink } from '@/app/api/assessment/individual/guest/request-link/route';
 import { makeSyntheticPEInstrument } from './synthetic-fixture';
 import { hashPEInstrument } from './definition';
@@ -60,6 +60,20 @@ describe('guest HTTP private boundaries',()=>{
     deps.rpc.mockImplementation(async(name:string)=>({data:name==='pe_guest_attempt'?{...envelope,attempt:{...final,result:null}}:name==='pe_read_participant'?final:true,error:null}));
     expect((await PATCH(req('PATCH',{revision:1,responses,submissionKey:'retry_submit_0001'}),params)).status).toBe(202);
     expect(deps.rpc.mock.calls.filter(([name])=>name==='pe_write_participant')).toHaveLength(1);
+  });
+  it('records only safe campaign context and never contact details in attribution',async()=>{
+    const res=await POST(req('POST',{id,context,draftKey:key,name:'Synthetic name',email:'synthetic@example.invalid',consentVersion:'pe-development-consent-v1',privacyVersion:'pe-personal-privacy-v1',
+      attribution:{utmSource:'instagram',utmCampaign:'october',utmTerm:'private@example.invalid'}}));
+    expect(res.status).toBe(201);
+    expect(deps.rpc).toHaveBeenCalledWith('pe_record_acquisition_context',expect.objectContaining({p_context:{utmSource:'instagram',utmCampaign:'october'}}));
+  });
+  it('requires a scoped result session for consultation and uses its verified owner, not caller identity',async()=>{
+    expect((await resultPATCH(req('PATCH',{action:'request_consultation'}),params)).status).toBe(404);
+    expect(deps.rpc).not.toHaveBeenCalled();
+    const headers={Cookie:`pe_result_session=${id}.${key}`};
+    expect((await resultPATCH(req('PATCH',{action:'request_consultation',ownerId:randomUUID()},headers),params)).status).toBe(400);
+    const res=await resultPATCH(req('PATCH',{action:'request_consultation'},headers),params);expect(res.status).toBe(200);
+    expect(deps.rpc).toHaveBeenCalledWith('pe_request_consultation',{p_id:id,p_owner:owner});
   });
   it('exchanges a link for an HttpOnly scoped cookie; denies expired links and guessed result access',async()=>{
     const res=await resultPOST(req('POST',{token:key}),params);expect(res.status).toBe(200);

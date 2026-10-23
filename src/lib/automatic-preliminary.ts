@@ -9,6 +9,7 @@ import { isAutoSendableStandardModule } from "@/lib/standard-catalog-policy";
 import { selectCatalogFallback } from "@/lib/standard-catalog-selection";
 import { recordRuntimeError } from "@/lib/runtime-observability";
 import { safeTelemetryText } from "@/lib/telemetry-privacy";
+import { advanceSalesStage } from './sales-stage';
 
 type AssessmentRow = {
   id: string;
@@ -130,8 +131,8 @@ async function deliverStandardProposal(db: ReturnType<typeof createServerSupabas
     }).eq("id", assessment.id).eq("proposal_status", "Sedang Disusun").select("id").maybeSingle();
     if (saved.error || !saved.data) throw new Error(saved.error?.message || "Status pengiriman belum tersimpan.");
     if (assessment.lead_id) {
-      const lead = await db.from("leads").update({ lifecycle_stage: "lead", opportunity_stage: "proposal", last_meaningful_activity_at: sentAt }).eq("id", assessment.lead_id);
-      if (lead.error) await recordRuntimeError({ code: "STANDARD_PROPOSAL_LEAD_UPDATE_FAILED", message: lead.error.message, route: "/api/proposal/request" });
+      try { await advanceSalesStage(db, assessment.lead_id, 'proposal'); }
+      catch { await recordRuntimeError({ code: "STANDARD_PROPOSAL_LEAD_UPDATE_FAILED", message: "SALES_STAGE_UPDATE_UNAVAILABLE", route: "/api/proposal/request" }); }
     }
     return { outcome: "sent", eligibility, emailId } satisfies AutomaticPreliminaryResult;
   } catch (error) {

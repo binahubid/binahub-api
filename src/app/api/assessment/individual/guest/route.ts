@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
       p_consent_version: input.consentVersion, p_privacy_version: input.privacyVersion,
       p_sharing_version: input.sharingConsentVersion || null, p_channel: input.channel,
     }));
+    await pePilotRPC(db,'pe_record_acquisition_context',{p_id:input.id,p_hash:hashPEKey(input.draftKey),
+      p_context:{...input.attribution,...(input.journeyId?{journeyId:input.journeyId}:{})}});
     // No email before the participant submits.
     return peJson({ success: true, ...peGuestDTO(envelope) }, 201);
   } catch (error) { return peFailure(error); }

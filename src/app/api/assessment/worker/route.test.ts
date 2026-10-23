@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const deps = vi.hoisted(() => ({ process: vi.fn(), rpc: vi.fn(),personalEmail:vi.fn() }));
+const deps = vi.hoisted(() => ({ process: vi.fn(), rpc: vi.fn(),personalEmail:vi.fn(),discovery:vi.fn() }));
 vi.mock('@/lib/assessment-worker', () => ({ processAssessmentJob: deps.process }));
 vi.mock('@/lib/supabase', () => ({ createServerSupabase: () => ({ rpc: deps.rpc }) }));
 vi.mock('@/lib/individual-assessment/email',()=>({processPEReportEmail:deps.personalEmail}));
+vi.mock('@/lib/spin/worker',()=>({processSpinWork:deps.discovery}));
 import { GET } from './route';
 
 const request = (token = 'synthetic-scheduler-secret') => new NextRequest('https://api.example.invalid/api/assessment/worker', {
@@ -16,6 +17,7 @@ beforeEach(() => {
   vi.stubEnv('FOLLOW_UP_CRON_SECRET', 'synthetic-scheduler-secret');
   deps.process.mockResolvedValue({ processed: true });
   deps.personalEmail.mockResolvedValue({processed:false});
+  deps.discovery.mockResolvedValue({processed:false});
   deps.rpc.mockResolvedValue({ data: 2, error: null });
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
@@ -26,11 +28,12 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     expect(deps.rpc).not.toHaveBeenCalled();
     expect(deps.process).not.toHaveBeenCalled();
     expect(deps.personalEmail).not.toHaveBeenCalled();
+    expect(deps.discovery).not.toHaveBeenCalled();
   });
   it('runs bounded cleanup and keeps the response uncached', async () => {
     const response = await GET(request());
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ processed: true, personalDataPurged: 2,personalEmail:{processed:false} });
+    expect(await response.json()).toEqual({ processed: true, personalDataPurged: 2,personalEmail:{processed:false},discovery:{processed:false} });
     expect(deps.rpc).toHaveBeenCalledWith('pe_purge_expired_participants', { p_limit: 100 });
     expect(response.headers.get('Cache-Control')).toBe('no-store');
   });
@@ -38,7 +41,7 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     deps.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } });
     const response = await GET(request());
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ processed: true, personalDataPurged: null,personalEmail:{processed:false} });
+    expect(await response.json()).toEqual({ processed: true, personalDataPurged: null,personalEmail:{processed:false},discovery:{processed:false} });
     expect(deps.process).toHaveBeenCalledOnce();
   });
   it('isolates a cleanup transport failure without logging the sensitive error', async () => {
@@ -60,5 +63,12 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     const log=vi.spyOn(console,'error').mockImplementation(()=>{});
     expect((await GET(request())).status).toBe(200);expect(deps.process).toHaveBeenCalledOnce();
     expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE PROVIDER DETAIL');
+  });
+  it('isolates SPIN recovery failure without skipping existing work or exposing diagnostics',async()=>{
+    deps.discovery.mockRejectedValue(new Error('PRIVATE SPIN DETAIL'));
+    const log=vi.spyOn(console,'error').mockImplementation(()=>{});
+    expect((await GET(request())).status).toBe(200);
+    expect(deps.process).toHaveBeenCalledOnce();
+    expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE SPIN DETAIL');
   });
 });

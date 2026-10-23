@@ -2,11 +2,95 @@
 
 Keputusan pengguna pada 10 Oktober 2026: mulai dari kamus kompetensi berdasarkan katalog CEO. Target penyelesaian 21 Oktober 2026. Soal, indikator, metode penilaian, dan format dokumen adalah kewenangan CEO; tim pengembangan tidak mengisinya dengan asumsi atau keluaran AI.
 
+## Acuan kerja terbaru — penelaahan 21 Oktober 2026
+
+Paket `BinaInsights_DeveloperPack_v3_Aligned_2026-10-20`, tiga transkrip meeting
+dan shared chat SPIN telah ditelaah. Rencana aktif berada di repo APP:
+`docs/development-journey-work-plan.md`; inventaris sumber, konflik, hasil
+pemeriksaan dan dampak source ada di `docs/ceo-update-2026-10-20-review.md`.
+Bagian fondasi/tanggal lama di bawah merupakan riwayat implementasi.
+
+Persiapan source V2 kini diimplementasikan dan diuji secara lokal; lihat
+[persiapan paket v3](BINAINSIGHTS-V3-PREPARATION.md). Registry fingerprint,
+validator/DTO/scorer preview dan diff tersedia, tetapi registrasi database,
+attempt/RPC, laporan dan pengaktifan V2 belum dilakukan. Tidak perlu menjalankan
+SQL baru untuk tahap persiapan ini. SPIN tetap menunggu review pertanyaan CEO.
+
+- Acuan baru: Dictionary V5, 34 kompetensi/empat klaster; Catalog V6,
+  SS-01–SS-32 dan 173 hubungan Core/Secondary; instrumen PE V2,
+  `BINAINSIGHTS-PE-V2-PILOT`, 24 SR + 13 SJT = 37 soal.
+- Tiga gratis tetap PE-02/04/06 (18 soal). Tiga tambahan V2 berjumlah 19 soal
+  karena Integrity mempunyai tiga SJT. Fondasi pembayaran belum mengaktifkan
+  pembelian. Kamus 34 kompetensi tidak menjadi 34 skor yang sudah terukur.
+- Sisa 28 kompetensi bukan kelompok khusus tim; seluruh kamus dapat menjadi
+  acuan pengembangan individu maupun program bagi anggota/pemimpin tim.
+  Kebutuhan tim → perilaku → kompetensi sasaran → katalog ditambahkan ke
+  rencana APP; tidak menyulap tujuh Area lama menjadi skor seluruh tim.
+  Pemetaan temuan–kompetensi ditelaah CEO, berbeda dari crosswalk katalog.
+- Draf SPIN untuk ditinjau CEO tersedia di repo APP:
+  `docs/spin-questionnaire-ceo-review.md`. Fitur belum diterapkan; pertanyaan
+  dan percabangan ditinjau sebelum implementasi, bukan persetujuan tiap kirim.
+- Registry/importer, validator, policy/RPC/DTO dan report perlu mendukung
+  V1/V2 berdampingan. `BINAINSIGHTS-PE-V1`, 36 total, 12 SJT dan dua SJT per
+  Area masih dikunci pada source yang diperiksa. Jangan menimpa manifest lama
+  atau memindahkan draft/respons ke teks/rubrik baru berdasarkan ID soal saja.
+- Jalur skor dan identitas hasil tetap deterministik serta berversi. SR ≥3/4,
+  SJT ≥2; coverage Integrity 2/3 atau 3/3 disimpan. NA/missing bukan nol.
+  Tidak ada skor gabungan atau ranking presisi antar-SJT.
+- Rekomendasi perlu seluruh kandidat Core/Secondary, objective refs,
+  audience/level fit, kesiapan produk, sponsor tim/organisasi dan opt-in
+  spiritual. Keluaran final 0–3; laporan merencanakan 0–2 fokus dan praktik
+  30 hari. Selaraskan perbedaan jumlah fokus pada workbook/template.
+- SS-10 adalah Coaching Skills for Leaders di BinaLab; BinaCoach berbeda.
+  SS-32/IDP tersedia sebagai draf sumber, belum otomatis aktif atau berharga
+  final. IDP 90 hari dapat menjadi lampiran opsional.
+- Proposal SPIN mencakup flow mandiri klien dan flow dibantu konsultan dalam
+  workspace terpisah. Template proposal dan paket tercantum pada shared chat;
+  pengguna mengonfirmasi masalah ZIP sudah teratasi pada 21 Oktober. Kegagalan
+  akses sesi agen tidak berarti CEO belum membuatnya. Penelaahan isi berkas
+  asli dan integrasi aturan komersial masih perlu diselesaikan.
+- Isi sumber masih menyebut pilot/review, beberapa versi heading/metadata
+  tertinggal. Catat keputusan penggunaan revisi 20 Oktober tersendiri dari
+  persetujuan CEO atas V1. CEO tetap ahli/pemilik isi; bukti pilot empiris
+  belum disertakan. Tidak menambah persetujuan harian pada operasi admin.
+
+Verifikasi sumber lokal: 15/15 checksum cocok, workbook cocok dengan JSON
+private, 34 baris crosswalk katalog cocok JSON, 15 tes referensi lulus.
+Probe kode referensi menemukan sponsor tim belum diperiksa, false/unknown
+belum dibedakan, dan ID respons asing diabaikan. Lengkapi implementasi produksi
+serta UAT; jangan menyalin contoh referensi tanpa validator.
+
+Giliran penelaahan ini tidak mengubah runtime, database, harga, secret atau
+pengiriman. SQL 64–69 tetap sejarah; penambahan versi memakai migrasi maju
+setelah implementasi siap. SQL 70 cleanup tidak dijalankan ulang; program TBOS
+nyata dan relasinya dipertahankan. Target 21 Oktober adalah checkpoint bagian
+yang lulus, bukan konfirmasi seluruh scope terbaru sudah rilis.
+
+## Pembaruan rencana — 19 Oktober 2026
+
+Pengguna menyetujui perluasan perjalanan: diagnosis → rekomendasi beralasan →
+proposal/konsultasi → pelaksanaan → penerapan di pekerjaan → tinjauan hasil →
+kebutuhan lanjutan. Rencana rinci, dependensi CEO, dan kriteria penerimaan berada
+di repo APP: `docs/development-journey-work-plan.md`.
+
+Implementasi awal app 0.40 menampilkan brief sumber, timeline lintas-modul dari
+data dashboard yang dimuat, dan indikator proyek existing. Ini proyeksi baca-saja,
+bukan snapshot scope komersial, mesin evaluasi baru, atau endpoint riwayat lengkap.
+Tidak ada migrasi/API runtime baru dari perluasan awal ini. Keandalan scheduler
+produksi tetap perlu dibuktikan; instrumen organisasi, proposal meeting, laporan
+final, pembayaran, dan AI agent tidak otomatis dianggap selesai/aktif.
+
+Pemetaan rekomendasi harus dapat ditelusuri ke bukti dan versi yang sah. Masalah
+proses/alat tidak otomatis disebut kekurangan kompetensi. Evaluasi program tidak
+mengubah refleksi individu menjadi peringkat atau dasar otomatis seleksi/promosi,
+dan tidak memperluas izin akses ke perusahaan/AMS. Referensi Polar Bear digunakan
+sebagai inspirasi konsep, bukan paket prompt/template yang disalin ke produk.
+
 ## Keputusan produk
 
 - Diagnosis Tim/Organisasi dan Individu akan menjadi dua jalur terpisah setelah pengguna menekan tombol diagnosis di website.
 - Tim/Organisasi mendapat diagnosis lengkap secara gratis.
-- Individu mendapat tiga kompetensi tetap secara gratis. CEO belum menentukan ketiganya. Kompetensi lain berbayar; harga, paket, akses setelah pembayaran, dan aturan pengulangan masih perlu ditetapkan.
+- Individu mendapat Self-Development, Adaptability dan Pressure Management secara gratis. Tiga kompetensi PE lainnya direncanakan berbayar; harga, akses setelah pembayaran dan aturan pengulangan masih perlu ditetapkan.
 - Pembaruan 13 Oktober: tiga gratis telah disahkan (Self-Development, Adaptability, Pressure Management). Pernyataan menunggu tiga gratis pada catatan awal di bawah adalah historis; keputusan harga/format final tetap belum tersedia.
 - Harga katalog tidak ditampilkan di website publik. Judul solusi tetap berbahasa Inggris. Copy isi mengikuti sumber CEO, dengan terjemahan Indonesia yang setara.
 - Proposal untuk klien tidak memakai istilah internal seperti standar/custom atau katalog dasar dalam judul dan narasi publik.
@@ -16,7 +100,7 @@ Persetujuan 13 Oktober: tiga gratis adalah Self-Development, Adaptability, Press
 
 Tahap 3–4 (API/app 0.34.0 + SQL 66): admin dapat meninjau hasil konkret dengan izin peserta, riwayat owner lintas perangkat, sumber kanal, dan dashboard/kontrol/evaluasi pilot. Hasil admin/peserta memakai model yang sama. Hasil historis tidak dibuka retroaktif; tidak ada AI individu baru, template/harga asumsi, atau klaim validasi empiris. Lihat `PERSONAL-EFFECTIVENESS-PHASE-3-4.md`.
 
-## Tahap yang dibangun sekarang
+## Riwayat fondasi 10–13 Oktober 2026
 
 Pembaruan 13 Oktober: paket CEO Personal Effectiveness menyediakan enam kompetensi individu, 36 soal, definisi dan key actions, serta aturan scoring draft. Fondasi tahap 1 ditambahkan pada SQL 64/API 0.32.0; lihat [PERSONAL-EFFECTIVENESS-PHASE-1.md](PERSONAL-EFFECTIVENESS-PHASE-1.md). Paket ini tidak melengkapi seluruh 26 kompetensi, tidak memperbarui soal organisasi, dan belum menetapkan tiga kompetensi gratis. Instrumen individu tetap terpisah dan belum aktif untuk peserta.
 
@@ -62,17 +146,26 @@ Contoh field dari pengguna adalah durasi hari dan indoor/outdoor. Field lain sep
 
 Draft dapat siap sebelum meeting ditutup jika isian wajib dan aturan harga lengkap. Pengiriman hanya setelah konsultan mengonfirmasi isi, penerima, harga, serta syarat. Setiap revisi memiliki versi/snapshot; proposal yang sudah dikirim tidak ditimpa. Draf baru tidak otomatis menghasilkan order, invoice, atau email. AI agent belum termasuk tahap ini.
 
-## Dokumen dan keputusan yang masih ditunggu
+## Kelengkapan berikutnya setelah paket 20 Oktober
 
-- KPI kompetensi: definisi, indikator perilaku, level, dan nomenklatur final.
-- Bank soal tim/organisasi dan individu, cara penilaian, threshold, penanganan jawaban tidak lengkap, dan interpretasi hasil.
-- Tiga kompetensi tetap yang gratis untuk individu.
-- Format hasil diagnosis Tim/Organisasi dan Individu, termasuk copy web/email/PDF.
-- Format proposal Individu, Tim/Organisasi, serta proposal konsultasi/custom.
-- Aturan scope dan biaya proposal konsultasi, field wajib, diskon/pajak, serta siapa yang boleh mengirim.
-- Harga/paket diagnosis individu, aturan upgrade, masa akses, serta provider pembayaran.
+- Selaraskan identitas versi, jumlah fokus laporan, keputusan penggunaan PE V2,
+  status SS-32, dan penelaahan objective/readiness katalog per produk.
+- ItemBank sudah lengkap untuk enam PE (37 soal). Soal 28 kompetensi lainnya
+  dan instrumen tim/organisasi terbaru belum tercakup; alur organisasi existing
+  tetap memakai instrumen lamanya. Tidak perlu menambah soal PE untuk tahap ini.
+- Template laporan individu/IDP serta email individu dari chat 21 Oktober
+  sudah diterima. Sumber email disimpan di repo APP
+  `docs/individual-assessment-email-template.md`; integrasi teaser mengikuti
+  snapshot hasil dan penyebutan metode SR/SJT. Email blast/tim diperiksa terpisah.
+- Template proposal indikatif/paket SPIN tersedia pada chat. Selesaikan akses
+  isi lampiran dan pemetaan jalur individu/tim, pertanyaan, scope, tambahan
+  biaya, pajak/diskon dan kebijakan kirim; tidak meminta CEO membuat ulang.
+- Harga/paket asesmen individu, upgrade/retake, masa akses, refund,
+  merchant/gateway, serta event/jadwal/tiket Public Workshop yang nyata.
 
-## Rencana menuju 21 Oktober
+Lihat daftar keputusan dan urutan A–G pada rencana aktif di repo APP.
+
+## Riwayat target menuju 21 Oktober
 
 Ini target kerja bersyarat, bukan konfirmasi semua fitur sudah siap rilis.
 
@@ -83,7 +176,9 @@ Ini target kerja bersyarat, bukan konfirmasi semua fitur sudah siap rilis.
 | 18–20 Oktober | UAT lintas API/app/website/AMS, akses berbayar jika siap, uji proposal konsultasi dan regresi | Integrasi serta template sudah stabil |
 | 21 Oktober | Rilis bagian yang lulus UAT dan verifikasi pascadeploy | Tidak ada bug kritis; fitur yang dokumennya belum siap tetap tidak aktif |
 
-Disarankan dokumen inti tersedia paling lambat 14 Oktober untuk mempertahankan waktu integrasi dan UAT. Jika datang lebih lambat, prioritaskan diagnosis tim/organisasi dan jalur individu gratis yang telah disahkan; pembayaran dan proposal konsultasi tidak dipaksakan rilis dengan template/harga sementara.
+Jadwal tersebut adalah baseline sebelum paket 20 Oktober diterima. Urutan dan
+dependensi terbaru ada pada pembaruan 21 Oktober di atas. Pembayaran dan proposal
+SPIN tidak dipaksakan rilis dengan template/harga sementara.
 
 ## Kriteria penerimaan akhir
 

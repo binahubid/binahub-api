@@ -17,6 +17,7 @@ import {
   loadApprovedOutreachTemplate,
 } from "@/lib/outreach-template";
 import { createProposalToken } from "@/lib/secure-token";
+export const maxDuration = 120;
 
 type FollowUpLevel = 1 | 2 | 3;
 type AssessmentFollowUpChannel = "result" | "proposal";
@@ -62,6 +63,7 @@ const RESULT_STOP_PROPOSAL_STATUSES = new Set([
   "Sedang Disusun",
   "Gagal Otomatis",
   "Perlu Rekonsiliasi",
+  "Menunggu Approval",
   "Terkirim",
   "Revisi",
   "Lanjut Diskusi",
@@ -831,7 +833,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${window.localDate}:${dryRun ? "dry" : "live"}`).slice(0, 201);
+  const slot = new Date(Math.floor(Date.now() / 300_000) * 300_000).toISOString();
+  const idempotencyKey = (req.headers.get("x-idempotency-key")?.trim() || `${slot}:${dryRun ? "dry" : "live"}`).slice(0, 201);
   if (idempotencyKey.length > 200) {
     return adminError("Idempotency key maksimal 200 karakter.", 400, "INVALID_IDEMPOTENCY_KEY");
   }
@@ -866,16 +869,15 @@ export async function GET(req: NextRequest) {
   const dryRunReservations = new Map<string, number>();
   let excludedByAudience = 0;
 
-  let inquiryQuery = db.from("inquiries").select("*").order("created_at", { ascending: true }).limit(50);
-  if (salesSettings?.activated_at) inquiryQuery = inquiryQuery.gte("created_at", salesSettings.activated_at);
-  const { data: inquiries, error: inquiriesError } = await inquiryQuery;
-  if (inquiriesError) {
+  const due = await db.rpc('sales_due_followups', { p_since: salesSettings?.activated_at || null, p_limit: 100 });
+  if (due.error || !due.data || !Array.isArray(due.data.inquiries) || !Array.isArray(due.data.assessments)) {
     await finishAutomationRun(db, runId, {
       status: "failed", candidateCount: 0, processedCount: 0, failureCount: 1,
-      summary: { code: "FOLLOW_UP_QUEUE_FAILED" }, errorMessage: inquiriesError.message,
+      summary: { code: "FOLLOW_UP_QUEUE_FAILED" }, errorMessage: 'DUE_QUEUE_UNAVAILABLE',
     });
-    return adminError("Gagal memuat antrean inquiry.", 500, "FOLLOW_UP_QUEUE_FAILED");
+    return adminError("Antrean jatuh tempo belum tersedia. Pastikan SQL 70 sudah dijalankan.", 503, "FOLLOW_UP_QUEUE_FAILED");
   }
+  const inquiries = due.data.inquiries;
   for (const inquiry of (inquiries || []) as InquiryForFollowUp[]) {
     if (salesSettings && !enrolledForSalesFollowUp(salesSettings, inquiry.created_at)) continue;
     const level = getDueInquiryLevel(inquiry);
@@ -912,16 +914,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  let assessmentQuery = db.from("assessments").select("*").order("created_at", { ascending: true }).limit(100);
-  if (salesSettings?.activated_at) assessmentQuery = assessmentQuery.gte("created_at", salesSettings.activated_at);
-  const { data: assessments, error: assessmentsError } = await assessmentQuery;
-  if (assessmentsError) {
-    await finishAutomationRun(db, runId, {
-      status: "failed", candidateCount: candidates.length, processedCount: sent.length, failureCount: failures.length + 1,
-      summary: { code: "FOLLOW_UP_QUEUE_FAILED", excludedByAudience }, errorMessage: assessmentsError.message,
-    });
-    return adminError("Gagal memuat antrean assessment.", 500, "FOLLOW_UP_QUEUE_FAILED");
-  }
+  const assessments = due.data.assessments;
   for (const assessment of (assessments || []) as AssessmentForFollowUp[]) {
     if (salesSettings && !enrolledForSalesFollowUp(salesSettings, assessment.created_at)) continue;
     if (sent.length + candidates.length >= maximumItemsPerRun) break;

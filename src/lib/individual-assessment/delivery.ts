@@ -111,7 +111,7 @@ export async function loadPEPersonalSolutions(db:SupabaseClient,priorityCodes:st
     .order('module_code').limit(3);
   if(modules.error)return {status:'unavailable',items:[]};
   return {status:modules.data?.length?'available':'no_matches',items:(modules.data||[]).map(m=>({
-    title:m.name,description:m.description||'',url:'https://binahub.id/id/pricing/',
+    title:m.name,description:m.description||'',url:`https://binahub.id/id/pricing/?solution=${encodeURIComponent(m.module_code)}`,
     reason:'Solusi pengembangan individu yang terhubung dengan kandidat fokus latihan Anda. Kesesuaian program dapat dibahas bersama konsultan.',
   }))};
 }

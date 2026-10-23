@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "binainsights-2026-10-20-v3",
+  "status": "prepared_not_active",
+  "manifestFile": "MANIFEST_SHA256.json",
+  "manifestSha256": "122aaf666d7311adc3c028f598ef90e1843d64997e0a1f040ed3df7b9f85bcee",
+  "instrumentId": "BINAINSIGHTS-PE-V2-PILOT",
+  "instrumentVersion": "2.0-pilot",
+  "dictionaryVersion": "5.0-pilot",
+  "catalogVersion": "6.0-SS32",
+  "recommendationRulesVersion": "4.1-SS32",
+  "reportTemplateVersion": "3.1-pilot",
+  "files": [
+    {
+      "path": "BinaInsights_PE_Assessment_Config_v2_Participant_Public.json",
+      "bytes": 30098,
+      "sha256": "085ec8156d2a144b7347ad540edb8fae085648f4cb3bd2f088debce52163aa56"
+    },
+    {
+      "path": "BinaInsights_PE_ItemBank_Scoring_v2_Pilot.xlsx",
+      "bytes": 24188,
+      "sha256": "e8c612ccc3546244af8afd4363182bca22702de395b239337f295eb2a64ffed3"
+    },
+    {
+      "path": "BinaInsights_Panduan_Recommendation_Engine_v4_2_Aligned.docx",
+      "bytes": 42481,
+      "sha256": "8e239a9a8a5e7d6d0f44e667a49af7502cd2e6bf2ffd3789964daa70f19b5339"
+    },
+    {
+      "path": "BinaInsights_Developer_Handoff_Spec_v2_Aligned.docx",
+      "bytes": 48305,
+      "sha256": "0b571a161639d7a5634c067afe768375ea193af46d6ecb28f34f92e06b34960d"
+    },
+    {
+      "path": "BinaHub_Signature_Solutions_Catalog_V6_SS32.docx",
+      "bytes": 47340,
+      "sha256": "10b439e277cc823cdb0b8dd10cc2892830e821607c75488df0e7a82eb1c1cc99"
+    },
+    {
+      "path": "00_BinaInsights_Audit_Changelog_DeveloperPack_v2.docx",
+      "bytes": 38857,
+      "sha256": "13f7c8c2986217e2127fc19917ebef2b9963b489e066edfc514d426f87be1c7a"
+    },
+    {
+      "path": "SS32_Template_Individual_Development_Plan_90_Hari.docx",
+      "bytes": 38837,
+      "sha256": "c4b662b5d01f83158e698d2a9677e3acc897a44fcc6f2916061941097f7a8198"
+    },
+    {
+      "path": "BinaInsights_PE_Assessment_Config_v2_Pilot_Private.json",
+      "bytes": 46454,
+      "sha256": "a12e69b751e09ec26194ee8cfb0fed9af07cb288b491e3a385e1bc37910e558c"
+    },
+    {
+      "path": "README_PAKET.md",
+      "bytes": 2617,
+      "sha256": "487e042a0907441327e27e29b42e06c654cc565a4375b272ced0220e6bea0d3d"
+    },
+    {
+      "path": "BinaInsights_Recommendation_Engine_Developer_Guide_v2_2_Aligned.docx",
+      "bytes": 43347,
+      "sha256": "0e5d7facac9c87ab48845c050938f2255d4706f3e6cd3f2791ded923f01ab138"
+    },
+    {
+      "path": "bina_insights_scoring_reference.py",
+      "bytes": 4458,
+      "sha256": "6b1064c9c9d45bcdac8b0809ee539f56a538b764fef055e601e7c71cde70eb7e"
+    },
+    {
+      "path": "BinaInsights_Crosswalk_v6_SS32.json",
+      "bytes": 10381,
+      "sha256": "078b272c4aec7eca08fbe5dd854aaaf8f3e81a9b43b2ef467801e2c49434ad57"
+    },
+    {
+      "path": "BinaHub_Generic_Competency_Dictionary_V5_Pilot.docx",
+      "bytes": 55992,
+      "sha256": "e51a05d8476446f3f2c753bd8ee954b4c6def32d8db4388d4430b31500a07da6"
+    },
+    {
+      "path": "BinaInsights_Template_Laporan_Individual_v3_1_Aligned.docx",
+      "bytes": 41731,
+      "sha256": "d5eeb192e8dd811845cd10ebf7f91c44e61db7fe2c3d2d9631950159b3221acd"
+    },
+    {
+      "path": "tests/test_reference_scoring.py",
+      "bytes": 3166,
+      "sha256": "d64ba9fc48892c51ce3174f979017bb2d805be77e049f3eafe00b94e99a06a3f"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.37.0",
+  "version": "0.39.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -33,7 +33,8 @@
     "test:phase20": "node scripts/phase20-inbound-smoke.mjs",
     "test:tbos": "node scripts/tbos-production-smoke.mjs",
     "test:ams-integration": "node scripts/ams-app-integration-smoke.mjs",
-    "test:ai": "node scripts/ai-provider-smoke.mjs"
+    "test:ai": "node scripts/ai-provider-smoke.mjs",
+    "prepare:binainsights": "node scripts/prepare-binainsights-release.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

@@ -12,6 +12,9 @@ export const PE_GUEST_COOKIE = 'pe_result_session';
 export const PEGuestKeySchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const PEGuestStartSchema = PEStartSchema.extend({
   name: z.string().trim().min(1).max(100), email: z.email().trim().toLowerCase().max(254), draftKey: PEGuestKeySchema,
+  attribution: z.object(Object.fromEntries(['utmSource','utmMedium','utmCampaign','utmContent','utmTerm','gclid','fbclid','msclkid'].map(key=>[key,z.string().trim().max(500).optional()]))).strict()
+    .transform(values=>Object.fromEntries(Object.entries(values).filter(([,value])=>value&&!/@|[\r\n]|https?:\/\/|bearer\s|(?:access_token|api_key|secret)=/i.test(value)))).default({}),
+  journeyId:z.uuid().optional(),
 }).strict();
 export const hashPEKey = (token: string) => createHash('sha256').update(token).digest('hex');
 export const newPEKey = () => randomBytes(32).toString('hex');

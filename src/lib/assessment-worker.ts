@@ -5,6 +5,7 @@ import { generatePDFBuffer, type AssessmentResult } from './pdf-service';
 import { AssessmentSchema } from './validations';
 import { qualifyPublicAssessment } from './lead-qualification';
 import { assessmentAreaCopy } from './assessment-area-copy';
+import { advanceSalesStage } from './sales-stage';
 
 type Analysis = Awaited<ReturnType<typeof analyzeAssessment>>;
 type Job = { assessment_id: string; lease_token: string; attempts: number; ai_result: Analysis | null };
@@ -45,11 +46,11 @@ export async function processAssessmentJob(assessmentId?: string) {
       lead_score: qualification.score, lead_status: qualification.temperature,
       lead_temperature: qualification.temperature, lead_score_confidence: qualification.confidence,
       lead_score_reason: qualification.reasoning, lead_score_evidence: qualification,
-      lead_score_rule_version: qualification.ruleVersion, lifecycle_stage: 'lead',
-      opportunity_stage: qualification.temperature === 'hot' ? 'qualified' : 'identified',
+      lead_score_rule_version: qualification.ruleVersion,
       last_meaningful_activity_at: new Date().toISOString(),
     }).eq('id', assessment.lead_id);
     if (leadUpdate.error) console.warn('[Assessment worker] Qualification update failed:', leadUpdate.error.message);
+    await advanceSalesStage(db, assessment.lead_id, qualification.temperature === 'hot' ? 'qualified' : 'identified');
     const result: AssessmentResult = {
       scores: ai.scores, category: ai.category, aiAnalysis: ai.analysis,
       archetype: ai.archetype, scoreInterpretation: ai.scoreInterpretation,
