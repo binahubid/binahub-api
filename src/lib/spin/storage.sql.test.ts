@@ -6,12 +6,40 @@ const db=new PGlite();
 const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 const call=async(name:string,args:unknown[]=[]) => (await db.query<{v:unknown}>('select '+name+'('+args.map((_,i)=>'$'+(i+1)).join(',')+') as v',args)).rows[0].v;
 beforeAll(async()=>{await db.exec("create role anon;create role authenticated;create role service_role bypassrls;create table leads(id uuid primary key default gen_random_uuid(),name text,email text unique,company text,phone text,source text,lifecycle_stage text,opportunity_stage text,source_metadata jsonb);create table inquiries(id uuid primary key default gen_random_uuid(),lead_id uuid,name text,email text,whatsapp text,message text,source text,status text,module_request_data jsonb,follow_up_paused boolean,reply_status text,reply_email_id text,reply_sent_at timestamptz);create table assessments(lead_id uuid,follow_up_paused boolean,result_email_sent_at timestamptz,assessment_status text);");
- await db.exec(readFileSync('supabase/migrations/0071_spin_discovery.sql','utf8'));},30000);
+ await db.exec(readFileSync('supabase/migrations/0071_spin_discovery.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0072_spin_meeting_checklists.sql','utf8'));},30000);
 afterAll(()=>db.close());
 const draft=async()=>{const id=randomUUID(),key=hash(randomUUID());await call('spin_start',[id,key,'spin-v3.2-ceo-2026-10-22','spin-processing-indefinite-v1']);return{id,key};};
 const submit=async()=>{const d=await draft(),input={idempotencyKey:hash('submit'),processingConsent:true,marketingConsent:false,noticeVersion:'spin-processing-indefinite-v1',contact:{name:'Synthetic name',email:randomUUID()+'@example.invalid',company:'Synthetic company'}};
  await call('spin_write',[d.id,d.key,0,JSON.stringify({problemCluster:'C2'}),JSON.stringify({hash:hash('summary'),status:'confirmed'}),JSON.stringify({problem:'Synthetic problem'}),JSON.stringify(input)]);return {...d,input};};
 describe('SPIN SQL access, atomic submit, durable processing and delivery',()=>{
+ it('saves meeting supplements without changing client evidence, reports or mail jobs',async()=>{
+  const d=await submit(),actor=randomUUID();
+  const before=(await db.query('select answers,summary,report from spin_submissions where id=$1',[d.id])).rows[0];
+  const args=[d.id,actor,0,d.id,JSON.stringify(d.input.contact),JSON.stringify({participantCount:25}),'Discussed scope','in_progress'];
+  const saved=await call('spin_save_meeting',args) as {revision:number};expect(saved.revision).toBe(1);
+  expect(await call('spin_save_meeting',args)).toEqual(saved);
+  expect((await db.query('select answers,summary,report from spin_submissions where id=$1',[d.id])).rows[0]).toEqual(before);
+  expect((await db.query('select id from spin_mail_jobs where submission_id=$1',[d.id])).rows).toHaveLength(0);
+  expect((await db.query('select id from spin_meeting_events where checklist_id=$1',[d.id])).rows).toHaveLength(1);
+  await expect(call('spin_save_meeting',[d.id,randomUUID(),0,d.id,JSON.stringify(d.input.contact),'{}','Other edit','in_progress'])).rejects.toThrow('SPIN_REVISION_CONFLICT');
+  const changed=await call('spin_save_meeting',[d.id,actor,1,d.id,JSON.stringify(d.input.contact),'{}','Completed','completed']) as {revision:number;status:string};
+  expect(changed.revision).toBe(2);expect(changed.status).toBe('completed');
+ });
+ it('supports standalone meetings; inbox search is global, literal and does not expose unsubmitted drafts',async()=>{
+  const id=randomUUID(),actor=randomUUID(),contact={name:'Internal example',company:'Company %_unique',email:'meeting@example.invalid'};
+  await call('spin_save_meeting',[id,actor,0,null,JSON.stringify(contact),'{}','','in_progress']);
+  const list=await call('spin_meeting_inbox',[0,'%_unique']) as {records:{id:string;has_source:boolean}[];total:number};
+  expect(list.total).toBe(1);expect(list.records[0]).toMatchObject({id,has_source:false});
+  const d=await draft();await expect(call('spin_save_meeting',[d.id,actor,0,d.id,JSON.stringify(contact),'{}','','in_progress'])).rejects.toThrow('SPIN_NOT_FOUND');
+  await expect(call('spin_meeting_inbox',[-1,''])).rejects.toThrow('SPIN_INVALID_REQUEST');
+ });
+ it('keeps meeting tables and mutation functions unavailable to public clients',async()=>{
+  for(const role of ['anon','authenticated']){
+   expect((await db.query<{ok:boolean}>("select has_table_privilege($1,'spin_meeting_checklists','select') as ok",[role])).rows[0].ok).toBe(false);
+   expect((await db.query<{ok:boolean}>("select has_function_privilege($1,'spin_save_meeting(uuid,uuid,int,uuid,jsonb,jsonb,text,text)','execute') as ok",[role])).rows[0].ok).toBe(false);
+  }
+ });
  it('starts idempotently; no business data expiration is installed',async()=>{const d=await draft();await call('spin_start',[d.id,d.key,'spin-v3.2-ceo-2026-10-22','spin-processing-indefinite-v1']);
   await expect(call('spin_read_draft',[d.id,hash('wrong')])).rejects.toThrow('SPIN_NOT_FOUND');
   const columns=(await db.query<{column_name:string}>("select column_name from information_schema.columns where table_name='spin_submissions'")).rows.map(r=>r.column_name);

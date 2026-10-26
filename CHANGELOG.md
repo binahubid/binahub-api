@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.40.0] - 2026-10-26
+
+### Added
+
+- API admin dan SQL **72** untuk checklist kebutuhan program saat meeting:
+  sesi terhubung ke pengisian klien atau dimulai oleh admin, inbox gabungan,
+  pencarian global serta penyimpanan revisi dan identitas pengubah.
+- Jawaban admin disimpan sebagai tambahan/klarifikasi terpisah. Pengisian,
+  konfirmasi, laporan, CRM dan antrean email existing tidak ditulis oleh sesi.
+- Validasi memakai definisi pertanyaan/percabangan CEO yang sama. Penandaan
+  selesai memeriksa bagian wajib; retry identik idempotent dan konflik tidak
+  menimpa perubahan admin lain. Pemberitahuan pemrosesan wajib untuk sesi manual.
+- Boundary admin existing, body/rate limit, DTO terbatas, no-store serta tabel/RPC
+  yang tidak dapat dipakai langsung oleh peran anonim/pengguna biasa.
+
+### Deployment
+
+- Jalankan `supabase/migrations/0072_spin_meeting_checklists.sql` setelah SQL 71,
+  lalu gunakan app 0.43.0. Tidak ada env, worker atau pengiriman otomatis baru.
+- Tes menggunakan data sintetis/PGlite/mock. Tidak menerapkan SQL atau menguji
+  layanan/identitas produksi. Bukan pentest atau verifikasi deployment.
+
 ## [0.39.0] - 2026-10-23
 
 ### Added

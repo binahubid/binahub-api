@@ -44,6 +44,8 @@ export function spinFailure(error:unknown) {
  SPIN_FORBIDDEN:[403,'Permintaan tidak diizinkan.'],
  SPIN_TOO_LARGE:[413,'Isian terlalu panjang. Ringkas jawaban Anda.'],
  SPIN_SETUP_REQUIRED:[503,'Layanan rekomendasi sedang disiapkan. Silakan coba lagi nanti.'],
+ SPIN_MEETING_SETUP_REQUIRED:[503,'Checklist meeting belum siap. Penanggung jawab perlu menerapkan pembaruan database.'],
+ SPIN_MEETING_VERSION_CONFLICT:[409,'Versi pertanyaan pengisian ini berbeda. Hubungi penanggung jawab sebelum melanjutkan checklist.'],
  SPIN_INVALID_REPORT:[503,'Laporan belum dapat dibaca. Silakan coba lagi atau hubungi admin@binahub.id.'],
  };
  const [status,message]=map[code]||[503,'Layanan belum dapat diakses. Jawaban yang sudah tersimpan tetap tersedia. Coba lagi sebentar.'];
