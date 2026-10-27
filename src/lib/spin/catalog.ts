@@ -59,7 +59,22 @@ export function spinCatalogCandidates(spiritualOptIn: 'yes' | 'no' | 'unknown') 
 
 /** Deliberately excludes prices, source internals, and all SS-32 content. */
 export function spinMatchingCards(spiritualOptIn: 'yes' | 'no' | 'unknown') {
-  return spinCatalogCandidates(spiritualOptIn).map(({ code, name, objectives, audience }) => ({
+  return spinCatalogCandidates(spiritualOptIn).map(({ code, name, objectives, audience,sourceText }) => ({
     code, name, objectives: objectives.map(item => ({ ...item })), audience,
+    competencies:spinCatalogCompetencies(sourceText),
   }));
+}
+
+/** Exact catalog labels, not measured competency levels or a guessed crosswalk.
+ * The extracted V6 table loses core/secondary column alignment; retain one flat
+ * list rather than asserting which column a competency originally belonged to.
+ */
+export function spinCatalogCompetencies(text:string):string[] {
+ const compact=/Kompetensi inti:\s*([\s\S]*?)\s*Output:/i.exec(text);
+ if(compact)return [...new Set(compact[1].replace(/Kompetensi pendukung:/gi,';').split(/[;\n]/)
+  .map(value=>value.trim().replace(/\.$/,'')).filter(Boolean))];
+ const block=/KOMPETENSI YANG DIKEMBANGKAN\s*([\s\S]*?)\s*Basis:/i.exec(text);
+ if(!block)return [];
+ return [...new Set(block[1].split('\n').filter(line=>/^\s*•/.test(line))
+  .map(line=>line.replace(/^\s*•\s*/,'').trim()).filter(Boolean))];
 }

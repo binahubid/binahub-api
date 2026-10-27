@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import source from '@/data/spin-catalog-v6.json';
-import { SPIN_CATALOG, spinCatalogCandidates, spinMatchingCards, validateSpinCatalog } from './catalog';
+import { SPIN_CATALOG, spinCatalogCandidates, spinMatchingCards, spinCatalogCompetencies, validateSpinCatalog } from './catalog';
 
 describe('SPIN catalog source and scope', () => {
   it('preserves actual V6 provenance while restricting discovery to SS-01..31', () => {
@@ -28,7 +28,14 @@ describe('SPIN catalog source and scope', () => {
     }
   });
   it('never sends commercial/source internals to the matching model', () => {
-    for (const item of spinMatchingCards('no')) expect(Object.keys(item).sort()).toEqual(['audience', 'code', 'name', 'objectives']);
+    for (const item of spinMatchingCards('no')) expect(Object.keys(item).sort()).toEqual(['audience', 'code', 'competencies', 'name', 'objectives']);
+  });
+  it('extracts exact competency labels from V6 without guessing core/secondary column alignment',()=>{
+    const cards=spinMatchingCards('no');
+    expect(cards.find(item=>item.code==='SS-29')?.competencies).toEqual(['Meeting Leadership','Communication','Follow-Through','Conflict Management','Professional Presence']);
+    expect(cards.find(item=>item.code==='SS-01')?.competencies).toContain('Pressure Management');
+    for(const card of cards)for(const competency of card.competencies)expect(SPIN_CATALOG.modules.find(m=>m.code===card.code)?.sourceText).toContain(competency);
+    expect(spinCatalogCompetencies('No competency section')).toEqual([]);
   });
   it('keeps package/custom models separate from fixed daily tariffs', () => {
     expect(SPIN_CATALOG.modules.find(item => item.code === 'SS-11')).toMatchObject({ dailyRateIdr: null, allowedDays: [] });

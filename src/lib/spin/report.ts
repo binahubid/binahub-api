@@ -1,14 +1,19 @@
 import { z } from 'zod';
-import { SPIN_CATALOG } from './catalog';
+import { SPIN_CATALOG,spinCatalogCompetencies } from './catalog';
 import { quoteSpinCatalogBase } from './commercial';
 import { SPIN_DEFINITION, SpinError, spinInternalRules, spinNeeds } from './intake';
 import { spinLabel, type SpinAnswers } from './form';
 import { buildSpinRecommendationResult } from './recommendation';
 
+const solutionSchema=z.object({code:z.string(),name:z.string(),components:z.array(z.string()),outputs:z.array(z.string()),
+ competencies:z.array(z.string()).optional(),evidence:z.array(z.object({need:z.string(),objective:z.string()}).strict())}).strict();
 export const SpinReportSchema=z.object({version:z.literal('spin-report-v3-v1'),reference:z.string(),issuedAt:z.string().datetime({offset:true}).transform(value=>new Date(value).toISOString()),company:z.string().max(150),
   summary:z.object({situation:z.string(),problem:z.string(),impact:z.string(),outcome:z.string()}).strict(),
   snapshot:z.array(z.object({label:z.string(),value:z.string()}).strict()),
-  solutions:z.array(z.object({code:z.string(),name:z.string(),components:z.array(z.string()),outputs:z.array(z.string()),evidence:z.array(z.object({need:z.string(),objective:z.string()}).strict())}).strict()).max(3),
+  solutions:z.array(solutionSchema).max(3),
+  exploration:z.array(solutionSchema).max(3).optional(),
+  advisory:z.object({status:z.enum(['recommended','review_required','clarification_needed','temporarily_unavailable']),
+   title:z.string(),description:z.string(),reasons:z.array(z.string())}).strict().optional(),
   investments:z.array(z.object({name:z.string(),baseAmountIdr:z.number().int().positive().nullable(),duration:z.string(),capacity:z.string(),included:z.array(z.string()),note:z.string()}).strict()).max(3),
   confirmations:z.array(z.string()),nextStep:z.string(),bookingUrl:z.string().url().nullable(),
   taxNote:z.string(),disclaimer:z.string(),
@@ -34,7 +39,22 @@ export function buildSpinReport(input:{id:string;submittedAt:string;company:stri
   const {answers:a,selection}=input, rules=spinInternalRules(a,{status:input.status}),needs=spinNeeds(a,input.status);
   const label=(k:string)=>spinLabel(SPIN_DEFINITION,a,k);
   const blocked=!['A','B'].includes(rules.fitType)||rules.confidence==='low';
-  const candidates=blocked?[]:selection.publicReportDraft.recommendations;
+  const allCandidates=selection.publicReportDraft.recommendations;
+  const candidates=blocked?[]:allCandidates;
+  const reasons:string[]=[];
+  if(rules.fitType==='C')reasons.push('Hambatan proses, peran, alat, atau dukungan kerja perlu ditangani bersama pengembangan kompetensi. Pelatihan saja belum cukup.');
+  if(rules.fitType==='D')reasons.push('Kebutuhan mencakup arah strategis, cakupan organisasi, atau kelompok peserta yang luas; penerapan program perlu dirancang bersama.');
+  if(rules.fitType==='E')reasons.push('Tantangan, sasaran, atau beberapa jawaban belum cukup selaras untuk menetapkan program secara pasti.');
+  if(input.status!=='confirmed')reasons.push('Koreksi atau tambahan pada ringkasan Anda menjadi bahan penyelarasan ruang lingkup bersama konsultan.');
+  if(rules.conflicts.length)reasons.push('Prioritas, waktu, dampak, atau cakupan peserta perlu diselaraskan sebelum pelaksanaan.');
+  const aiUnavailable=selection.internalConsultant.consultationReasons.includes('AI_MATCH_UNAVAILABLE');
+  const advisory=allCandidates.length?{
+    status:blocked?'review_required' as const:'recommended' as const,
+    title:blocked?'Opsi program untuk dibahas bersama':'Arah pengembangan yang direkomendasikan',
+    description:blocked?'Program berikut memiliki kaitan dengan kebutuhan yang Anda sampaikan. Kesesuaian akhir, urutan pelaksanaan, dan investasi perlu dibahas sebelum menjadi penawaran.':'Program dipilih dengan menghubungkan kebutuhan dan hasil yang Anda harapkan dengan sasaran pembelajaran serta kompetensi yang dikembangkan.',reasons,
+  }:{status:aiUnavailable?'temporarily_unavailable' as const:'clarification_needed' as const,
+    title:aiUnavailable?'Pencocokan program belum dapat diselesaikan':'Kebutuhan Anda perlu diperjelas',
+    description:aiUnavailable?'Ringkasan kebutuhan Anda tetap tersedia. Tim BinaHub dapat membantu meninjau program yang sesuai sebelum menentukan investasi.':'Belum ada program yang cukup didukung oleh informasi saat ini. Diskusi singkat akan membantu memperjelas sasaran dan memilih pendekatan yang tepat.',reasons};
   const confirmations:string[]=[];
   if(blocked||!candidates.length)confirmations.push('Perjelas kebutuhan dan ruang lingkup bersama konsultan sebelum menentukan program.');
   if(rules.fitType==='B')confirmations.push('Dukungan atasan dan kesempatan menerapkan pembelajaran perlu dibahas; pelatihan saja belum tentu mencukupi.');
@@ -52,9 +72,13 @@ export function buildSpinReport(input:{id:string;submittedAt:string;company:stri
     return {name:p.name,baseAmountIdr:amount,duration:label('duration'),capacity:p.capacity,included:quote.publicInvestment.included,note:amount===null?'Ruang lingkup dan investasi dibahas saat konsultasi.':'Investasi dasar satu program, satu batch, sesuai durasi dan kapasitas yang disebutkan. Kebutuhan tambahan dibahas saat konsultasi.'};
   });
   const bookingUrl=input.bookingUrl&&/^https:\/\/(app\.)?cal\.com\//.test(input.bookingUrl)?input.bookingUrl:null;
+  const toSolution=(c:typeof allCandidates[number])=>{
+   const product=SPIN_CATALOG.modules.find(p=>p.code===c.solutionCode)!;
+   return {code:c.solutionCode,name:c.name,...catalogContents(product.sourceText),competencies:spinCatalogCompetencies(product.sourceText),evidence:c.fitEvidence.map(e=>({need:e.answer,objective:e.learningObjective}))};
+  };
   return {publicReport:SpinReportSchema.parse({version:'spin-report-v3-v1',reference:input.id,issuedAt:input.submittedAt,company:input.company,summary:input.summary,
     snapshot:[['Konteks','role'],['Bidang usaha','industry'],['Kelompok sasaran','audienceGroups'],['Peserta','participantCount'],['Upaya sebelumnya','priorEfforts'],['Hambatan','barriers'],['Konsekuensi yang dikhawatirkan','implications'],['Manfaat prioritas','benefits'],['Ukuran kemajuan','successMeasures']].map(([title,k])=>({label:title,value:label(k)})),
-    solutions:candidates.map(c=>({code:c.solutionCode,name:c.name,...catalogContents(SPIN_CATALOG.modules.find(p=>p.code===c.solutionCode)!.sourceText),evidence:c.fitEvidence.map(e=>({need:e.answer,objective:e.learningObjective}))})),investments,
+    solutions:candidates.map(toSolution),exploration:blocked?allCandidates.map(toSolution):[],advisory,investments,
     confirmations:[...new Set(confirmations)],nextStep:label('nextStep'),bookingUrl,taxNote:'Ketentuan pajak perlu dikonfirmasi.',
     disclaimer:'Dokumen ini adalah rekomendasi awal berdasarkan informasi responden, bukan diagnosis organisasi, asesmen psikometrik, jaminan hasil, atau penawaran final. Indikator, ruang lingkup, dan investasi perlu divalidasi bersama. Hasil program juga dipengaruhi penerapan di pekerjaan, dukungan atasan, dan sistem kerja.'}),
     internal:{...selection.internalConsultant,...rules,

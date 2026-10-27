@@ -57,4 +57,22 @@ describe('SPIN public question and report contract',()=>{
  if(process.env.SPIN_RENDER_SAMPLE==='true'){mkdirSync('.codex_tmp',{recursive:true});writeFileSync('.codex_tmp/spin-sample.pdf',buffer);}
  },15000);
  it('separates processing and marketing consent, with indefinite retention notice',()=>{expect(SPIN_NOTICE_VERSION).toContain('indefinite');});
+ it('shows verified program options for system-barrier cases without promoting them to a priced offer',async()=>{
+ const a={...completeAnswers(),barriers:['B1','B2','B3'],approaches:['A7']},needs=spinNeeds(a,'confirmed');
+ const matches=['SS-06','SS-13','SS-15'].map(solutionCode=>({solutionCode,evidenceLinks:[{evidenceId:'Q05',objectiveId:solutionCode+'.LO01'},{evidenceId:'Q13',objectiveId:solutionCode+'.LO01'}]}));
+ const selection=buildSpinRecommendationResult(needs,{matches});
+ const {publicReport:r}=buildSpinReport({id:'11111111-1111-4111-8111-111111111111',submittedAt:'2026-10-27T04:00:00+00:00',company:'Contoh Organisasi - data sintetis',answers:a,summary:spinSummary(SPIN_DEFINITION,a),status:'confirmed',selection});
+ expect(r.solutions).toEqual([]);expect(r.investments).toEqual([]);expect(r.exploration).toHaveLength(3);
+ expect(r.advisory?.status).toBe('review_required');expect(r.advisory?.reasons.join(' ')).toContain('Pelatihan saja belum cukup');
+ expect(r.exploration?.every(p=>p.competencies&&p.competencies.length>0)).toBe(true);
+ expect(JSON.stringify(r)).not.toMatch(/SYSTEM_BARRIERS|confidence|aiCandidates|sourceText|sourceSha256|prepared_not_active/);
+ const buffer=await renderSpinPDF(r);expect(buffer.subarray(0,4).toString()).toBe('%PDF');
+ if(process.env.SPIN_RENDER_SAMPLE==='true'){mkdirSync('.codex_tmp',{recursive:true});writeFileSync('.codex_tmp/spin-review-sample.pdf',buffer);}
+ },20000);
+ it('distinguishes an unavailable analysis from a verified match and never fabricates a fallback program',()=>{
+ const a=completeAnswers(),needs=spinNeeds(a,'confirmed');
+ const selection=buildSpinRecommendationResult(needs,{matches:[]},'AI_MATCH_UNAVAILABLE');
+ const {publicReport:r}=buildSpinReport({id:'11111111-1111-4111-8111-111111111111',submittedAt:'2026-10-27T04:00:00Z',company:'Synthetic',answers:a,summary:spinSummary(SPIN_DEFINITION,a),status:'confirmed',selection});
+ expect(r.advisory?.status).toBe('temporarily_unavailable');expect(r.solutions).toEqual([]);expect(r.exploration).toEqual([]);expect(r.investments).toEqual([]);
+ });
 });

@@ -91,8 +91,9 @@ describe('SPIN persisted submit → AI → report → PDF → email (synthetic P
   expect((await processSpinWork(id)).status).toBe('sent');expect(mocks.ai).toHaveBeenCalledOnce();
   const prompt=JSON.parse(mocks.ai.mock.calls[0][0].messages[1].content);
   expect(prompt.needs.evidence.find((e:{id:string})=>e.id==='Q13').text).toContain('Keputusan rapat memiliki penanggung jawab');
-  const row=(await db.query<{report:{solutions:unknown[]};internal_report:{aiCandidates:unknown[]}}>('select report,internal_report from spin_submissions where id=$1',[id])).rows[0];
+  const row=(await db.query<{report:{solutions:unknown[];exploration:unknown[];advisory:{status:string}};internal_report:{aiCandidates:unknown[]}}>('select report,internal_report from spin_submissions where id=$1',[id])).rows[0];
   expect(row.report.solutions).toEqual([]);expect(row.internal_report.aiCandidates).toHaveLength(1);
+  expect(row.report.exploration).toHaveLength(1);expect(row.report.advisory.status).toBe('review_required');
   expect(mocks.send).toHaveBeenCalledOnce();
  },20000);
  it('rejects a stale or unverified summary before AI and never enqueues email',async()=>{

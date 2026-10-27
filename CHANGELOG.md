@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.41.0] - 2026-10-27
+
+### Changed
+
+- Pencocokan SPIN memakai kompetensi dan sasaran pembelajaran persis dari snapshot
+  katalog V6. Tidak memakai label/mapping katalog lama untuk produk baru dan tidak
+  mengklaim checklist sebagai tes atau pengukuran level kompetensi.
+- Kandidat AI tervalidasi pada kasus kompleks tetap dapat dilihat klien sebagai
+  opsi konsultasi (`exploration`), tanpa mengubahnya menjadi rekomendasi pasti
+  (`solutions`) atau harga yang disetujui. Alasan pembahasan ditulis dengan bahasa
+  publik; tidak membocorkan flag/aturan internal atau mengarang program pengganti.
+- PDF konsultan: ringkasan kebutuhan visual, opsi program, bukti kecocokan,
+  kompetensi, investasi bersyarat, rencana tindak lanjut dan konteks lengkap.
+- Field publik baru opsional agar snapshot lama tetap valid. Tidak menulis ulang
+  laporan/email/PDF yang sudah diterbitkan, mengirim email atau mereset pekerjaan.
+
+### Deployment
+
+- Pasangkan dengan app 0.44.0. Tidak ada migration/credential baru. SQL 73 rilis
+  sebelumnya hanya diperlukan bila memakai pemulihan analisis lama yang gagal.
+
+### Verification
+
+- 737 tes lolos, lima dilewati; lint/typecheck dan build 124 halaman lolos.
+  Suite penuh dijalankan dua worker setelah satu timeout saat build paralel.
+- PDF sintetis satu rekomendasi dan tiga opsi kompleks dirender/diinspeksi.
+  Uji AI nyata sintetis memilih SS-29. Tidak menulis ulang laporan atau kirim email.
+
 ## [0.40.2] - 2026-10-27
 
 ### Fixed
