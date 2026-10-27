@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 import { createServerSupabase } from '@/lib/supabase';
 import { resolvePublicAppUrl } from '@/lib/public-app-url';
 import { spinRPC } from './http';
-import { SPIN_DEFINITION, SpinError, spinHash, spinNeeds, validateSpinAnswers } from './intake';
+import { SPIN_DEFINITION, SpinError, spinHash, spinConfirmedNeeds, validateSpinAnswers } from './intake';
 import { buildSpinRecommendationResult } from './recommendation';
 import { prepareSpinRecommendation } from './service';
 import { buildSpinReport, SpinReportSchema } from './report';
@@ -26,15 +26,21 @@ type Mail={id:string;submission_id:string;lease:string;recipient:string;from_add
 export async function processSpinWork(id?:string) {
  if(!spinConfigured())return {processed:false,status:'setup_required'};
  const row=await spinRPC('spin_claim',{p_id:id||null}) as Work|null;
+ let stage='answers';
  if(row)try {
-   const answers=validateSpinAnswers(row.answers,true),needs=spinNeeds(answers,row.confirmation.status);
+   const answers=validateSpinAnswers(row.answers,true),needs=spinConfirmedNeeds(answers,row.confirmation,row.summary);
+   stage='analysis';
    // Conservative schema failure goes to a consultation report, never a fabricated recommendation.
    let selection:ReturnType<typeof buildSpinRecommendationResult>;
    try{selection=await prepareSpinRecommendation(needs);}
    catch {selection=buildSpinRecommendationResult({...needs,evidence:[{id:'Q05',text:'Kebutuhan perlu dibahas bersama.'}]},{matches:[]});}
+   stage='report';
    const report=buildSpinReport({id:row.id,submittedAt:row.submitted_at,company:row.contact.company,answers,summary:row.summary,status:row.confirmation.status,selection,bookingUrl:process.env.CALCOM_BOOKING_URL});
+   stage='persist';
    if(await spinRPC('spin_finish',{p_id:row.id,p_lease:row.lease,p_report:report.publicReport,p_internal:report.internal,p_error:null})!==true)throw new Error('LEASE_LOST');
  }catch{
+   // Stage only: never log contact, answers, links, model output or raw errors.
+   console.error('[SPIN] PROCESSING_RETRY stage='+stage);
    await spinRPC('spin_finish',{p_id:row.id,p_lease:row.lease,p_report:null,p_internal:null,p_error:'SPIN_PROCESSING_RETRY'});
  }
  return processSpinMail(id);

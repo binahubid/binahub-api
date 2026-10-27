@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.40.1",
+  "version": "0.40.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,6 +35,7 @@
     "test:ams-integration": "node scripts/ams-app-integration-smoke.mjs",
     "test:ai": "node scripts/ai-provider-smoke.mjs",
     "test:ai:fallback": "node scripts/ai-fallback-smoke.mjs",
+    "test:spin:ai": "node scripts/spin-ai-smoke.mjs",
     "prepare:binainsights": "node scripts/prepare-binainsights-release.mjs"
   },
   "dependencies": {

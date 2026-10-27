@@ -1,5 +1,41 @@
 # Rilis Discovery organisasi / SPIN
 
+## Perbaikan pemrosesan 0.40.2 — 27 Oktober 2026
+
+- Bug terverifikasi: timestamp `submitted_at` dari PostgreSQL memakai offset
+  `+00:00`, sedangkan schema lama hanya menerima `Z`. Laporan gagal dibuat,
+  sehingga tidak ada pekerjaan email. Schema kini menerima offset ISO valid dan
+  menyimpan tanggal laporan dalam UTC kanonis. Soal, harga dan katalog tidak berubah.
+- Koreksi/tambahan yang dikonfirmasi melalui tombol formulir diverifikasi ulang
+  terhadap hash jawaban dan ringkasan tersimpan sebelum masuk AI. Koreksi dipakai
+  sebagai bukti, tanpa field kontak. Snapshot stale atau belum dikonfirmasi ditolak.
+  Kasus yang membutuhkan konsultasi tetap tidak dipaksakan menjadi penawaran;
+  kandidat AI dapat ditinjau admin dalam catatan internal.
+- Deploy API terbaru. Perbaikan pengisian baru tidak memerlukan SQL baru.
+  Untuk memulihkan analisis lama yang sudah menghabiskan tiga percobaan, jalankan
+  `supabase/migrations/0073_spin_processing_recovery.sql` satu kali, lalu gunakan
+  tombol **Proses antrean yang menunggu** di detail pengisian admin. SQL 73 hanya
+  memasang fungsi; tidak mengubah record atau mengirim email saat dijalankan.
+  Tanpa SQL 73, tombol recovery memberi pesan setup, bukan keberhasilan palsu.
+- Recovery eksplisit hanya mengantrekan ulang status failed yang belum memiliki
+  laporan maupun mail job, dengan audit admin dari sesi server. Status siap,
+  pekerjaan aktif dan seluruh status email tidak direset. Klik ganda tidak
+  menghasilkan laporan/email baru. Jangan memulihkan data produksi untuk smoke
+  test tanpa izin pengiriman yang sesuai.
+- Pengiriman awal tetap berjalan di server setelah respons submit, tanpa
+  menunggu browser tetap terbuka. Retry setelah gangguan memerlukan scheduler
+  existing seperti dijelaskan di bawah; pemasangan env saja bukan scheduler.
+- Tes end-to-end lokal menggunakan database PGlite dan PDF nyata; AI/Resend
+  dimock. Investigasi record gagal di database target hanya baca, tanpa memanggil
+  worker atau mengirim ulang ke alamat tersimpan. Push/build bukan bukti inbox
+  menerima email. Setelah deploy, uji satu pengisian internal yang disetujui.
+- Uji AI nyata terpisah memakai kebutuhan sintetis/katalog publik berhasil
+  mencocokkan SS-29 dan lolos validasi referensi. Jalankan `npm run test:spin:ai`
+  hanya saat memang ingin memanggil provider; ini memakai kuota, membaca pilihan
+  provider existing, tidak mengirim email dan tidak menulis pengisian produksi.
+  Test suite normal melewati uji live ini. Keberhasilan satu contoh bukan bukti
+  relevansi seluruh kasus atau jaminan pengiriman inbox.
+
 Update 23 Oktober 2026. Target API 0.39.0/app 0.41.0. Pengguna mengonfirmasi SQL
 71 sudah dijalankan dan mengizinkan commit, push serta deployment. Keberhasilan
 hosting dan kiriman tetap diverifikasi terpisah, bukan dianggap selesai dari push.
@@ -60,10 +96,10 @@ sintetis setelah SQL/deploy siap. Belum dikirim pada saat runbook ditulis.
 
 ## Penanganan kegagalan tanpa kirim buta
 
-- Report queued/failed: worker mengklaim dengan lease 3 menit, maksimal tiga
-  percobaan, jeda lima menit. Tombol admin meminta pemrosesan antrean pending;
-  bukan reset limit atau bypass konfigurasi. Setelah limit habis perlu diagnosis
-  teknis, bukan menekan tombol berkali-kali.
+- Report queued/failed: worker otomatis mengklaim dengan lease 3 menit, maksimal
+  tiga percobaan dan jeda lima menit. Sejak 0.40.2/SQL 73, admin dapat memulihkan
+  analisis failed secara eksplisit setelah penyebab diperbaiki. Ini bukan reset
+  email atau bypass konfigurasi; jangan mengulang jika penyebab belum ditangani.
 - Email pending: maksimal lima percobaan, payload/recipient/sender/URL/PDF dan
   idempotency key sama. Penerimaan provider yang tidak tersimpan harus direkonsiliasi.
 - Setelah 23 jam ketidakpastian: status uncertain, tidak mengirim ulang buta

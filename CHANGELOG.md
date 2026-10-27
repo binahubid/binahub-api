@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.40.2] - 2026-10-27
+
+### Fixed
+
+- Laporan SPIN menerima timestamp ISO database dengan offset dan menormalkan ke
+  UTC. Sebelumnya laporan gagal pada `issuedAt` sebelum antrean email terbentuk.
+- Ringkasan dengan koreksi/tambahan yang sudah dikonfirmasi klien ikut dianalisis
+  AI menggunakan snapshot yang diverifikasi, bukan mengabaikan koreksi atau
+  memakai ringkasan lama. Aturan review/harga publik tetap konservatif; kandidat
+  yang perlu ditinjau tersedia di analisis internal, bukan penawaran otomatis.
+- Respons JSON dengan satu code fence diterima setelah validasi katalog/bukti
+  yang sama. Kesalahan worker mencatat tahap aman, bukan jawaban atau kontak.
+- SQL **73** menambahkan pemulihan eksplisit lewat tombol admin untuk analisis
+  gagal yang sudah mencapai batas percobaan. Tidak memproses data saat migrasi,
+  tidak merebut lease, menimpa laporan, atau mereset pengiriman email.
+
+### Verification
+
+- Regresi integrasi memakai RPC SQL 71/PGlite, timestamp riil PostgreSQL, AI mock,
+  PDF nyata dan pengirim email mock. Mencakup kiriman tunggal, retry, koreksi
+  ringkasan, provider gagal, dan pelestarian aturan review konsultasi.
+- Pemeriksaan produksi hanya baca: dua pengisian gagal pada format `issuedAt`,
+  satu sudah mencapai tiga percobaan, dan belum ada mail job. Tidak memproses
+  ulang pengisian lama atau mengirim email selama investigasi.
+- Uji AI nyata terpisah dengan kebutuhan sintetis/katalog publik menghasilkan
+  kandidat SS-29 yang lolos validasi referensi. Tidak mengirim email atau menulis
+  pengisian produksi. Build 124 halaman, lint dan typecheck lolos.
+- Suite penuh: 734 tes lolos, 5 dilewati (termasuk uji live opt-in).
+
 ## [0.40.1] - 2026-10-27
 
 ### Fixed

@@ -39,6 +39,12 @@ describe('SPIN AI adapter (mocked; no provider or email calls)', () => {
     expect(JSON.stringify(result)).not.toMatch(/private@example|provider-secret/);
     expect(result.publicReportDraft.recommendations).toEqual([]);
   });
+  it('accepts a single JSON code fence while retaining strict catalog/evidence validation',async()=>{
+    routed.mockImplementation(async input=>{
+      const content='```json\n'+JSON.stringify(syntheticSpinSelection())+'\n```';input.validateContent(content);return {content};
+    });
+    expect((await prepareSpinRecommendation(syntheticSpinNeeds())).publicReportDraft.recommendations[0].solutionCode).toBe('SS-29');
+  });
   it('rejects personal input before any provider call', async () => {
     await expect(prepareSpinRecommendation(syntheticSpinNeeds({ evidence: [{ id: 'Q13', text: 'private@example.invalid' }] }))).rejects.toThrow();
     expect(routed).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import { SPIN_DEFINITION, SpinError, spinInternalRules, spinNeeds } from './inta
 import { spinLabel, type SpinAnswers } from './form';
 import { buildSpinRecommendationResult } from './recommendation';
 
-export const SpinReportSchema=z.object({version:z.literal('spin-report-v3-v1'),reference:z.string(),issuedAt:z.string().datetime(),company:z.string().max(150),
+export const SpinReportSchema=z.object({version:z.literal('spin-report-v3-v1'),reference:z.string(),issuedAt:z.string().datetime({offset:true}).transform(value=>new Date(value).toISOString()),company:z.string().max(150),
   summary:z.object({situation:z.string(),problem:z.string(),impact:z.string(),outcome:z.string()}).strict(),
   snapshot:z.array(z.object({label:z.string(),value:z.string()}).strict()),
   solutions:z.array(z.object({code:z.string(),name:z.string(),components:z.array(z.string()),outputs:z.array(z.string()),evidence:z.array(z.object({need:z.string(),objective:z.string()}).strict())}).strict()).max(3),
@@ -57,5 +57,8 @@ export function buildSpinReport(input:{id:string;submittedAt:string;company:stri
     solutions:candidates.map(c=>({code:c.solutionCode,name:c.name,...catalogContents(SPIN_CATALOG.modules.find(p=>p.code===c.solutionCode)!.sourceText),evidence:c.fitEvidence.map(e=>({need:e.answer,objective:e.learningObjective}))})),investments,
     confirmations:[...new Set(confirmations)],nextStep:label('nextStep'),bookingUrl,taxNote:'Ketentuan pajak perlu dikonfirmasi.',
     disclaimer:'Dokumen ini adalah rekomendasi awal berdasarkan informasi responden, bukan diagnosis organisasi, asesmen psikometrik, jaminan hasil, atau penawaran final. Indikator, ruang lingkup, dan investasi perlu divalidasi bersama. Hasil program juga dipengaruhi penerapan di pekerjaan, dukungan atasan, dan sistem kerja.'}),
-    internal:{...selection.internalConsultant,...rules,catalogVersion:SPIN_CATALOG.catalogVersion,pricingVersion:'spin-catalog-base-ceo-2026-10-22-v1'}};
+    internal:{...selection.internalConsultant,...rules,
+      // Candidate matches remain visible to consultants when public rules require review.
+      aiCandidates:selection.publicReportDraft.recommendations,
+      catalogVersion:SPIN_CATALOG.catalogVersion,pricingVersion:'spin-catalog-base-ceo-2026-10-22-v1'}};
 }

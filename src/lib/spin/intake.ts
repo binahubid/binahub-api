@@ -75,3 +75,22 @@ export function spinNeeds(a:SpinAnswers,status:'confirmed'|'edited'|'supplemente
     spiritualOptIn:a.spiritualOptIn||'unknown',barriers:spinArray(a,'barriers').filter(k=>/^B[1-7]$/.test(k)),
     priorOutcome:a.priorOutcome||'none',conflicts:spinConflicts(a),evidence};
 }
+
+/** A client confirms the reviewed summary by clicking Confirm & continue,
+ * including corrections/additions. Verify that snapshot before using it for AI.
+ * The original confirmation status remains available to conservative report rules.
+ */
+export function spinConfirmedNeeds(answers:SpinAnswers,confirmation:unknown,summary:unknown) {
+ const checked=validateSpinWrite({key:'0'.repeat(64),revision:0,answers,confirmation});
+ if(!checked.confirmation||!checked.summary||!summary||typeof summary!=='object')throw new SpinError('SPIN_CONFIRMATION_REQUIRED');
+ for(const key of ['situation','problem','impact','outcome'] as const)
+  if((summary as Record<string,unknown>)[key]!==checked.summary[key])throw new SpinError('SPIN_SUMMARY_CHANGED');
+ const needs=spinNeeds(checked.answers,'confirmed');
+ const refs={situation:'Q02',problem:'Q05',impact:'Q07',outcome:'Q13'} as const;
+ for(const [key,id] of Object.entries(refs) as Array<[keyof typeof refs,string]>) {
+  if(!checked.confirmation.corrections[key]?.trim())continue;
+  needs.evidence=needs.evidence.filter(item=>item.id!==id);
+  needs.evidence.push({id,text:checked.summary[key].slice(0,500)});
+ }
+ return needs;
+}

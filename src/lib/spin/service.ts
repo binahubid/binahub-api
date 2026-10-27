@@ -13,7 +13,8 @@ export async function prepareSpinRecommendation(input: unknown) {
   const parse = (content: string) => {
     // JSON mode is a transport convenience. Both shape and source references are rechecked.
     if (content.length > 16_384) throw new Error('SPIN_AI_OUTPUT_INVALID');
-    const value: unknown = JSON.parse(content);
+    const trimmed=content.trim(),fenced=/^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+    const value: unknown = JSON.parse(fenced?fenced[1]:trimmed);
     validateSpinMatches(value, request.needs);
     return value;
   };

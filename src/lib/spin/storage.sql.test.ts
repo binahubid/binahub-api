@@ -7,12 +7,27 @@ const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 const call=async(name:string,args:unknown[]=[]) => (await db.query<{v:unknown}>('select '+name+'('+args.map((_,i)=>'$'+(i+1)).join(',')+') as v',args)).rows[0].v;
 beforeAll(async()=>{await db.exec("create role anon;create role authenticated;create role service_role bypassrls;create table leads(id uuid primary key default gen_random_uuid(),name text,email text unique,company text,phone text,source text,lifecycle_stage text,opportunity_stage text,source_metadata jsonb);create table inquiries(id uuid primary key default gen_random_uuid(),lead_id uuid,name text,email text,whatsapp text,message text,source text,status text,module_request_data jsonb,follow_up_paused boolean,reply_status text,reply_email_id text,reply_sent_at timestamptz);create table assessments(lead_id uuid,follow_up_paused boolean,result_email_sent_at timestamptz,assessment_status text);");
  await db.exec(readFileSync('supabase/migrations/0071_spin_discovery.sql','utf8'));
- await db.exec(readFileSync('supabase/migrations/0072_spin_meeting_checklists.sql','utf8'));},30000);
+ await db.exec(readFileSync('supabase/migrations/0072_spin_meeting_checklists.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0073_spin_processing_recovery.sql','utf8'));},30000);
 afterAll(()=>db.close());
 const draft=async()=>{const id=randomUUID(),key=hash(randomUUID());await call('spin_start',[id,key,'spin-v3.2-ceo-2026-10-22','spin-processing-indefinite-v1']);return{id,key};};
 const submit=async()=>{const d=await draft(),input={idempotencyKey:hash('submit'),processingConsent:true,marketingConsent:false,noticeVersion:'spin-processing-indefinite-v1',contact:{name:'Synthetic name',email:randomUUID()+'@example.invalid',company:'Synthetic company'}};
  await call('spin_write',[d.id,d.key,0,JSON.stringify({problemCluster:'C2'}),JSON.stringify({hash:hash('summary'),status:'confirmed'}),JSON.stringify({problem:'Synthetic problem'}),JSON.stringify(input)]);return {...d,input};};
 describe('SPIN SQL access, atomic submit, durable processing and delivery',()=>{
+ it('recovers exhausted processing only on an explicit admin action without resetting mail or active work',async()=>{
+  const d=await submit(),actor=randomUUID();
+  await db.query("update spin_submissions set status='failed',attempts=3,error_code='SPIN_PROCESSING_RETRY',next_attempt_at=now()+interval '5 minutes' where id=$1",[d.id]);
+  expect(await call('spin_claim',[d.id])).toBeNull();
+  expect(await call('spin_retry_processing',[d.id,actor])).toBe(true);
+  expect(await call('spin_retry_processing',[d.id,actor])).toBe(false);
+  const work=await call('spin_claim',[d.id]) as {lease:string};expect(work).not.toBeNull();
+  expect(await call('spin_retry_processing',[d.id,actor])).toBe(false);
+  await call('spin_finish',[d.id,work.lease,'{}','{}',null]);
+  expect(await call('spin_retry_processing',[d.id,actor])).toBe(false);
+  expect((await db.query('select id from spin_mail_jobs where submission_id=$1',[d.id])).rows).toHaveLength(1);
+  expect((await db.query('select event from spin_events where submission_id=$1 and event=$2',[d.id,'admin_processing_retry:'+actor])).rows).toHaveLength(1);
+  for(const role of ['anon','authenticated'])expect((await db.query<{ok:boolean}>("select has_function_privilege($1,'spin_retry_processing(uuid,uuid)','execute') as ok",[role])).rows[0].ok).toBe(false);
+ });
  it('saves meeting supplements without changing client evidence, reports or mail jobs',async()=>{
   const d=await submit(),actor=randomUUID();
   const before=(await db.query('select answers,summary,report from spin_submissions where id=$1',[d.id])).rows[0];

@@ -26,7 +26,8 @@ export async function spinBody(req:NextRequest) {
 }
 export async function spinRPC(name:string,args:Record<string,unknown>={}) {
  const {data,error}=await createServerSupabase().rpc(name,args);
- if(error){const code=/\bSPIN_[A-Z_]+\b/.exec(error.message)?.[0];throw new SpinError(code||'SPIN_STORAGE_UNAVAILABLE');}
+ if(error){if(name==='spin_retry_processing'&&['PGRST202','42883'].includes(error.code||''))throw new SpinError('SPIN_RETRY_SETUP_REQUIRED');
+ const code=/\bSPIN_[A-Z_]+\b/.exec(error.message)?.[0];throw new SpinError(code||'SPIN_STORAGE_UNAVAILABLE');}
  return data;
 }
 export function spinFailure(error:unknown) {
@@ -45,6 +46,7 @@ export function spinFailure(error:unknown) {
  SPIN_TOO_LARGE:[413,'Isian terlalu panjang. Ringkas jawaban Anda.'],
  SPIN_SETUP_REQUIRED:[503,'Layanan rekomendasi sedang disiapkan. Silakan coba lagi nanti.'],
  SPIN_MEETING_SETUP_REQUIRED:[503,'Checklist meeting belum siap. Penanggung jawab perlu menerapkan pembaruan database.'],
+ SPIN_RETRY_SETUP_REQUIRED:[503,'Pemulihan antrean belum tersedia. Penanggung jawab perlu menerapkan SQL 73.'],
  SPIN_MEETING_VERSION_CONFLICT:[409,'Versi pertanyaan pengisian ini berbeda. Hubungi penanggung jawab sebelum melanjutkan checklist.'],
  SPIN_INVALID_REPORT:[503,'Laporan belum dapat dibaca. Silakan coba lagi atau hubungi admin@binahub.id.'],
  };

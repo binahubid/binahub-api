@@ -40,6 +40,17 @@ describe('SPIN route boundaries (no real database/model/email)',()=>{
  const r=await write(req({key,revision:0,answers:{},confirmation:null},'/api/discovery/spin/'+id,'PATCH'),ctx);
  expect(r.status).toBe(409);expect(JSON.stringify(await r.json())).not.toMatch(/private@example/);
  });
+ it('requeues processing only after admin authentication and surfaces missing recovery SQL honestly',async()=>{
+ const actor='22222222-2222-4222-8222-222222222222';mocks.auth.mockResolvedValue({userId:actor,email:'admin@example.invalid'});
+ mocks.rpc.mockResolvedValue({data:true,error:null});
+ expect((await retry(req({action:'process_pending'}),ctx)).status).toBe(202);
+ expect(mocks.rpc).toHaveBeenCalledWith('spin_retry_processing',{p_id:id,p_actor:actor});
+ expect(mocks.after).toHaveBeenCalledOnce();mocks.after.mockClear();
+ mocks.rpc.mockResolvedValue({data:null,error:{code:'PGRST202',message:'Missing function'}});
+ const unavailable=await retry(req({action:'process_pending'}),ctx);
+ expect(unavailable.status).toBe(503);expect((await unavailable.json()).code).toBe('SPIN_RETRY_SETUP_REQUIRED');
+ expect(mocks.after).not.toHaveBeenCalled();
+ });
  it('accepts a validated submit without waiting for AI/email, schedules recovery after persisted acceptance',async()=>{
  const answers:SpinAnswers={};for(const f of SPIN_DEFINITION.fields){if(!spinVisible(f,answers)||!f.required)continue;
  if(f.type==='text')answers[f.key]='Kebutuhan kerja yang lebih efektif.';else if(f.type==='number')answers[f.key]=20;
