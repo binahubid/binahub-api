@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.40.1] - 2026-10-27
+
+### Fixed
+
+- Mengalokasikan waktu per provider agar retry model pada provider utama tidak
+  menghabiskan deadline sebelum OpenRouter mendapat giliran. Sakelar OFF dan
+  pilihan utama admin tetap dihormati, termasuk ketika pengaturan gagal dibaca.
+- Menambahkan fallback model OpenRouter dan memperbarui default ke
+  `nvidia/nemotron-3.5-super-vl:free`. Model yang dipilih melalui env tetap dicoba
+  terlebih dahulu. Retry OpenRouter menyisakan waktu untuk model berikutnya.
+- `OPENROUTER_FALLBACK_MODELS` opsional; tidak ada env wajib atau SQL baru.
+  Daftar kosong eksplisit mematikan tambahan model, bukan sakelar provider.
+
+### Verification
+
+- Regresi timeout, budget singkat, keluaran invalid, billing, dan provider OFF;
+  uji integrasi admin, pemilihan katalog, SPIN serta proxy AMS.
+- Typecheck dan lint file terkait lolos; 73 tes terkait lolos, 1 uji live
+  dilewati pada suite normal. Uji live eksplisit terpisah lolos; build 124 halaman.
+- `npm run test:ai:fallback` adalah uji nyata opt-in dengan pesan sintetis:
+  provider utama disimulasikan gagal lokal, kemudian OpenRouter dipanggil.
+  Bukan bagian pengujian normal dan dapat memakai kuota provider.
+
 ## [0.40.0] - 2026-10-26
 
 ### Added

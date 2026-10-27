@@ -27,9 +27,38 @@ Sebelum SQL 68 atau sebelum admin pertama menyimpan, API mempertahankan routing 
 - Respons admin hanya status ketersediaan dan nama model, tidak berisi API key/base URL/prompt. Audit hanya perubahan pilihan, bukan isi asesmen/CV.
 - Integrasi AMS adalah server-to-server yang sudah dipercaya; HMAC memiliki batas waktu, payload dan token dibatasi. SDK tidak mengulang otomatis request router. Penyimpanan hasil dan idempotensi pekerjaan CV tetap memakai alur AMS existing.
 - Kontrol provider bukan sertifikasi privasi, DPA, jaminan uptime atau jaminan mutu model. Provider aktif dapat meneruskan data kepada upstream sesuai ketentuannya. Tidak mengubah consent atau membuka akses data baru kepada browser.
-- Tes unit/SQL/UI memakai data sintetis dan server lokal. Uji saldo, kualitas bahasa dan delivery produksi belum dilakukan karena akan memakai data/kredit sungguhan. Tidak ada SQL, env, email atau panggilan model produksi dijalankan oleh developer.
+- Tes unit/SQL/UI memakai data sintetis dan server lokal. Pernyataan verifikasi
+  rilis 0.36.0 tidak mencakup panggilan model nyata. Pengecualian pemeriksaan
+  koneksi sintetis 0.40.1 dijelaskan di bawah; kualitas laporan dan delivery
+  produksi tetap belum dibuktikan oleh smoke test koneksi.
 
 ## Verifikasi
+
+### Perbaikan fallback 0.40.1 (27 Oktober 2026)
+
+- Setiap provider mendapat bagian tetap dari waktu yang tersisa. Retry model
+  LapakVIP/Codecraft tidak lagi menghabiskan seluruh deadline sebelum OpenRouter.
+  Retry model tetap dilakukan jika waktu provider masih tersedia. Model OpenRouter
+  berbagi anggaran waktunya agar timeout model pertama tidak menutup model kedua.
+- Model general/reasoning/vision yang diatur di env tetap diprioritaskan.
+  Default dan cadangan bawaan OpenRouter kini `nvidia/nemotron-3.5-super-vl:free`.
+  `OPENROUTER_FALLBACK_MODELS` dapat mengganti daftar cadangan (dipisah koma);
+  nilai kosong eksplisit meniadakan cadangan model. Untuk vision, pilih model
+  yang mendukung gambar. Provider yang OFF tidak pernah diaktifkan oleh fallback.
+- Pemeriksaan database saat pengerjaan menunjukkan OpenRouter sebagai **utama**,
+  bukan cadangan, dengan ketiga provider ON. Tidak ada pengaturan admin yang
+  diubah. Jika ingin LapakVIP utama dan OpenRouter cadangan, gunakan Settings
+  yang sudah ada; tidak perlu mengubah env Vercel setiap berpindah provider.
+- Uji koneksi sintetis memakai key lokal yang tersedia: model terkonfigurasi
+  `nvidia/nemotron-3-super-120b-a12b:free` mengembalikan HTTP 404 dari upstream,
+  sedangkan `nvidia/nemotron-3.5-super-vl:free` mengembalikan penanda `BINAHUB_OK`.
+  Uji ini tidak membaca/mengirim assessment atau CV. Ini bukti konektivitas saat
+  diuji, bukan jaminan kualitas laporan, saldo/limit berikutnya, atau deployment
+  Vercel. Kredensial Vercel dapat berbeda dari env lokal.
+- Jalankan `npm run test:ai:fallback` untuk pengujian nyata eksplisit. Runner
+  mensimulasikan LapakVIP/Codecraft gagal pada server loopback dengan key dummy,
+  lalu mencoba OpenRouter nyata menggunakan pesan sintetis. Bisa memakai kuota;
+  tidak dijalankan oleh test suite normal. Tidak ada pengiriman email atau SQL.
 
 - API: `npm run typecheck`, `npm run test:run`, `npm run build`.
 - App: `npm run typecheck`, `npm run test:run`, `npm run build`.

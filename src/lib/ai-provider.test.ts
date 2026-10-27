@@ -32,6 +32,7 @@ describe("AI provider routing", () => {
       "lapakvip:lv/deepseek-v4.1-flash",
       "lapakvip:lv/grok-4.6",
       "openrouter:openrouter/fallback",
+      "openrouter:nvidia/nemotron-3.5-super-vl:free",
     ]);
   });
 
@@ -156,6 +157,7 @@ describe("AI provider routing", () => {
       "codecraft:claude-opus-5",
       "codecraft:qwen3.8-max",
       "openrouter:openrouter/fallback",
+      "openrouter:nvidia/nemotron-3.5-super-vl:free",
     ]);
   });
 
@@ -164,8 +166,15 @@ describe("AI provider routing", () => {
       OPENROUTER_API_KEY: "openrouter-test-key",
       OPENROUTER_MODEL: "openrouter/fallback",
     } as unknown as NodeJS.ProcessEnv);
-    expect(attempts).toHaveLength(1);
+    expect(attempts).toHaveLength(2);
     expect(attempts[0]?.provider).toBe("openrouter");
+  });
+
+  it("deduplicates OpenRouter models and honors an explicitly empty fallback list", () => {
+    const environment: NodeJS.ProcessEnv = { NODE_ENV: "test", OPENROUTER_API_KEY: "synthetic",
+      OPENROUTER_MODEL: "synthetic/primary", OPENROUTER_FALLBACK_MODELS: "synthetic/primary,synthetic/backup,synthetic/backup" };
+    expect(buildAIProviderAttempts(environment).map(({ model }) => model)).toEqual(["synthetic/primary", "synthetic/backup"]);
+    expect(buildAIProviderAttempts({ ...environment, OPENROUTER_FALLBACK_MODELS: "" }).map(({ model }) => model)).toEqual(["synthetic/primary"]);
   });
 
   it("prioritizes the configured reasoning model without removing fallbacks", () => {
@@ -185,6 +194,7 @@ describe("AI provider routing", () => {
       "codecraft:claude-opus-5",
       "codecraft:qwen3.8-max",
       "openrouter:openrouter/reasoning",
+      "openrouter:nvidia/nemotron-3.5-super-vl:free",
     ]);
   });
 
@@ -205,6 +215,7 @@ describe("AI provider routing", () => {
       "codecraft:gpt-5.6-sol",
       "codecraft:qwen3.8-max",
       "openrouter:openrouter/vision",
+      "openrouter:nvidia/nemotron-3.5-super-vl:free",
     ]);
   });
 

@@ -26,6 +26,8 @@ export type AIRequestBudget = {
   totalTimeoutMs?: number;
 };
 
+const OPENROUTER_DEFAULT_MODEL = "nvidia/nemotron-3.5-super-vl:free";
+
 function commaList(value: string | undefined) {
   return (value || "").split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -92,13 +94,13 @@ export function buildAIProviderAttempts(
 
   const openRouterKey = environment.OPENROUTER_API_KEY?.trim();
   if (openRouterKey) {
-    attempts.push({
+    const generalModel = environment.OPENROUTER_MODEL?.trim() || OPENROUTER_DEFAULT_MODEL;
+    const primaryModel = purpose === "vision" ? environment.OPENROUTER_VISION_MODEL?.trim() || generalModel
+      : purpose === "reasoning" ? environment.OPENROUTER_REASONING_MODEL?.trim() || generalModel : generalModel;
+    const fallbackModels = commaList(environment.OPENROUTER_FALLBACK_MODELS ?? OPENROUTER_DEFAULT_MODEL);
+    for (const model of new Set([primaryModel, ...fallbackModels])) attempts.push({
       provider: "openrouter",
-      model: purpose === "vision"
-        ? environment.OPENROUTER_VISION_MODEL?.trim() || environment.OPENROUTER_MODEL?.trim() || "arcee-ai/trinity-large-thinking:free"
-        : purpose === "reasoning"
-          ? environment.OPENROUTER_REASONING_MODEL?.trim() || environment.OPENROUTER_MODEL?.trim() || "arcee-ai/trinity-large-thinking:free"
-          : environment.OPENROUTER_MODEL?.trim() || "arcee-ai/trinity-large-thinking:free",
+      model,
       baseURL: environment.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
       apiKey: openRouterKey,
     });
@@ -148,16 +150,32 @@ export async function callRoutedAI(input: {
   const totalTimeout = Math.max(10_000, Math.min(input.budget?.totalTimeoutMs || Number(environment.AI_TOTAL_TIMEOUT_MS) || 55_000, 120_000));
   const deadline = Date.now() + totalTimeout;
   const blockedCredentials = new Set<string>();
+  let currentProvider: AIProviderAttempt["provider"] | undefined;
+  let providerDeadline = deadline;
 
-  for (const attempt of attempts) {
+  for (const [index, attempt] of attempts.entries()) {
     const credentialId = `${attempt.baseURL.replace(/\/+$/, "")}|${attempt.apiKey}`;
     if (blockedCredentials.has(credentialId)) continue;
-    const remaining = deadline - Date.now();
-    if (remaining < 5_000) break;
+    const now = Date.now();
+    const remaining = deadline - now;
+    if (remaining < 1_000) break;
+    if (attempt.provider !== currentProvider) {
+      // Models on one provider share a fixed slice of the remaining budget.
+      // Otherwise slow primary-model retries can starve OpenRouter entirely.
+      const providersLeft = new Set(attempts.slice(index).filter((candidate) =>
+        !blockedCredentials.has(`${candidate.baseURL.replace(/\/+$/, "")}|${candidate.apiKey}`),
+      ).map((candidate) => candidate.provider)).size;
+      currentProvider = attempt.provider;
+      providerDeadline = now + Math.floor(remaining / providersLeft);
+    }
+    const providerRemaining = providerDeadline - now;
+    if (providerRemaining < 1_000) continue;
+    const modelSlots = attempt.provider === "openrouter"
+      ? attempts.slice(index).filter((candidate) => candidate.provider === "openrouter").length : 1;
     const client = new OpenAI({
       apiKey: attempt.apiKey,
       baseURL: attempt.baseURL,
-      timeout: Math.min(perAttemptTimeout, remaining),
+      timeout: Math.min(perAttemptTimeout, Math.floor(providerRemaining / modelSlots)),
       maxRetries: 0,
       defaultHeaders: attempt.provider === "openrouter" ? {
         "HTTP-Referer": environment.NEXT_PUBLIC_APP_URL || "",
