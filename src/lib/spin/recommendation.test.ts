@@ -3,6 +3,12 @@ import { buildSpinMatchingRequest, buildSpinRecommendationResult, SpinNeedsSchem
 import { syntheticSpinNeeds, syntheticSpinSelection } from './synthetic-fixture';
 
 describe('SPIN evidence matching boundaries', () => {
+  it('allows concrete benefit evidence for exploratory matching when targets need help',()=>{
+    const needs=syntheticSpinNeeds({outcomeBasis:'benefits',evidence:[{id:'Q05',text:'Koordinasi antar tim belum efektif.'},{id:'Q14.other',text:'Informasi antar tim konsisten dan tindak lanjut lebih jelas.'}]});
+    const selected={matches:[{solutionCode:'SS-29',evidenceLinks:[{evidenceId:'Q05',objectiveId:'SS-29.LO01'},{evidenceId:'Q14.other',objectiveId:'SS-29.LO01'}]}]};
+    expect(validateSpinMatches(selected,needs)).toHaveLength(1);
+    expect(()=>validateSpinMatches(selected,{...needs,outcomeBasis:'explicit'})).toThrow('SPIN_EVIDENCE_NOT_READY');
+  });
   it('resolves public names and evidence from trusted sources, not model prose', () => {
     const result = validateSpinMatches(syntheticSpinSelection(), syntheticSpinNeeds());
     expect(result[0].name).toBe('Meeting Excellence & Facilitation');
@@ -55,7 +61,7 @@ describe('SPIN evidence matching boundaries', () => {
   it('does not forward additional input fields, prices, or contact metadata into the prompt', () => {
     const request = buildSpinMatchingRequest(syntheticSpinNeeds());
     const payload = JSON.parse(request.messages[1].content);
-    expect(Object.keys(payload.needs).sort()).toEqual(['audience', 'barriers', 'evidence', 'priorOutcome', 'problemCluster', 'programScope']);
+    expect(Object.keys(payload.needs).sort()).toEqual(['audience', 'barriers', 'evidence', 'outcomeBasis', 'priorOutcome', 'problemCluster', 'programScope']);
     expect(request.messages[1].content).not.toMatch(/dailyRateIdr|priceEvidence|sourceText|SS-32/);
   });
   it('does not promote structural validation into accuracy or public confidence', () => {

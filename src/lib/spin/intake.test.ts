@@ -17,6 +17,18 @@ export function completeAnswers():SpinAnswers {
  return spinSanitize(SPIN_DEFINITION,{...a,countStatus:'known',participantCount:20,programScope:'one_team',problemCluster:'C8',symptoms:['S3'],effects:['E1'],barriers:['none'],priorEfforts:['P8'],approaches:['A1'],duration:'one',deliveryMode:'onsite',location:'Jakarta',facilities:'ready',desiredOutcome:'Rapat menghasilkan keputusan dan tindak lanjut yang jelas.'});
 }
 describe('SPIN public question and report contract',()=>{
+ it('retains concrete benefits and examples when the respondent requests help defining targets',()=>{
+  const a={...completeAnswers(),outcomeHelp:'help',benefits:['other','investment'],benefitOther:'Koordinasi lintas tim lebih lancar.',example:'Informasi antar unit sering berbeda.'};
+  const needs=spinNeeds(a,'confirmed');expect(needs.outcomeBasis).toBe('benefits');
+  expect(needs.evidence).toContainEqual({id:'Q06',text:a.example});
+  expect(needs.evidence).toContainEqual({id:'Q14.other',text:a.benefitOther});
+  expect(needs.evidence.some(e=>e.id==='Q13')).toBe(false);
+  const selection=buildSpinRecommendationResult(needs,{matches:[{solutionCode:'SS-29',evidenceLinks:[{evidenceId:'Q06',objectiveId:'SS-29.LO01'},{evidenceId:'Q14.other',objectiveId:'SS-29.LO01'}]}]});
+  const {publicReport:r}=buildSpinReport({id:'11111111-1111-4111-8111-111111111111',submittedAt:'2026-10-27T04:00:00Z',company:'Synthetic organization',answers:a,summary:spinSummary(SPIN_DEFINITION,a),status:'confirmed',selection});
+  expect(r.exploration).toHaveLength(1);expect(r.solutions).toEqual([]);expect(r.investments).toEqual([]);
+  expect(r.advisory?.reasons.join(' ')).toContain('Sasaran pengembangan akan dirumuskan bersama');
+  expect(spinNeeds({...a,benefits:['unknown'],benefitOther:''},'confirmed').evidence.some(e=>e.id.startsWith('Q14'))).toBe(false);
+ });
  it('keeps browser validation identical, without a server dependency',()=>{expect(readFileSync('../app-binahub/src/lib/spin-form.ts','utf8').replace(/\r/g,'')).toBe(readFileSync('src/lib/spin/form.ts','utf8').replace(/\r/g,''));});
  it('accepts a complete path and preserves confirmed raw source answers',()=>{const a=validateSpinAnswers(completeAnswers(),true);expect(spinSummary(SPIN_DEFINITION,a).outcome).toContain('Rapat');expect(summaryHash(a)).toHaveLength(64);});
  it('rejects unknown fields, bad options, exclusive combinations and sensitive free text',()=>{

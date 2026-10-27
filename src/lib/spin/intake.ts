@@ -67,10 +67,15 @@ export function spinInternalRules(a:SpinAnswers,confirmation:{status:string}) {
 export function spinNeeds(a:SpinAnswers,status:'confirmed'|'edited'|'supplemented') {
   const label=(k:string)=>spinLabel(SPIN_DEFINITION,a,k);
   const evidence: {id:string;text:string}[]=[];
-  for(const [key,id] of [['problemCluster','Q04'],['symptoms','Q05'],['desiredOutcome','Q13'],['effects','Q07'],['barriers','Q09'],['benefits','Q14'],['successMeasures','Q15']] as const)
+  for(const [key,id] of [['problemCluster','Q04'],['symptoms','Q05'],['example','Q06'],['desiredOutcome','Q13'],['effects','Q07'],['barriers','Q09'],['benefits','Q14'],['benefitOther','Q14.other'],['successMeasures','Q15']] as const)
     if(a[key]!==undefined&&!(key==='desiredOutcome'&&a.outcomeHelp==='help'))evidence.push({id,text:label(key).slice(0,500)});
   const audience=spinArray(a,'audienceGroups');
-  return {summaryStatus:status,problemCluster:a.problemCluster,audience:audience.length===1?audience[0]:'mixed',
+  // A request for help is not an absent answer. Specific benefits may support
+  // exploratory matching, but never become a respondent-confirmed target.
+  if(a.outcomeHelp==='help'&&!spinArray(a,'benefits').some(code=>/^I[1-8]$/.test(code)||code==='investment')&&!String(a.benefitOther||'').trim()){
+    for(let i=evidence.length-1;i>=0;i--)if(evidence[i].id.startsWith('Q14'))evidence.splice(i,1);
+  }
+  return {summaryStatus:status,outcomeBasis:a.outcomeHelp==='help'?'benefits' as const:'explicit' as const,problemCluster:a.problemCluster,audience:audience.length===1?audience[0]:'mixed',
     participantCount:typeof a.participantCount==='number'?a.participantCount:null,programScope:a.programScope,
     spiritualOptIn:a.spiritualOptIn||'unknown',barriers:spinArray(a,'barriers').filter(k=>/^B[1-7]$/.test(k)),
     priorOutcome:a.priorOutcome||'none',conflicts:spinConflicts(a),evidence};
@@ -86,6 +91,7 @@ export function spinConfirmedNeeds(answers:SpinAnswers,confirmation:unknown,summ
  for(const key of ['situation','problem','impact','outcome'] as const)
   if((summary as Record<string,unknown>)[key]!==checked.summary[key])throw new SpinError('SPIN_SUMMARY_CHANGED');
  const needs=spinNeeds(checked.answers,'confirmed');
+ if(checked.confirmation.corrections.outcome?.trim())needs.outcomeBasis='explicit';
  const refs={situation:'Q02',problem:'Q05',impact:'Q07',outcome:'Q13'} as const;
  for(const [key,id] of Object.entries(refs) as Array<[keyof typeof refs,string]>) {
   if(!checked.confirmation.corrections[key]?.trim())continue;

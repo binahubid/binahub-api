@@ -44,7 +44,9 @@ export function buildSpinReport(input:{id:string;submittedAt:string;company:stri
   const reasons:string[]=[];
   if(rules.fitType==='C')reasons.push('Hambatan proses, peran, alat, atau dukungan kerja perlu ditangani bersama pengembangan kompetensi. Pelatihan saja belum cukup.');
   if(rules.fitType==='D')reasons.push('Kebutuhan mencakup arah strategis, cakupan organisasi, atau kelompok peserta yang luas; penerapan program perlu dirancang bersama.');
-  if(rules.fitType==='E')reasons.push('Tantangan, sasaran, atau beberapa jawaban belum cukup selaras untuk menetapkan program secara pasti.');
+  if(rules.fitType==='E')reasons.push(a.outcomeHelp==='help'&&!rules.conflicts.length
+   ?'Sasaran pengembangan akan dirumuskan bersama. Opsi awal mengacu pada tantangan dan manfaat yang Anda harapkan.'
+   :'Tantangan, sasaran, atau beberapa jawaban belum cukup selaras untuk menetapkan program secara pasti.');
   if(input.status!=='confirmed')reasons.push('Koreksi atau tambahan pada ringkasan Anda menjadi bahan penyelarasan ruang lingkup bersama konsultan.');
   if(rules.conflicts.length)reasons.push('Prioritas, waktu, dampak, atau cakupan peserta perlu diselaraskan sebelum pelaksanaan.');
   const aiUnavailable=selection.internalConsultant.consultationReasons.includes('AI_MATCH_UNAVAILABLE');

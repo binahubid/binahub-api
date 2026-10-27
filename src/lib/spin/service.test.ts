@@ -6,6 +6,12 @@ import { prepareSpinRecommendation } from './service';
 import { syntheticSpinNeeds, syntheticSpinSelection } from './synthetic-fixture';
 
 describe('SPIN AI adapter (mocked; no provider or email calls)', () => {
+  it('calls AI for concrete benefits even without a written target',async()=>{
+    const needs=syntheticSpinNeeds({outcomeBasis:'benefits',evidence:[{id:'Q05',text:'Rapat tidak menghasilkan tindak lanjut.'},{id:'Q14',text:'Kolaborasi dan kepercayaan membaik.'}]});
+    routed.mockResolvedValue({content:JSON.stringify({matches:[{solutionCode:'SS-29',evidenceLinks:[{evidenceId:'Q05',objectiveId:'SS-29.LO01'},{evidenceId:'Q14',objectiveId:'SS-29.LO01'}]}]})});
+    expect((await prepareSpinRecommendation(needs)).publicReportDraft.recommendations).toHaveLength(1);
+    expect(routed).toHaveBeenCalledOnce();
+  });
   beforeEach(() => { routed.mockReset(); });
   it('uses existing provider settings and bounded JSON validation without introducing an SDK/key', async () => {
     routed.mockImplementation(async input => {

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.41.1] - 2026-10-27
+
+- Permintaan bantuan menetapkan sasaran tidak lagi melewati AI ketika manfaat
+  konkret tersedia. Bukti Q14 tetap dibedakan dari sasaran eksplisit Q13;
+  rekomendasi berupa opsi konsultasi, tanpa harga atau janji hasil pasti.
+- Sertakan contoh Q06 dan manfaat lainnya Q14.other dalam pencocokan katalog.
+- Jangan salah menyatakan kegagalan analisis sebagai tidak adanya program cocok.
+- Ringkasan PDF memakai poin singkat; rincian lengkap tetap disertakan.
+
 ## [0.41.0] - 2026-10-27
 
 ### Changed

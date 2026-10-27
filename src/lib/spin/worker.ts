@@ -33,7 +33,7 @@ export async function processSpinWork(id?:string) {
    // Conservative schema failure goes to a consultation report, never a fabricated recommendation.
    let selection:ReturnType<typeof buildSpinRecommendationResult>;
    try{selection=await prepareSpinRecommendation(needs);}
-   catch {selection=buildSpinRecommendationResult({...needs,evidence:[{id:'Q05',text:'Kebutuhan perlu dibahas bersama.'}]},{matches:[]});}
+   catch {selection=buildSpinRecommendationResult({...needs,evidence:[{id:'Q05',text:'Kebutuhan perlu dibahas bersama.'}]},{matches:[]},'AI_MATCH_UNAVAILABLE');}
    stage='report';
    const report=buildSpinReport({id:row.id,submittedAt:row.submitted_at,company:row.contact.company,answers,summary:row.summary,status:row.confirmation.status,selection,bookingUrl:process.env.CALCOM_BOOKING_URL});
    stage='persist';

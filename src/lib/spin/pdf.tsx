@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document,Page,Text,View,StyleSheet,renderToBuffer } from '@react-pdf/renderer';
 import { type SpinReport,SpinReportSchema } from './report';
+import { spinSummaryPoints } from './summary-points';
 
 const s=StyleSheet.create({
  page:{paddingTop:35,paddingBottom:48,paddingHorizontal:36,fontFamily:'Helvetica',fontSize:9,lineHeight:1.5,color:'#24364b'},
@@ -25,7 +26,7 @@ export function SpinPDF({report:r}:{report:SpinReport}){
   <Page size="A4" style={s.page}>
    <View style={s.head}><Text style={s.brand}>BinaHub</Text><Text style={s.title}>Rekomendasi pengembangan organisasi</Text><Text style={s.company}>{r.company}</Text><Text style={s.meta}>{new Date(r.issuedAt).toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta'})} | Referensi {r.reference.slice(0,8).toUpperCase()}</Text></View>
    <Text style={s.h}>Arah pengembangan, dalam satu pandangan</Text>
-   <View style={s.path}>{[['Kebutuhan utama',r.summary.problem],['Dampak pada pekerjaan',r.summary.impact],['Hasil yang diharapkan',r.summary.outcome]].map(([label,value],index)=><View key={label} style={index===2?[s.pathCell,s.pathEnd]:s.pathCell}><Text style={s.label}>{label}</Text><Text>{brief(value)}</Text></View>)}</View>
+   <View style={s.path}>{[['Kebutuhan utama',r.summary.problem],['Dampak pada pekerjaan',r.summary.impact],['Hasil yang diharapkan',r.summary.outcome]].map(([label,value],index)=><View key={label} style={index===2?[s.pathCell,s.pathEnd]:s.pathCell}><Text style={s.label}>{label}</Text>{spinSummaryPoints(value).slice(0,3).map(point=><Text key={point} style={s.line}>- {brief(point)}</Text>)}{spinSummaryPoints(value).length>3&&<Text style={s.note}>Rincian lainnya pada bagian konteks kebutuhan.</Text>}</View>)}</View>
    <View style={s.status}><Text style={s.sub}>{advisory.title}</Text><Text>{advisory.description}</Text>{advisory.reasons.map(reason=><Text key={reason} style={s.note}>{reason}</Text>)}</View>
    <Text style={s.h}>{review?'Opsi program untuk konsultasi':'Program yang relevan'}</Text>
    {programs.length?programs.map(program=><View key={program.code} style={s.rule} wrap={false}><Text style={s.sub}>{program.code} | {program.name}</Text>{!!program.competencies?.length&&<Text style={s.tags}>{program.competencies.slice(0,3).join(' / ')}{program.competencies.length>3?' / dan '+(program.competencies.length-3)+' lainnya':''}</Text>}</View>):<Text style={s.body}>Belum ada program yang ditetapkan. Hubungi admin@binahub.id untuk membahas kebutuhan dan sasaran pengembangan.</Text>}
@@ -49,7 +50,7 @@ export function SpinPDF({report:r}:{report:SpinReport}){
   </Page>
   <Page size="A4" style={s.page}>
    <View style={s.programHead}><Text style={s.label}>BinaHub | Konteks kebutuhan</Text><Text style={s.programTitle}>Ringkasan dan rincian pengisian</Text></View>
-   {[['Konteks',r.summary.situation],['Kebutuhan utama',r.summary.problem],['Dampak pada pekerjaan',r.summary.impact],['Hasil yang diharapkan',r.summary.outcome]].map(([label,value])=><View key={label} style={s.evidence}><Text style={s.label}>{label}</Text><Text>{value}</Text></View>)}
+   {[['Konteks',r.summary.situation],['Kebutuhan utama',r.summary.problem],['Dampak pada pekerjaan',r.summary.impact],['Hasil yang diharapkan',r.summary.outcome]].map(([label,value])=><View key={label} style={s.evidence}><Text style={s.label}>{label}</Text>{spinSummaryPoints(value).map(point=><Text key={point} style={s.line}>- {point}</Text>)}</View>)}
    <View style={s.snapshots}>{r.snapshot.map(row=><View key={row.label} style={s.snapshot} wrap={false}><Text style={s.label}>{row.label}</Text><Text>{row.value}</Text></View>)}</View>
    <Text style={s.small}>Dampak dan konsekuensi berdasarkan informasi responden, belum diverifikasi secara independen.</Text><Text style={s.note}>{r.disclaimer}</Text>{footer}
   </Page>
