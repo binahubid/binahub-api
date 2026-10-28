@@ -20,9 +20,11 @@ describe('source-grounded report',()=>{
   it('includes versions, exact completeness and concrete localized follow-up without inventing a meeting',()=>{
     const report=buildPEReport(attempt(),instrument);
     expect(report.summary.answeredCount).toBe(18);expect(report.metadata.instrumentVersion).toBe('1.0.0-draft.1');
-    expect(report.areas[0].practice?.followUpDate).toBe('2026-10-28');
+    expect(report.areas[0].practice?.followUpDate).toBe('2026-11-13');
+    expect(report.areas[0].combinedScore).toBe((report.areas[0].selfReport.score!+report.areas[0].sjt.score!)/2);
+    expect(report.metadata.displayScoringVersion).toBe('pe-display-equal-methods-v1');
     expect(report.areas[0].practice?.context).toContain('Manager');expect(report.areas[0].practice?.context).toContain('Improve coordination');
-    expect(report.areas[0].interpretation).toContain('perlu dieksplorasi');expect(report.integrity).toMatch(/^[a-f0-9]{64}$/);
+    expect(report.areas[0].interpretation).toBe(report.areas[0].practice?.focus);expect(report.integrity).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(report)).not.toMatch(/scoring_key|option_scores|rationales|overall|percentile/);
   });
   it('does not invent evidence or force three priorities when NA leaves a method unscored',()=>{

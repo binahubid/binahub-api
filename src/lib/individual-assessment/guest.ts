@@ -7,6 +7,7 @@ import { PEDeliveryError,loadPEPersonalSolutions } from './delivery';
 import { pePilotRPC } from './pilot';
 import { buildPEReport } from './report';
 import { loadPEInstrument } from './definition';
+import {buildPEPublicWording} from './wording';
 
 export const PE_GUEST_COOKIE = 'pe_result_session';
 export const PEGuestKeySchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -37,7 +38,7 @@ export async function readPEGuest(db: SupabaseClient, id: string, key: string, s
 }
 export function peGuestDTO(envelope: z.infer<typeof PEGuestEnvelopeSchema>) {
   // A draft capability cannot read a report. Never return pseudo-owner IDs or contact data.
-  return { attempt: { ...envelope.attempt, result: null }, emailStatus: envelope.emailStatus };
+  return { attempt: { ...envelope.attempt, result: null }, emailStatus: envelope.emailStatus||(envelope.attempt.status==='submitted'?'pending':null) };
 }
 export async function queuePEGuestReport(db: SupabaseClient, id: string, draftKey: string, attempt: z.infer<typeof PEDeliveryAttemptSchema>) {
   return queuePEReportHash(db,id,hashPEKey(draftKey),attempt);
@@ -45,7 +46,8 @@ export async function queuePEGuestReport(db: SupabaseClient, id: string, draftKe
 export async function queuePEReportHash(db: SupabaseClient,id:string,draftHash:string,attempt:z.infer<typeof PEDeliveryAttemptSchema>) {
   const instrument=await loadPEInstrument(db, attempt.result!.instrumentVersion);
   const base=buildPEReport(attempt,instrument);
-  const snapshot = buildPEReport(attempt,instrument,await loadPEPersonalSolutions(db,base.priorities.map(p=>p.code)));
+  const [solutions,wording]=await Promise.all([loadPEPersonalSolutions(db,base.priorities.map(p=>p.code)),buildPEPublicWording(attempt,instrument)]);
+  const snapshot = buildPEReport(attempt,instrument,solutions,wording);
   const linkId = randomUUID();
   await pePilotRPC(db, 'pe_queue_guest_report', { p_id: id, p_hash: draftHash,
     p_snapshot: snapshot, p_link_id: linkId, p_link_hash: hashPEKey(peEmailLinkToken(linkId)) });

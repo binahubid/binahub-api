@@ -17,7 +17,9 @@ export async function getPEDeliveryDefinition(db:SupabaseClient) {
   if(policy.instrument_version!==PE_VERSION||policy.free_codes?.join()!==PE_FREE_CODES.join()
     ||policy.release_status!=='development_pilot'||policy.content_review!=='ceo_reviewed'
     ||policy.consent_version!==PE_CONSENT_VERSION||policy.privacy_version!==PE_PRIVACY_VERSION)throw new PEDeliveryError('PE_DELIVERY_POLICY_MISMATCH');
-  return {instrument,definition:projectPEFreeDefinition(instrument)};
+  const access=typeof db.rpc==='function'?await db.rpc('pe_free_access_policy'):null;
+  const hours=access&&!access.error&&access.data?.hours===48?48:null;
+  return {instrument,definition:{...projectPEFreeDefinition(instrument),freeResultHours:hours}};
 }
 export function projectPEFreeDefinition(instrument:PEInstrument) {
   const safe=getPEParticipantDefinition(instrument);
@@ -67,7 +69,7 @@ export function createPEParticipantStore(db:Pick<SupabaseClient,'rpc'>,ownerId:s
   };
 }
 
-export function buildPEDevelopmentReport(attempt:PEDeliveryAttempt,instrument:PEInstrument) {
+export function buildPEDevelopmentReport(attempt:PEDeliveryAttempt,instrument:PEInstrument,wording:Record<string,string>={}) {
   if(attempt.status!=='submitted'||!attempt.result)throw new PEDeliveryError('PE_RESULT_NOT_READY');
   const areas=attempt.result.competencies.map(row=>{
     const c=instrument.config.competencies.find(c=>c.code===row.code)!;
@@ -75,7 +77,12 @@ export function buildPEDevelopmentReport(attempt:PEDeliveryAttempt,instrument:PE
     // Concrete practice uses the participant's SR pattern, never an answer-key rationale.
     const focus=sr.filter(i=>typeof attempt.responses[i.id]==='number')
       .sort((a,b)=>Number(attempt.responses[a.id])-Number(attempt.responses[b.id])||a.id.localeCompare(b.id))[0];
-    const action=focus?instrument.key_actions.find(a=>a.code===focus.key_action_code)?.text.replace(/^KA\d{2}\.\d\s*[—–-]\s*/,''):null;
+    // Raw private key-action text must never leave the server, even on AI failure.
+    const action=focus?(wording[row.code]||({
+      'PE-02':'Pilih satu kebiasaan yang ingin Anda perbaiki. Coba langkah kecil, lalu catat apa yang membantu Anda berkembang.',
+      'PE-04':'Saat rencana berubah, tentukan hal yang perlu disesuaikan dan sepakati langkah berikutnya dengan pihak terkait.',
+      'PE-06':'Saat tuntutan meningkat, susun prioritas, periksa kapasitas Anda, dan bicarakan dukungan yang diperlukan.',
+    } as Record<string,string>)[row.code]||'Pilih satu situasi nyata untuk berlatih dan mintalah umpan balik dari orang yang terlibat.'):null;
     return {...row,name:c.name,definition:c.definition,relevance:attempt.context.relevance[row.code as typeof PE_FREE_CODES[number]],
       practice:action?{focus:action,context:'Pilih satu situasi kerja nyata minggu ini untuk mempraktikkan perilaku tersebut.',
         successIndicator:'Catat satu contoh tindakan dan mintalah umpan balik dari orang yang terlibat.',followUp:'Tinjau catatan latihan setelah dua minggu.'}:null};
@@ -111,7 +118,7 @@ export async function loadPEPersonalSolutions(db:SupabaseClient,priorityCodes:st
     .order('module_code').limit(3);
   if(modules.error)return {status:'unavailable',items:[]};
   return {status:modules.data?.length?'available':'no_matches',items:(modules.data||[]).map(m=>({
-    title:m.name,description:m.description||'',url:`https://binahub.id/id/pricing/?solution=${encodeURIComponent(m.module_code)}`,
+    code:m.module_code,title:m.name,description:m.description||'',url:`https://app.binahub.id/catalog?solution=${encodeURIComponent(m.module_code)}`,
     reason:'Solusi pengembangan individu yang terhubung dengan kandidat fokus latihan Anda. Kesesuaian program dapat dibahas bersama konsultan.',
   }))};
 }

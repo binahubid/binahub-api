@@ -11,13 +11,16 @@ import type { PEReportSnapshot } from './report';
 
 const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 export function renderPEEmail(name: string, report: PEReportSnapshot, url: string) {
+  const accessNote=report.metadata.freeResultHours===48
+   ?'Hasil gratis tersedia selama 48 jam sejak jawaban dikirim. Tautan yang sama dapat dibuka kembali selama 30 menit sejak akses pertama. Setelah itu, mintalah tautan baru sebelum batas 48 jam berakhir. Setelah masa akses hasil berakhir, hasil tidak dapat diminta kembali.'
+   :'Tautan ini berlaku 48 jam dan hanya dapat digunakan sekali. Setelah dibuka, sesi akses tersedia selama 30 menit. Bila sudah kedaluwarsa, Anda dapat meminta tautan baru dari halaman hasil.';
   // The emailed link, not scores/raw answers, is the access boundary. No internal CC.
   return `<div style="background:#f7f8fa;padding:32px 16px;font-family:Arial,sans-serif;color:#0b2c6b"><div style="max-width:560px;margin:auto;background:white;border-radius:16px;padding:32px">
     <p style="font-size:20px;font-weight:bold">BinaHub</p><h1 style="font-size:24px;line-height:1.4">Hasil diagnosis Anda sudah tersedia.</h1>
     <p style="line-height:1.7">Halo ${escape(name)}, terima kasih telah meluangkan waktu untuk memahami kebutuhan pengembangan Anda.</p>
     <p style="line-height:1.7">Laporan Anda memuat profil tiga Area, penjelasan hasil, serta langkah latihan yang dapat Anda mulai.</p>
     <p style="margin:28px 0"><a href="${escape(url)}" style="display:inline-block;background:#0b2c6b;color:white;padding:15px 22px;text-decoration:none;border-radius:9px;font-weight:bold">Buka hasil diagnosis</a></p>
-    <p style="font-size:13px;line-height:1.7;color:#475569">Tautan ini berlaku 48 jam dan hanya dapat digunakan sekali. Setelah dibuka, sesi akses tersedia selama 30 menit. Bila sudah kedaluwarsa, Anda dapat meminta tautan baru dari halaman hasil.</p>
+    <p style="font-size:13px;line-height:1.7;color:#475569">${accessNote}</p>
     <p style="font-size:13px;line-height:1.7;color:#475569">Jangan meneruskan tautan ini karena berisi akses ke laporan pribadi Anda. Hasil digunakan untuk refleksi dan pengembangan, bukan diagnosis klinis atau dasar keputusan seleksi/promosi.</p>
     <p style="font-size:12px;color:#64748b">Tanggal diagnosis: ${escape(new Date(report.metadata.assessmentDate!).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }))}. Butuh bantuan? <a href="mailto:admin@binahub.id">admin@binahub.id</a>.</p>
     </div></div>`;
@@ -47,7 +50,7 @@ export async function processPEReportEmail(attemptId?: string) {
     const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
       from: claim.from, to: claim.email, subject: 'Hasil diagnosis pengembangan Anda — BinaHub',
       html: renderPEEmail(claim.name, claim.snapshot, url),
-      text: `Halo ${claim.name}, hasil diagnosis Anda tersedia. Buka melalui tautan pribadi berikut (berlaku 48 jam, sekali pakai): ${url}\nJangan teruskan tautan ini. Bantuan: admin@binahub.id.`,
+      text: `Halo ${claim.name}, hasil Self Diagnostic Anda tersedia. ${claim.snapshot.metadata.freeResultHours===48?'Hasil gratis berlaku 48 jam sejak pengiriman jawaban. Tautan dapat dibuka ulang dalam 30 menit sejak akses pertama. Setelah itu, mintalah tautan baru sebelum hasil kedaluwarsa.':'Tautan berlaku 48 jam dan sekali pakai.'} Buka tautan pribadi: ${url}\nJangan teruskan tautan ini. Bantuan: admin@binahub.id.`,
       tags: [{ name: 'category', value: 'individual_assessment_result' }],
     }, { idempotencyKey: `pe-result-${claim.id}` });
     if (result.error || !result.data?.id) throw new Error('PE_EMAIL_PROVIDER_UNAVAILABLE');

@@ -1,4 +1,5 @@
 import 'server-only';
+import {publicPEReport} from './public-report';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { PEDeliveryAttemptSchema, PE_REVIEW_CONSENT_VERSION, PEChannelSchema, PE_FREE_CODES } from './delivery-contracts';
@@ -53,7 +54,7 @@ export async function loadPEReportView(db:SupabaseClient,attempt:z.infer<typeof 
   const frozen=attempt.status==='submitted'?await db.from('pe_report_snapshots').select('snapshot').eq('attempt_id',attempt.id).maybeSingle():null;
   // Preserve the legacy report for old attempts; new reports are frozen at submission.
   const report=attempt.status==='submitted'?((frozen?.data?.snapshot as PEReportSnapshot|undefined)||buildPEDevelopmentReport(attempt,instrument)):null;
-  return {instrument,report:report?(frozen?.data?.snapshot?report:{...report,solutions:await loadPEPersonalSolutions(db,report.priorities.map(p=>p.code))}):null};
+  return {instrument,report:report?publicPEReport(frozen?.data?.snapshot?report:{...report,solutions:await loadPEPersonalSolutions(db,report.priorities.map(p=>p.code))}):null};
 }
 export async function loadPEAdminCase(db:SupabaseClient,id:string) {
   const raw=z.object({attempt:PEDeliveryAttemptSchema,ownerId:z.uuid(),channel:PEChannelSchema}).strict()

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.42.0] - 2026-10-28
+
+- Revisi bahasa pertanyaan individu pada DTO publik tanpa mengubah instrumen,
+  kredit atau identitas soal. Skor gabungan tampilan sementara 50:50.
+- Saran perilaku diparafrase AI tanpa identitas/jawaban peserta, dengan validasi
+  keluaran dan fallback publik. Proyeksi laporan lama melindungi key action.
+- Penyusunan laporan dan email setelah jawaban diterima melalui background hook
+  dan pemulihan worker yang sudah ada; browser tidak menunggu analisis AI.
+- SQL 74: hasil gratis baru 48 jam dari submit, tautan dapat dibuka ulang dalam
+  jendela tetap 30 menit, cleanup berkala melalui worker lama. Hasil lama tetap.
+- Revisi label/industri SPIN, jabatan wajib pada submit publik, satuan ringkasan;
+  normalisasi copy kampanye 20 tahun lebih dan Self Diagnostic saat render.
+- Jalankan SQL 74 sebelum mengaktifkan kebijakan akses baru. Tanpa SQL, API
+  mempertahankan kebijakan lama. Tidak ada env baru atau pembayaran aktif.
+
 ## [0.41.1] - 2026-10-27
 
 - Permintaan bantuan menetapkan sasaran tidak lagi melewati AI ketika manfaat

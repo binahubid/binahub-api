@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { validatePEInstrument, type PEInstrument } from './instrument-contract';
+import {PE_PARTICIPANT_COPY_VERSION,peParticipantPrompt,peParticipantQuestion,peParticipantOption} from './meeting-copy';
 
 export const PE_INSTRUMENT_ID = 'BINAINSIGHTS-PE-V1';
 export const PE_VERSION = '1.0.0-draft.1';
@@ -39,7 +40,7 @@ export async function loadPEInstrument(client:Pick<SupabaseClient,'from'>, versi
 export function getPEParticipantDefinition(source:PEInstrument) {
   const {assessment,competencies,response_scales,self_report_items,sjt_items} = source.config;
   return {
-    instrumentId:assessment.id,instrumentVersion:source.metadata.instrument_version,
+    instrumentId:assessment.id,instrumentVersion:source.metadata.instrument_version,participantCopyVersion:PE_PARTICIPANT_COPY_VERSION,
     title:assessment.title,language:assessment.language,purpose:assessment.purpose,
     estimatedDurationMinutes:{...assessment.estimated_duration_minutes},
     status:assessment.status,validationNotice:assessment.validation_notice,publicEnabled:false,
@@ -47,12 +48,12 @@ export function getPEParticipantDefinition(source:PEInstrument) {
     selfReportScale:response_scales.self_report.map(s=>({value:s.value===null?'NA':s.value,label:s.label})),
     selfReportItems:self_report_items.map(i=>({
       id:i.id,itemVersion:source.metadata.item_version,competencyCode:i.competency_code,
-      keyActionCodes:[i.key_action_code],type:i.type,lookbackPeriodMonths:i.lookback_period_months,prompt:i.prompt,
+      type:i.type,lookbackPeriodMonths:i.lookback_period_months,prompt:peParticipantPrompt(i.id,i.prompt),
     })),
     sjtItems:sjt_items.map(i=>({
       id:i.id,itemVersion:source.metadata.item_version,competencyCode:i.competency_code,
-      keyActionCodes:[...i.key_action_codes],type:i.type,scenario:i.scenario,question:i.question,
-      options:i.options.map(o=>({id:o.id,text:o.text})),
+      type:i.type,scenario:i.scenario,question:peParticipantQuestion(i.id,i.question),
+      options:i.options.map(o=>({id:o.id,text:peParticipantOption(i.id,o.id,o.text)})),
     })),
   };
 }

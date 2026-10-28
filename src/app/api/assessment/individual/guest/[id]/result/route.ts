@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import {publicPEReport} from '@/lib/individual-assessment/public-report';
 import { createServerSupabase } from '@/lib/supabase';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getCorsHeaders } from '@/lib/cors';
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, context: Context) {
     const owner = await readPEGuest(db, id, sessionKey(req, id), 'result');
     if(owner.attempt.status!=='submitted'||!owner.report)throw new Error('PE_RESULT_NOT_READY');
     const access = await getPEReviewAccess(db, id, owner.ownerId);
-    return peJson({ success: true, report: owner.report, access, retentionUntil: owner.attempt.retentionUntil });
+    return peJson({ success: true, report: publicPEReport(owner.report), access, retentionUntil: owner.attempt.retentionUntil });
   } catch (error) { return peFailure(error); }
 }
 export async function POST(req: NextRequest, context: Context) {

@@ -4,7 +4,7 @@ export type SpinOption = { value: string; label: string; exclusive?: boolean };
 export type SpinField = { key: string; questionId: string; label: string; type: string; required: boolean; options?: SpinOption[]; optionGroups?: Record<string, SpinOption[]>; optionGroupKey?: string; commonOptions?: SpinOption[]; mirrorKey?: string; maxSelected?: number; maxLength?: number; max?: number; when?: {key: string; values: string[]} };
 export type SpinDefinition = { version: string; stages: string[]; fields: SpinField[]; screens: string[][] };
 export const SPIN_NOTICE_VERSION = 'spin-processing-indefinite-v1';
-export const SPIN_PRIVACY_NOTICE = 'Jawaban dan kontak digunakan untuk menyusun rekomendasi serta menindaklanjuti kebutuhan Anda. AI membantu pencocokan program dengan informasi kebutuhan yang dibatasi, tanpa field kontak Anda. Tim BinaHub dapat meninjau pengisian untuk konsultasi. Data disimpan tanpa penghapusan otomatis berdasarkan waktu. Anda dapat meminta akses, koreksi, atau penghapusan melalui admin@binahub.id. Izin menerima pemasaran bersifat terpisah dan opsional.';
+export const SPIN_PRIVACY_NOTICE = 'AI kami membantu mencocokkan kebutuhan Anda dengan program BinaHub, tanpa menyertakan nama, alamat email, atau nomor telepon dari kolom kontak dalam analisis. Hindari data pribadi dan informasi rahasia dalam jawaban. Tim BinaHub dapat meninjau pengisian untuk memberikan rekomendasi dan menindaklanjuti kebutuhan Anda. Anda dapat meminta akses untuk koreksi jawaban atau penghapusan data melalui admin@binahub.id.';
 export const spinArray = (a:SpinAnswers,k:string) => Array.isArray(a[k]) ? a[k] as string[] : [];
 export function spinFit(a: SpinAnswers) {
   const barriers=spinArray(a,'barriers'), reasons:string[]=[];
@@ -66,7 +66,7 @@ export function spinLabel(def:SpinDefinition,a:SpinAnswers,key:string) {
 export function spinSummary(def:SpinDefinition,a:SpinAnswers) {
   const label=(k:string)=>spinLabel(def,a,k);
   return {
-    situation:[label('role'),label('industry'),label('orgSize'),label('trigger'),label('audienceGroups'),a.participantCount?label('participantCount')+' peserta':'Jumlah peserta belum ditentukan'].join(' · '),
+    situation:[label('role'),label('industry'),a.orgSize&&a.orgSize!=='SZ5'?label('orgSize').replace(/\.$/,'')+' karyawan':label('orgSize'),label('trigger'),label('audienceGroups'),a.participantCount?label('participantCount')+' target peserta':'Jumlah target peserta belum ditentukan'].join(' · '),
     problem:[label('problemCluster'),label('symptoms'),a.example||'',label('priorEfforts'),a.priorOutcome?label('priorOutcome'):'',label('barriers')].filter(Boolean).join(' · '),
     impact:[label('effects'),label('implications'),label('impactScope'),label('impactFrequency')].join(' · '),
     outcome:[a.outcomeHelp==='help'?'Sasaran awal perlu dibahas bersama.':label('desiredOutcome'),label('benefits'),label('successMeasures')].join(' · '),

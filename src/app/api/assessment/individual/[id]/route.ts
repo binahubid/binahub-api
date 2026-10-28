@@ -26,8 +26,7 @@ export async function PATCH(req:NextRequest,context:Context) {
     const draftKey=input.submissionKey?await preparePEAccountContact(actor.db,id,actor.ownerId):null;
     const attempt=await createPEParticipantStore(actor.db,actor.ownerId).write(id,input);
     if(attempt.status==='submitted'&&draftKey){
-      await queuePEGuestReport(actor.db,id,draftKey,attempt);
-      after(async()=>{try{await processPEReportEmail(id);}catch{console.error('[PE email] PE_WORKER_RETRY');}});
+      after(async()=>{try{await queuePEGuestReport(actor.db,id,draftKey,attempt);await processPEReportEmail(id);}catch{console.error('[PE email] PE_WORKER_RETRY');}});
     }
     return peJson({success:true,attempt});
   }catch(error){return peFailure(error);}

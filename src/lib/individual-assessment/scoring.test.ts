@@ -47,7 +47,7 @@ describe('synthetic PE source and participant boundary', () => {
     expect(dto.selfReportScale.at(-1)).toEqual({ value: 'NA', label: 'Tidak ada kesempatan yang relevan' });
     expect(JSON.stringify(dto)).not.toMatch(/scoring_key|option_scores|rationales|key_status|sources|catalog_crosswalks/);
     for (const item of dto.sjtItems) expect(Object.keys(item).sort()).toEqual([
-      'competencyCode','id','itemVersion','keyActionCodes','options','question','scenario','type',
+      'competencyCode','id','itemVersion','options','question','scenario','type',
     ]);
     const definitionSource = readFileSync('src/lib/individual-assessment/definition.ts','utf8');
     expect(definitionSource).toContain("import 'server-only'");

@@ -37,7 +37,7 @@ export function peFailure(error:unknown) {
     PE_ATTEMPT_FINALIZED:[409,'Jawaban sudah dikirim dan tidak dapat diubah.'],
     PE_ANSWERS_INCOMPLETE:[422,'Lengkapi semua soal sebelum mengirim jawaban.'],
     PE_ENTITLEMENT_REQUIRED:[403,'Soal tersebut belum termasuk dalam akses Anda.'],
-    PE_CONSENT_REQUIRED:[422,'Persetujuan penggunaan asesmen perlu dikonfirmasi.'],
+    PE_CONSENT_REQUIRED:[422,'Persetujuan penggunaan Self Diagnostic perlu dikonfirmasi.'],
     PE_RESULT_NOT_READY:[409,'Hasil belum tersedia. Selesaikan pengisian terlebih dahulu.'],
     PE_INVALID_REQUEST:[400,'Permintaan tidak valid. Periksa isian Anda.'],
     PE_BODY_TOO_LARGE:[413,'Ukuran permintaan terlalu besar.'],

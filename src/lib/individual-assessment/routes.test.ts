@@ -46,7 +46,7 @@ describe('PE HTTP access/input/private-data boundary',()=>{
   it('starts with server-bound identity and refuses forged roles/owner/consent',async()=>{
     const body={id,context,consentVersion:PE_CONSENT_VERSION,privacyVersion:PE_PRIVACY_VERSION};
     expect((await POST(request('POST',body))).status).toBe(201);
-    expect(deps.rpc.mock.calls[0][1]).toMatchObject({p_owner:owner});
+    expect(deps.rpc.mock.calls.find(([name])=>name==='pe_start_participant_v2')?.[1]).toMatchObject({p_owner:owner});
     const calls=deps.rpc.mock.calls.length;
     expect((await POST(request('POST',{...body,owner_id:randomUUID()}))).status).toBe(400);
     expect(deps.rpc.mock.calls).toHaveLength(calls);

@@ -29,8 +29,9 @@ export async function PATCH(req: NextRequest, context: Context) {
     const attempt = owner.attempt.status==='submitted' && input.submissionKey && JSON.stringify(Object.entries(input.responses).sort())===JSON.stringify(Object.entries(owner.attempt.responses).sort())
       ? await store.read(id) : await store.write(id, input);
     if (input.submissionKey) {
-      await queuePEGuestReport(db, id, draftKey, attempt);
-      after(async () => { try { await processPEReportEmail(id); } catch { console.error('[PE email] PE_WORKER_RETRY'); } });
+      // Scoring is committed above. Recovery can rebuild an unqueued report if
+      // this background task is interrupted; never keep the browser waiting for AI.
+      after(async () => { try { await queuePEGuestReport(db,id,draftKey,attempt); await processPEReportEmail(id); } catch { console.error('[PE email] PE_WORKER_RETRY'); } });
     }
     return peJson({ success: true, attempt: { ...attempt, result: null }, emailStatus: input.submissionKey ? 'pending' : null }, input.submissionKey ? 202 : 200);
   } catch (error) { return peFailure(error); }

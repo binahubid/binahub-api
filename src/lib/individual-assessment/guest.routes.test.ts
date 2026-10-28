@@ -53,10 +53,10 @@ describe('guest HTTP private boundaries',()=>{
     expect(deps.rpc.mock.calls.find(([name])=>name==='pe_start_guest')?.[1].p_hash).not.toBe(key);
     expect((await POST(req('POST',{...input,ownerId:owner}))).status).toBe(400);
   });
-  it('acknowledges only after the report is queued and never returns scores on submission',async()=>{
+  it('acknowledges saved scoring without waiting for AI and queues the report in the background',async()=>{
     const res=await PATCH(req('PATCH',{revision:0,responses,submissionKey:'synthetic_submit_001'}),params);expect(res.status).toBe(202);
     const body=await res.json();expect(body.attempt.result).toBeNull();expect(body.emailStatus).toBe('pending');
-    expect(deps.rpc.mock.calls.find(([name])=>name==='pe_queue_guest_report')).toBeTruthy();expect(deps.after).toHaveBeenCalledOnce();
+    expect(deps.rpc.mock.calls.find(([name])=>name==='pe_queue_guest_report')).toBeUndefined();expect(deps.after).toHaveBeenCalledOnce();
     deps.rpc.mockImplementation(async(name:string)=>({data:name==='pe_guest_attempt'?{...envelope,attempt:{...final,result:null}}:name==='pe_read_participant'?final:true,error:null}));
     expect((await PATCH(req('PATCH',{revision:1,responses,submissionKey:'retry_submit_0001'}),params)).status).toBe(202);
     expect(deps.rpc.mock.calls.filter(([name])=>name==='pe_write_participant')).toHaveLength(1);

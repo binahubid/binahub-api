@@ -11,18 +11,19 @@ type Db = ReturnType<typeof createServerSupabase>;
 export type OutboundProspect = { id: string; batch_id: string; source_id: string; campaign_id: string | null; name: string; email: string; company: string | null; consent_status: string; validation_status: string };
 export type OutboundDelivery = { id: string; job_id: string; campaign_id: string; prospect_id: string | null; kind: "test" | "initial"; email: string; name: string; company: string | null };
 export class OutboundBlockedError extends Error {}
+import {meetingPublicCopy,meetingPublicHtml,PUBLIC_COPY_VERSION} from './meeting-public-copy';
 const escape = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
 
 export function outboundTemplateHash(template: Pick<ApprovedOutreachTemplate, "version" | "subject" | "html">) {
-  return createHash("sha256").update(JSON.stringify([template.version, template.subject, template.html])).digest("hex");
+  return createHash("sha256").update(JSON.stringify([template.version, template.subject, template.html,PUBLIC_COPY_VERSION])).digest("hex");
 }
 
 /** Only the approved diagnostic CTA is replaced; company-site links stay intact. */
 export function renderInitialOutreach(template: Pick<ApprovedOutreachTemplate, "subject" | "html">, recipient: { name: string; company: string | null }, trackingUrl: string) {
   if (!/^https:\/\//.test(trackingUrl)) throw new OutboundBlockedError("Tautan email harus HTTPS.");
   const substitutions = { name: recipient.name, company: recipient.company || "Perusahaan Anda" };
-  let subject = template.subject;
-  let html = template.html;
+  let subject = meetingPublicCopy(template.subject);
+  let html = meetingPublicHtml(template.html);
   for (const [key, value] of Object.entries(substitutions)) {
     subject = subject.replaceAll(`{{${key}}}`, value.replace(/[\r\n]/g, " "));
     html = html.replaceAll(`{{${key}}}`, escape(value));

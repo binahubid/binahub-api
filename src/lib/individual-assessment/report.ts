@@ -5,18 +5,16 @@ import type { PEDeliveryAttempt } from './delivery-contracts';
 import { buildPEDevelopmentReport,loadPEPersonalSolutions } from './delivery';
 
 export const PE_REPORT_VERSION = 'pe-development-report-v2';
-export function buildPEReport(attempt: PEDeliveryAttempt, instrument: PEInstrument,solutions?:Awaited<ReturnType<typeof loadPEPersonalSolutions>>) {
-  const base = structuredClone(buildPEDevelopmentReport(attempt, instrument));
+export function buildPEReport(attempt: PEDeliveryAttempt, instrument: PEInstrument,solutions?:Awaited<ReturnType<typeof loadPEPersonalSolutions>>,wording:Record<string,string>={}) {
+  const base = structuredClone(buildPEDevelopmentReport(attempt, instrument,wording));
   const result = attempt.result!;
   const date = new Date(attempt.submittedAt!);
-  const followUpDate = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Jakarta'}).format(new Date(date.getTime() + 14 * 86_400_000));
+  const followUpDate = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Jakarta'}).format(new Date(date.getTime() + 30 * 86_400_000));
   const areas = base.areas.map(area => {
     const sr = area.selfReport, sjt = area.sjt;
     const interpretation = sr.status !== 'scored' || sjt.status !== 'scored'
       ? 'Bukti belum lengkap pada kedua metode. Area ini belum dapat digunakan untuk menarik kesimpulan pengembangan.'
-      : sr.score === sjt.score
-        ? 'Kedua metode menghasilkan angka tampilan yang sama. Ini bukan bukti bahwa kedua metode mengukur hal yang identik; tetap baca bersama pengalaman kerja Anda.'
-        : 'Pengalaman kerja yang Anda laporkan dan respons studi kasus menunjukkan angka tampilan yang berbeda. Pola ini perlu dieksplorasi melalui contoh situasi kerja, bukan disimpulkan sebagai ketidakjujuran atau ketidakmampuan.';
+      : area.practice?.focus || 'Pilih satu situasi nyata untuk berlatih dan mintalah umpan balik dari orang yang terlibat.';
     const practice = area.practice && sr.status==='scored' && sjt.status==='scored' ? {
       ...area.practice,
       context: `Dalam peran Anda sebagai ${attempt.context.role}, pilih satu tugas yang berkaitan dengan tujuan “${attempt.context.goal}”. Tentukan kapan perilaku ini dapat dipraktikkan dan siapa yang dapat memberi umpan balik.`,
@@ -24,7 +22,8 @@ export function buildPEReport(attempt: PEDeliveryAttempt, instrument: PEInstrume
       followUp: `Tinjau pengalaman latihan pada ${new Date(followUpDate + 'T00:00:00Z').toLocaleDateString('id-ID', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' })}. Tanggal ini adalah saran latihan, bukan jadwal pertemuan otomatis.`,
       followUpDate,
     } : null;
-    return { ...area, interpretation, practice };
+    const combinedScore=sr.score===null||sjt.score===null?null:Math.round((sr.score*.5+sjt.score*.5)*100)/100;
+    return { ...area, combinedScore,interpretation, practice };
   });
   const priorities = base.priorities.map(priority => ({ ...priority,
     practice: areas.find(area => area.code === priority.code)?.practice || null }));
@@ -35,6 +34,9 @@ export function buildPEReport(attempt: PEDeliveryAttempt, instrument: PEInstrume
       instrumentId: result.instrumentId, instrumentVersion: result.instrumentVersion,
       scoringVersion: result.scoringVersion, reportVersion: PE_REPORT_VERSION,
       priorityVersion: result.priorityVersion, assessmentDate: attempt.submittedAt,
+      displayScoringVersion:'pe-display-equal-methods-v1',participantCopyVersion:'pe-owner-copy-2026-10-28-v1',
+      publicWordingVersion:'pe-public-behavior-v1',
+      freeResultHours:new Date(attempt.retentionUntil).getTime()>date.getTime()&&new Date(attempt.retentionUntil).getTime()-date.getTime()<=48*3600000?48:null,
       generatedAt: new Date().toISOString(), releaseStatus: result.releaseStatus,
     },
     summary: {

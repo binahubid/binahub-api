@@ -2,13 +2,14 @@ import { createHash,createHmac } from 'node:crypto';
 import { z } from 'zod';
 import source from '@/data/spin-questions-v3.2.json';
 import { SPIN_NOTICE_VERSION, spinArray, spinConflicts, spinErrors, spinFit, spinLabel, spinPersonalPattern, spinSanitize, spinSummary, type SpinAnswers, type SpinDefinition } from './form';
-export const SPIN_DEFINITION = source as SpinDefinition;
+import {applySpinMeetingCopy} from './meeting-copy';
+export const SPIN_DEFINITION = applySpinMeetingCopy(source as SpinDefinition);
 export const SpinKey = z.string().regex(/^[a-f0-9]{64}$/);
 export const SpinAnswerSchema = z.record(z.string(), z.union([z.string().max(500), z.number().finite(), z.array(z.string().max(50)).max(10)]));
 export const SpinContactSchema=z.object({name:z.string().trim().min(1).max(100),email:z.email().trim().toLowerCase().max(254),company:z.string().trim().min(1).max(150),role:z.string().trim().max(100).default(''),phone:z.string().trim().max(30).regex(/^[0-9+ ().-]*$/).default('')}).strict().refine(c=>![c.name,c.email,c.company,c.role,c.phone].some(v=>/[\r\n]/.test(v)));
 export const SpinWriteSchema=z.object({key:SpinKey,revision:z.number().int().nonnegative(),answers:SpinAnswerSchema,
   confirmation:z.object({hash:SpinKey,status:z.enum(['confirmed','edited','supplemented']),corrections:z.partialRecord(z.enum(['situation','problem','impact','outcome']),z.string().trim().max(1000)).default({})}).strict().nullable().default(null),
-  submit:z.object({idempotencyKey:SpinKey,contact:SpinContactSchema,processingConsent:z.literal(true),marketingConsent:z.boolean(),noticeVersion:z.literal(SPIN_NOTICE_VERSION),conflictsAcknowledged:z.boolean(),challengeAnswer:z.number().int(),website:z.literal('')}).strict().optional(),
+  submit:z.object({idempotencyKey:SpinKey,contact:SpinContactSchema.refine(c=>Boolean(c.role.trim()),'SPIN_ROLE_REQUIRED'),processingConsent:z.literal(true),marketingConsent:z.boolean(),noticeVersion:z.literal(SPIN_NOTICE_VERSION),conflictsAcknowledged:z.boolean(),challengeAnswer:z.number().int(),website:z.literal('')}).strict().optional(),
 }).strict();
 export class SpinError extends Error {constructor(readonly code:string){super(code);}}
 export const spinHash=(s:string)=>createHash('sha256').update(s).digest('hex');

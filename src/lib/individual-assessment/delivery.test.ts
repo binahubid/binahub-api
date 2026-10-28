@@ -33,7 +33,8 @@ describe('participant projections and transparent development report',()=>{
     const a=attempt(),report=buildPEDevelopmentReport(a,instrument);
     expect(report.priorities.map(p=>p.code)).toEqual(['PE-04','PE-02']);
     expect(report.areas.map(c=>c.code)).toEqual([...PE_FREE_CODES]);
-    expect(report.priorities[0].practice?.focus).toContain('Synthetic action');
+    expect(report.priorities[0].practice?.focus).toBeTruthy();
+    for(const action of instrument.key_actions)expect(JSON.stringify(report)).not.toContain(action.text);
     expect(JSON.stringify(report)).not.toMatch(/overall|category|composite|percentile|option_scores|scoring_key|PE-01|PE-03|PE-05/);
     expect(()=>buildPEDevelopmentReport({...a,status:'draft'},instrument)).toThrow('PE_RESULT_NOT_READY');
   });

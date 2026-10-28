@@ -58,7 +58,7 @@ describe('SPIN route boundaries (no real database/model/email)',()=>{
  const a=spinSanitize(SPIN_DEFINITION,answers);
  const body={key,revision:0,answers:a,confirmation:{status:'confirmed',hash:summaryHash(a),corrections:{}},
  submit:{idempotencyKey:key,processingConsent:true,noticeVersion:SPIN_NOTICE_VERSION,marketingConsent:false,conflictsAcknowledged:true,website:'',
- challengeAnswer:spinChallenge(id).answer,contact:{name:'Synthetic',email:'synthetic@example.invalid',company:'Synthetic'}}};
+ challengeAnswer:spinChallenge(id).answer,contact:{name:'Synthetic',email:'synthetic@example.invalid',company:'Synthetic',role:'HR'}}};
  const r=await write(req(body,'/api/discovery/spin/'+id,'PATCH'),ctx);expect(r.status).toBe(202);
  expect(mocks.after).toHaveBeenCalledOnce();expect(mocks.worker).not.toHaveBeenCalled();
  expect((await write(req({...body,submit:{...body.submit,challengeAnswer:99}},undefined,'PATCH'),ctx)).status).toBe(422);
