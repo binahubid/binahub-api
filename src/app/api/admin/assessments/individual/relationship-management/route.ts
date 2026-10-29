@@ -20,8 +20,8 @@ export async function GET(req:NextRequest){
 }
 export async function POST(req:NextRequest){
  const actor=await guard(req);if(actor instanceof Response)return actor;
- try{const body=z.object({responses:z.unknown()}).strict().parse(await readPEBody(req));
+ try{const body=z.object({responses:z.unknown(),complete:z.boolean().optional()}).strict().parse(await readPEBody(req));
   const source=await loadRMInstrument(actor.db);if(!source)return peJson({success:false,error:'Sumber RM belum dipasang.'},409);
-  return peJson({success:true,report:previewRMReport(source,body.responses)});
+  return peJson({success:true,report:previewRMReport(source,body.responses,body.complete===true)});
  }catch{return peJson({success:false,error:'Pratinjau belum dapat dihitung. Periksa jawaban dan sumber RM.'},422);}
 }

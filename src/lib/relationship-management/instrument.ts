@@ -61,7 +61,6 @@ export function rmReadiness(source:RMInstrument|null){
  return {version:RM_VERSION,sourceLoaded:Boolean(source),canSell:false as const,publicEnabled:false as const,
   counts:{competencies:source?.competencies.length||0,selfReport:source?.selfReportItems.length||0,sjt:source?.sjtItems.length||0},
   missing:[...(!source?['Jalankan SQL75 privat untuk memasukkan sumber RM.']:[]),
-   'Konfirmasi jumlah soal: bank 27 pengalaman nyata, template laporan masih 24.',
    'Bobot studi kasus ke kompetensi dan minimum respons valid yang disahkan CEO.',
    'Aturan interpretasi dan prioritas berdasarkan dua metode serta konteks peran.',
    'Pembayaran, hak akses, pengiriman laporan dan uji perjalanan berbayar.'],

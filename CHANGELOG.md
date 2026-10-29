@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.44.0] - 2026-10-29
+
+- RM internal trial supports required-all completion for27SR+13SJT.
+- Owner-authorized module50:50composite retains separate normalized method
+  totals. Missing evidence remains null; real zeros remain zero. Competency
+  SJT scores/bands remain unavailable without approved item weights.
+- Source snapshot, keys and admin-only/no-store boundaries are unchanged;
+  no public RM, payment, participant persistence or email is activated.
+
 ## [0.43.0] - 2026-10-29
 
 - Public DTO enam studi kasus PE gratis memakai bahasa pilihan peserta,

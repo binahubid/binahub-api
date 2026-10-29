@@ -1,5 +1,21 @@
 # Relationship Management v4 preparation
 
+## Owner update29October2026
+
+The user confirms27SR/13SJTas the authoritative count and authorizes provisional
+module50:50combination while retaining separate methods. API0.44.0 adds an
+explicit required-all completion mode for the internal40question trial.
+SRmodule total requires all27responses and normalizes their mean1–5to0–100;
+SJTmodule total requires all13responses and normalizes private0–3credits to
+0–100. Composite is the mean of the two displayed method totals; either absent
+method makes it null. No source version/key is overwritten. Module score policy
+is separately versioned rm-module-50-50-owner-2026-10-29-v1.
+
+This supersedes only the older module-composite/count-confirmation boundary
+below. It does not supply SJTcompetency weights, interpretation bands or public
+paid delivery. Competency rows keep SRmeans but do not spread credits across
+tags. Source validation remains private; no new SQL is needed after complete75.
+
 CEO sources: `BinaInsights_Laporan_Relationship_Management_v4.docx` and
 `BinaInsights_Relationship_Management_Bank_Soal_V4.xlsx`. These are private inputs,
 not repository assets. Do not commit question content, option keys or anchors.

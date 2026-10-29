@@ -16,9 +16,10 @@ describe('RM v4 protected draft foundation',()=>{
   expect(definition.selfReportItems).toHaveLength(27);expect(definition.sjtItems).toHaveLength(13);
   for(const privateValue of ['PRIVATE_','bestOption','scores','rationale','behaviorAnchor','tags'])expect(json).not.toContain(privateValue);
  });
- it('does not apply PE 50:50 or tag averaging to RM, even when all responses are present',()=>{
+ it('supports the owner-approved module 50:50 without inventing competency tag weights',()=>{
   const source=fixture(),responses=Object.fromEntries([...source.selfReportItems.map(i=>[i.id,5]),...source.sjtItems.map(i=>[i.id,'B'])]);
-  const report=previewRMReport(source,responses);expect(report.combinedScore).toBeNull();
+  const report=previewRMReport(source,responses,true);expect(report.combinedScore).toBe(100);
+  expect(report.moduleProfile).toMatchObject({selfReport:100,sjt:100,combined:100,scope:'module',weights:{selfReport:0.5,sjt:0.5}});
   expect(report.areas.every(a=>a.selfReport.score===100&&a.sjt.score===null&&a.sjt.status==='weighting_required')).toBe(true);
   expect(report.solutions.items).toEqual([]);expect(JSON.stringify(report)).not.toContain('PRIVATE_');
   expect(rmReadiness(source).canSell).toBe(false);expect(rmReadiness(source).missing.length).toBeGreaterThan(2);
@@ -27,6 +28,12 @@ describe('RM v4 protected draft foundation',()=>{
   const source=fixture();expect(previewRMReport(source,{}).areas[0].selfReport.score).toBeNull();
   const answers=Object.fromEntries(source.selfReportItems.slice(0,3).map(i=>[i.id,1]));
   expect(previewRMReport(source,answers).areas[0].selfReport.score).toBe(0);
+  expect(previewRMReport(source,{}).combinedScore).toBeNull();
+  const zero=Object.fromEntries([...source.selfReportItems.map(i=>[i.id,1]),...source.sjtItems.map(i=>[i.id,'A'])]);
+  expect(previewRMReport(source,zero,true).moduleProfile).toMatchObject({selfReport:0,sjt:0,combined:0});
+  const split=Object.fromEntries([...source.selfReportItems.map(i=>[i.id,5]),...source.sjtItems.map(i=>[i.id,'A'])]);
+  expect(previewRMReport(source,split,true).combinedScore).toBe(50);
+  expect(()=>previewRMReport(source,answers,true)).toThrow('RM_ANSWERS_INCOMPLETE');
   for(const input of [{unknown:5},{'RM-SR-01-01':'B'},{'RM-SJT-01':5},{'RM-SR-01-01':0},{'RM-SJT-01':'E'}])expect(()=>previewRMReport(source,input)).toThrow();
  });
  it('rejects malformed source and never loads an altered manifest with the original hash',async()=>{
