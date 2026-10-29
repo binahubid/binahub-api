@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.45.0] - 2026-10-29
+
+- Isolated PETA invitation pilot: consent,24Most/Leastpairs, revisioned drafts,
+  atomic idempotent final submission and participant-only report access.
+- Owner-approved one-year retention, absolute/idle session expiry, verified
+  recovery, revocation, erasure, owner-scoped audit and consent metadata.
+- Immutable encrypted source prepared offline; source/key/hash checks and
+  deterministic D/I/S/C MOST/LEAST/NET scoring preserve ties and private flags.
+- Service-only RPCs/RLS, origin/CSRF/rate/body limits and no-store DTO allowlists.
+- SQL76, private encrypted76B, API runtime key and a scheduled retention worker
+  still need operator activation. No live SQL/email/payment/AI is executed.
+- Local SQL/API tests and all3CEO golden vectors pass; production integration,
+  privacy/content rights and authorized security review remain release gates.
+
 ## [0.44.0] - 2026-10-29
 
 - RM internal trial supports required-all completion for27SR+13SJT.
