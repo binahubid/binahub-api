@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.43.0] - 2026-10-29
+
+- Public DTO enam studi kasus PE gratis memakai bahasa pilihan peserta,
+  melanjutkan revisi nomor13 hingga14–18 tanpa mengubah ID, kunci atau skor.
+- Rincian snapshot PDF rekomendasi dipecah menjadi bullet point, tanpa mengubah
+  payload laporan tersimpan atau logika rekomendasi.
+- Fondasi RMv4: importer DOCX/XLSX privat, sumber immutable/hash tervalidasi,
+  SQL75 schema+installerprivat, endpoint review admin dengan rate limit dan
+  DTO allowlist tanpa scoringkey/rationale/keyaction. Tidak ada akses publik.
+- PreviewRM menghitung pengalaman nyata hanya bila tiga respons tersedia;
+  SJT dan gabungan tetapnull, tidak memakai bobot tag atau PE50:50.
+  Tidak menulis data peserta, menjual paket atau mengirim laporan/email.
+- 10 unit test RM/copy dan29regresi terarah lulus; build API125route lulus.
+  Aktivasi RM menunggu bobot/kebijakan dan pengujian berbayar, bukan otomatis
+  aktif setelah sumber SQL75 dipasang.
+
+
 ## [0.42.0] - 2026-10-28
 
 - Revisi bahasa pertanyaan individu pada DTO publik tanpa mengubah instrumen,

@@ -51,7 +51,7 @@ export function SpinPDF({report:r}:{report:SpinReport}){
   <Page size="A4" style={s.page}>
    <View style={s.programHead}><Text style={s.label}>BinaHub | Konteks kebutuhan</Text><Text style={s.programTitle}>Ringkasan dan rincian pengisian</Text></View>
    {[['Konteks',r.summary.situation],['Kebutuhan utama',r.summary.problem],['Dampak pada pekerjaan',r.summary.impact],['Hasil yang diharapkan',r.summary.outcome]].map(([label,value])=><View key={label} style={s.evidence}><Text style={s.label}>{label}</Text>{spinSummaryPoints(value).map(point=><Text key={point} style={s.line}>- {point}</Text>)}</View>)}
-   <View style={s.snapshots}>{r.snapshot.map(row=><View key={row.label} style={s.snapshot} wrap={false}><Text style={s.label}>{row.label}</Text><Text>{row.value}</Text></View>)}</View>
+   <View style={s.snapshots}>{r.snapshot.map(row=><View key={row.label} style={s.snapshot} wrap={false}><Text style={s.label}>{row.label}</Text>{spinSummaryPoints(row.value).map(point=><Text key={point} style={s.line}>- {point}</Text>)}</View>)}</View>
    <Text style={s.small}>Dampak dan konsekuensi berdasarkan informasi responden, belum diverifikasi secara independen.</Text><Text style={s.note}>{r.disclaimer}</Text>{footer}
   </Page>
  </Document>;
