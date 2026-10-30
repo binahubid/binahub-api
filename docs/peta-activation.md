@@ -25,11 +25,18 @@ by the preparation/test scripts.
    A separately approved staging app may use API-only `PETA_APP_ORIGIN` with its
    exact HTTPS origin. Verify cookies through that real app origin, not directly
    through the API origin.
-5. Admin opens `/admin/peta`. `sourceReady` requires successful source decryption,
+5. Set `CRON_SECRET` (a separately generated random secret of at least32characters)
+   in the API project's **Production** environment, then deploy the API. If an
+   approved secret already exists and meets that minimum, keep it; do not rotate
+   a shared scheduler secret casually. Never use `PETA_ENCRYPTION_KEY` for cron.
+   The committed `vercel.json` registers the daily PETA worker automatically on
+   the production deployment, provided project Cron Jobs are enabled. See below
+   to verify its first invocation; a Git push alone is not proof it has run.
+6. Admin opens `/admin/peta`. `sourceReady` requires successful source decryption,
    integrity checks and the pinned source/version. A missing source/key keeps
    new invitations disabled. Creating a workspace separately requires a written
    approved privacy reference, content-rights confirmation and pilot acceptance.
-6. Before inviting real participants, complete the checklist below.
+7. Before inviting real participants, complete the checklist below.
 
 ## Preparing private source again on a new secured workstation
 
@@ -52,14 +59,53 @@ the worker runs. Initial unused invitations expire after seven days. Session
 credentials expire after eight hours or 30 minutes idle. Verified recovery
 grants expire after 30 minutes and replace old credentials on redemption.
 
-Configure an authorized scheduler to send a **POST** to
-`https://api.binahub.id/api/cron/peta-retention` with
-`Authorization: Bearer <CRON_SECRET>`. Use the server's approved secret of at
-least 32 characters and never include it in a URL. No scheduler or secret is
-installed automatically. Each call deletes up to 100 expired PETA sessions;
-schedule at least daily and repeat bounded calls when a batch returns 100.
-Also monitor failures. An authorized DB worker can instead call the service-only
-`peta_purge_expired(100)` RPC. Do not expose it to anon/authenticated users.
+API0.45.1 includes the production scheduler in `vercel.json`:
+`0 19 * * *` (19:00UTC /02:00WIB next day), path `/api/cron/peta-retention`.
+Vercel invokes **GET** and supplies `Authorization: Bearer <CRON_SECRET>` from
+the Production environment. **POST** remains available for authenticated operator
+retries. HEAD is explicitly rejected, and User-Agent/query strings are never
+authentication. Responses are no-store. No extra scheduler service is needed.
+The supplied schedule does not alter existing email, SPIN or follow-up workers.
+
+Each invocation processes at most10batches of100expired PETA sessions. It stops
+at the first partial batch, or between batches after a20second soft budget; the
+function itself has a60second maximum. `mayHaveMore:true` conservatively signals
+the last batch was full when the run stopped, not an exact remaining count. Use
+an authenticated manual invocation to drain backlog, or let a later daily run
+continue. Successful batches are committed; failure returns a non-2xx status and
+the known committed counts, so retries do not recreate or re-delete those sessions.
+SQL row locks with SKIP LOCKED protect deletion when invocations overlap.
+Only PETA's existing service-only purge RPC is called. No encryption-key access,
+AI call, email sending or unrelated-table cleanup is added.
+
+### Verify activation and monitor
+
+1. Deploy API0.45.1+ after SQL76 and the Production secret are installed. In the
+   API project's **Settings → Cron Jobs**, confirm the PETA path/schedule appears
+   and Cron Jobs are enabled. Preview deployments do not activate this schedule.
+2. Use **Run** on that job for an authorized controlled check, or wait for its
+   first scheduled invocation. This performs real expiration cleanup; test the
+   production-equivalent setup with synthetic records before real participants.
+3. Open **View Logs**. A completed response contains `success`, `erased`, `batches`,
+   `mayHaveMore` and elapsed time. Logs contain counts only, not participant IDs,
+   tokens, answer contents or source keys. A zero deletion count is normal when
+   no session has reached one year.
+4. Investigate401(secret missing/wrong/too short),503(SQL/setup/database error),
+   504(function timeout), missing executions and backlog warnings. Vercel does
+   not automatically retry failed cron invocations; use an authenticated operator
+   retry after fixing the cause. The next daily run also resumes eligible data.
+5. Monitor logs and configure an approved platform alert for failures/missed runs
+   according to operations policy; this release does not install notifications.
+
+On Hobby, invocation may occur anywhere in the scheduled hour (02:00–02:59WIB);
+other plans schedule within the specified minute. Access still expires at the
+database timestamp, not at cron time. Physical deletion normally follows the next
+successful run and can be delayed by a failure/backlog. Backups remain separate.
+An authorized DB worker may alternatively call `peta_purge_expired(100)` directly;
+never grant that RPC to anon/authenticated users.
+
+References: [Vercel Cron](https://vercel.com/docs/cron-jobs),
+[secrets, logs, timing and error handling](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 Deletion cascades through this PETA session's answers/results/credentials and
 recovery grants. Audit logs retain event metadata without answer contents or

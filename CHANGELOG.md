@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.45.1] - 2026-10-30
+
+- Add native Vercel daily PETA retention schedule (19UTC/02WIB) and authenticated
+  GET handler; preserve POST for operator retry and explicitly reject HEAD.
+- Drain up to10batches/1000expired PETA sessions with a20ssoft budget and60s
+  invocation cap. Report counts/backlog honestly, fail closed on invalid results,
+  redact errors and retain safe retry semantics after committed batches.
+- Fixed-size digest comparison handles malformed credential byte lengths safely.
+- No new SQL, dependencies, AI/email activity or changes to other workers.
+  Production CRON_SECRET and enabled Cron Jobs still require operator verification;
+  local tests/build do not prove a deployed scheduled invocation.
+
 ## [0.45.0] - 2026-10-29
 
 - Isolated PETA invitation pilot: consent,24Most/Leastpairs, revisioned drafts,
