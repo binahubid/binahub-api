@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { completeProgramModuleSelectionSchema, PROGRAM_MODULE_KEYS, programModuleKeySchema } from "./program-modules";
 
 describe("program module contract", () => {
-  it("menerima kelima modul termasuk pre-test dan post-test", () => {
+  it("menerima enam modul termasuk PETA, pre-test dan post-test", () => {
     const parsed = completeProgramModuleSelectionSchema.safeParse(
       PROGRAM_MODULE_KEYS.map((moduleKey) => ({ moduleKey, enabled: moduleKey !== "post_test" })),
     );
     expect(parsed.success).toBe(true);
+  });
+  it("mempertahankan kompatibilitas klien lima modul tanpa mengaktifkan PETA",()=>{
+    const parsed=completeProgramModuleSelectionSchema.parse(PROGRAM_MODULE_KEYS.filter(key=>key!=='peta').map(moduleKey=>({moduleKey,enabled:true})));
+    expect(parsed).toHaveLength(5);expect(parsed.some(row=>row.moduleKey==='peta')).toBe(false);
   });
 
   it("menolak payload lama yang hanya mengirim tiga modul", () => {

@@ -1,6 +1,7 @@
 # PETA pilot activation
 
-29 October 2026. This release implements an isolated invitation-only PETA pilot.
+30 October 2026. API0.46.0 / app0.49.0 add PETA to existing programs (SQL77).
+The earlier standalone invitation pilot remains available for legacy records.
 Do not advertise psychometric validation, automatic employer access, selection
 decisions or a paid product. No production SQL or real invitations are executed
 by the preparation/test scripts.
@@ -20,7 +21,12 @@ by the preparation/test scripts.
    `NEXT_PUBLIC_*`, GitHub, chat, logs or the frontend. Keep an access-controlled
    backup; losing the matching key prevents source use. Do not rotate it by
    rerunning preparation or replacing the immutable row silently.
-4. Deploy API and app, retaining the app's same-origin `/api/:path*` rewrite.
+4. Run **SQL77**, `supabase/migrations/0077_peta_program_module.sql`, before
+   deploying **API0.46.0**, then **app0.49.0**. Existing SQL76/76B need not be
+   rerun. SQL77 adds bindings, service-only functions and the PETA module key;
+   it enables no program, relinks no old record and deletes no operational data.
+   No new environment variable is needed: keep the original matching encryption
+   key and existing cron secret. Retain the app's same-origin `/api/:path*` rewrite.
    Production requests are restricted to `https://app.binahub.id` by default.
    A separately approved staging app may use API-only `PETA_APP_ORIGIN` with its
    exact HTTPS origin. Verify cookies through that real app origin, not directly
@@ -37,10 +43,15 @@ by the preparation/test scripts.
    The committed `vercel.json` registers the monthly PETA worker automatically on
    the production deployment, provided project Cron Jobs are enabled. See below
    to verify its first invocation; a Git push alone is not proof it has run.
-6. Admin opens `/admin/peta`. `sourceReady` requires successful source decryption,
+6. Admin creates/selects a program and enables its PETA module, then opens
+   `/admin/peta?program_id=<program UUID>`. `sourceReady` requires source decryption,
    integrity checks and the pinned source/version. A missing source/key keeps
-   new invitations disabled. Creating a workspace separately requires a written
-   approved privacy reference, content-rights confirmation and pilot acceptance.
+   new participation disabled. Record the approved internal privacy reference,
+   content-rights confirmation and pilot acceptance. The workspace is derived
+   from that existing program, not a second activity. Share its existing QR/link/
+   program code. Participants register with their name or return with their
+   personal participant code, then open the module at `/client/program/peta`.
+   Program QR is only entry; it never grants access to another person's report.
 7. Before inviting real participants, complete the checklist below.
 
 ## Preparing private source again on a new secured workstation
@@ -60,9 +71,14 @@ key, personal responses or real invitation links to a public repository.
 The owner approved **one calendar year from initial consent/session creation**.
 The database sets `retention_until` at creation; recovery never extends it.
 Every participant/result/consultant read denies expired sessions even before
-the worker runs. Initial unused invitations expire after seven days. Session
+the worker runs. Program sessions also require live membership, active personal
+access, enabled/configured PETA and the program's existing status/date gates.
+One-year retention does not override those access gates. Legacy initial unused
+invitations expire after seven days. Session
 credentials expire after eight hours or 30 minutes idle. Verified recovery
 grants expire after 30 minutes and replace old credentials on redemption.
+Program participants resume using their personal program access, which replaces
+PETA credentials but never restarts retention or changes consent/final answers.
 
 API 0.45.2 follows the owner's monthly schedule in `vercel.json`:
 `0 0 1 * *` (first day of each month, 00:00 UTC / 07:00 WIB),
@@ -130,12 +146,29 @@ workspace. Backups/logs need an independently enforced retention/restore policy.
   during setup, and is snapshotted when the participant consents. Results are
   available only with separate participant permission. There is no super-admin
   bypass, company dashboard or group export in this release.
-- Invitation URLs carry a 256-bit random token in the fragment. The app removes
+- New program start takes no caller-supplied owner/program/participant identity:
+  the verified existing access supplies them. Each program-bound PETA request
+  checks a fresh bearer against the cookie's program/participant/access scope;
+  writes additionally require CSRF and revision. Disabled membership/module,
+  revoked personal access or expired program/session is denied.
+- The public participant screen leads with instructions and a plain disclaimer;
+  an expandable disclosure explains data use and one-year retention. Internal
+  policy references/consent version IDs are not rendered, but remain recorded.
+- Legacy invitation URLs carry a 256-bit random token in the fragment. The app removes
   it from the address bar before further navigation. DB stores only its hash.
   Tokens are private bearer capabilities: send individually via an agreed channel.
-- Recovery and erasure require an explicit admin verification acknowledgement.
+- Legacy recovery and erasure require an explicit admin verification acknowledgement.
   The admin must actually verify identity out of band; a participant code alone
   is not verification. There is no automatic recovery email in this release.
+- Program recovery uses existing participant-code management, not legacy PETA
+  recovery grants. Restrictive SQL77 foreign keys intentionally do not silently
+  cascade private records when a program, participant or access row is deleted.
+  Any such deletion needs a reviewed data-handling sequence. Existing standalone
+  PETA data is retained without guessed automatic program linkage.
+- Next/Back navigate immediately. Serial background saves preserve revision and
+  latest edits; retry reconciles a lost acknowledgement and does not blindly
+  overwrite another tab. Final submit waits for confirmed saves. No unsaved
+  answers are stored in localStorage; closing before acknowledgement can lose them.
 - Final submission uses row locking, a revision precondition and idempotency
   hash. All 24 distinct pairs are required. Submitted choices/results and source
   content cannot be silently updated. Corrections require a documented new run.

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PROGRAM_MODULE_KEYS = ["tbos", "lep", "binainsight", "pre_test", "post_test"] as const;
+export const PROGRAM_MODULE_KEYS = ["tbos", "lep", "binainsight", "pre_test", "post_test", "peta"] as const;
 
 export type ProgramModuleKey = (typeof PROGRAM_MODULE_KEYS)[number];
 
@@ -12,8 +12,9 @@ export const programModuleItemSchema = z.object({
 });
 
 export const completeProgramModuleSelectionSchema = z.array(programModuleItemSchema)
-  .length(PROGRAM_MODULE_KEYS.length, "Seluruh pilihan modul program wajib dikirim.")
+  .min(PROGRAM_MODULE_KEYS.length - 1).max(PROGRAM_MODULE_KEYS.length)
   .refine(
-    (modules) => new Set(modules.map((module) => module.moduleKey)).size === PROGRAM_MODULE_KEYS.length,
+    (modules) => new Set(modules.map((module) => module.moduleKey)).size === modules.length
+      && PROGRAM_MODULE_KEYS.filter(key=>key!=="peta").every(key=>modules.some(module=>module.moduleKey===key)),
     "Setiap modul program wajib disebut tepat satu kali.",
   );

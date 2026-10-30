@@ -63,6 +63,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Program tidak sedang aktif." }, { status: 403 });
   }
 
+  let petaReady=false,petaCompleted=false;
+  if(modules?.some(module=>module.module_key==='peta')){
+    const {data:context,error:petaError}=await db.rpc('peta_program_context',{p_actor:actor.userId,p_program:actor.programId,p_participant:actor.participantId,p_access:actor.accessCodeId});
+    petaReady=!petaError&&Boolean(context);petaCompleted=petaReady&&context?.status==='submitted';
+  }
+
   return NextResponse.json({
     success: true,
     program: {
@@ -86,8 +92,8 @@ export async function GET(req: NextRequest) {
       return {
         key: module.module_key,
         enabled: module.enabled,
-        clientAvailable: ["lep", "binainsight", "pre_test", "post_test"].includes(module.module_key),
-        completed: module.module_key === "lep"
+        clientAvailable: module.module_key==='peta'?petaReady:["lep", "binainsight", "pre_test", "post_test"].includes(module.module_key),
+        completed: module.module_key==='peta'?petaCompleted:module.module_key === "lep"
           ? Boolean(lepResponse)
           : module.module_key === "binainsight"
             ? Boolean(insightAssessment) || completedTests.has("binainsight")

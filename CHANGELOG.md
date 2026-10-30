@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.46.0] - 2026-10-30
+
+- Add SQL77 program-bound PETA: existing program module, membership, participant
+  access and owner-scoped setup; shared QR never grants personal result access.
+- Verify fresh participant bearer scope plus PETA cookie/CSRF for program-bound
+  reads/writes/results. Resume preserves consent, consultant permission, answers
+  and one-year retention. No scoring or immutable source change.
+- Separate program privacy version, program-name/participant metadata for owned
+  admin sessions and legacy-only invitation/recovery compatibility. No automatic
+  relinking, program enablement, operational cleanup, new environment or AI call.
+- Existing five-module clients remain accepted during rollout; SQL77 is required
+  before this API and app0.49.0. Local SQL/route regression tests are not proof of
+  production deployment, live cookie rewriting or a penetration-test result.
+
 ## [0.45.2] - 2026-10-30
 
 - Owner-requested monthly PETA cleanup: first day of each month at 00:00 UTC /
