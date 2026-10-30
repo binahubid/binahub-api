@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/peta-retention",
-      "schedule": "0 19 * * *"
+      "schedule": "0 0 1 * *"
     }
   ]
 }

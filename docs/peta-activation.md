@@ -29,7 +29,12 @@ by the preparation/test scripts.
    in the API project's **Production** environment, then deploy the API. If an
    approved secret already exists and meets that minimum, keep it; do not rotate
    a shared scheduler secret casually. Never use `PETA_ENCRYPTION_KEY` for cron.
-   The committed `vercel.json` registers the daily PETA worker automatically on
+   To generate a separate new secret offline, run `node scripts/prepare-peta-cron-secret.mjs`.
+   Copy only the value after `CRON_SECRET=` from ignored
+   `private/peta-v1/CRON_RUNTIME.private.env` into the API Production variable.
+   The generator never prints the secret, reads other credentials or overwrites
+   an existing generated file. Do not commit the output or reuse the encryption key.
+   The committed `vercel.json` registers the monthly PETA worker automatically on
    the production deployment, provided project Cron Jobs are enabled. See below
    to verify its first invocation; a Git push alone is not proof it has run.
 6. Admin opens `/admin/peta`. `sourceReady` requires successful source decryption,
@@ -59,8 +64,9 @@ the worker runs. Initial unused invitations expire after seven days. Session
 credentials expire after eight hours or 30 minutes idle. Verified recovery
 grants expire after 30 minutes and replace old credentials on redemption.
 
-API0.45.1 includes the production scheduler in `vercel.json`:
-`0 19 * * *` (19:00UTC /02:00WIB next day), path `/api/cron/peta-retention`.
+API 0.45.2 follows the owner's monthly schedule in `vercel.json`:
+`0 0 1 * *` (first day of each month, 00:00 UTC / 07:00 WIB),
+path `/api/cron/peta-retention`.
 Vercel invokes **GET** and supplies `Authorization: Bearer <CRON_SECRET>` from
 the Production environment. **POST** remains available for authenticated operator
 retries. HEAD is explicitly rejected, and User-Agent/query strings are never
@@ -71,7 +77,7 @@ Each invocation processes at most10batches of100expired PETA sessions. It stops
 at the first partial batch, or between batches after a20second soft budget; the
 function itself has a60second maximum. `mayHaveMore:true` conservatively signals
 the last batch was full when the run stopped, not an exact remaining count. Use
-an authenticated manual invocation to drain backlog, or let a later daily run
+an authenticated manual invocation to drain backlog, or let a later monthly run
 continue. Successful batches are committed; failure returns a non-2xx status and
 the known committed counts, so retries do not recreate or re-delete those sessions.
 SQL row locks with SKIP LOCKED protect deletion when invocations overlap.
@@ -80,7 +86,7 @@ AI call, email sending or unrelated-table cleanup is added.
 
 ### Verify activation and monitor
 
-1. Deploy API0.45.1+ after SQL76 and the Production secret are installed. In the
+1. Deploy API 0.45.2+ after SQL76 and the Production secret are installed. In the
    API project's **Settings → Cron Jobs**, confirm the PETA path/schedule appears
    and Cron Jobs are enabled. Preview deployments do not activate this schedule.
 2. Use **Run** on that job for an authorized controlled check, or wait for its
@@ -93,14 +99,16 @@ AI call, email sending or unrelated-table cleanup is added.
 4. Investigate401(secret missing/wrong/too short),503(SQL/setup/database error),
    504(function timeout), missing executions and backlog warnings. Vercel does
    not automatically retry failed cron invocations; use an authenticated operator
-   retry after fixing the cause. The next daily run also resumes eligible data.
+   retry after fixing the cause. The next monthly run also resumes eligible data.
 5. Monitor logs and configure an approved platform alert for failures/missed runs
    according to operations policy; this release does not install notifications.
 
-On Hobby, invocation may occur anywhere in the scheduled hour (02:00–02:59WIB);
+On Hobby, invocation may occur anywhere in the scheduled hour (07:00–07:59 WIB);
 other plans schedule within the specified minute. Access still expires at the
-database timestamp, not at cron time. Physical deletion normally follows the next
-successful run and can be delayed by a failure/backlog. Backups remain separate.
+database timestamp, not at cron time. With the owner-approved monthly schedule,
+physical deletion can normally follow up to 31 days after that timestamp; a
+failure/backlog can delay it further. This does not extend participant access
+or the one-year session retention timestamp. Backups remain separate.
 An authorized DB worker may alternatively call `peta_purge_expired(100)` directly;
 never grant that RPC to anon/authenticated users.
 

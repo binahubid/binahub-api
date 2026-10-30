@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.45.2] - 2026-10-30
+
+- Owner-requested monthly PETA cleanup: first day of each month at 00:00 UTC /
+  07:00 WIB. Participant access still expires at the original one-year timestamp;
+  physical deletion waits for the next successful cleanup (normally up to31days).
+- Add offline 256-bit cron-secret generator with ignored private output,
+  no credential reads, no secret logging and no silent overwrite/rotation.
+
 ## [0.45.1] - 2026-10-30
 
 - Add native Vercel daily PETA retention schedule (19UTC/02WIB) and authenticated

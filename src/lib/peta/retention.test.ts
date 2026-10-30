@@ -12,7 +12,7 @@ function request(method='GET',authorization:string|null='Bearer '+secret){return
 beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('CRON_SECRET',secret);deps.rpc.mockResolvedValue({data:0,error:null});vi.spyOn(console,'info').mockImplementation(()=>{});vi.spyOn(console,'warn').mockImplementation(()=>{});vi.spyOn(console,'error').mockImplementation(()=>{});});
 afterEach(()=>{vi.unstubAllEnvs();vi.restoreAllMocks();});
 describe('PETA scheduled retention worker',()=>{
- it('registers exactly one daily production job at19UTC/02WIB',()=>{const config=JSON.parse(readFileSync('vercel.json','utf8'));expect(config.crons).toEqual([{path:'/api/cron/peta-retention',schedule:'0 19 * * *'}]);expect(maxDuration).toBe(60);});
+ it('registers exactly one monthly job on the first at00UTC/07WIB',()=>{const config=JSON.parse(readFileSync('vercel.json','utf8'));expect(config.crons).toEqual([{path:'/api/cron/peta-retention',schedule:'0 0 1 * *'}]);expect(maxDuration).toBe(60);});
  it('rejects missing/wrong/short credentials, query-string secrets and fake cron user-agents',async()=>{
   for(const auth of [null,'Bearer wrong','Bearer '+'é'.repeat(secret.length)])expect((await GET(request('GET',auth))).status).toBe(401);
   const query=new NextRequest('https://api.binahub.id/api/cron/peta-retention?secret='+secret,{headers:{'User-Agent':'vercel-cron/1.0'}});expect((await GET(query)).status).toBe(401);
