@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.46.1] - 2026-10-30
+
+- Fix PETA submit/program resume rejecting zero-byte proxy request streams as
+  invalid JSON. Only these explicitly body-optional endpoints accept zero bytes;
+  non-empty bodies still require strict empty JSON, with the existing16KB limit.
+- Keep identity, CSRF, revision, idempotency, source/scoring and completeness checks
+  unchanged. No SQL, environment, answer reset or app update is required.
+- Add failing-before/passing-after proxy-stream regressions and invalid-body
+  coverage. Local reproduction is not a live participant-data replay.
+
 ## [0.46.0] - 2026-10-30
 
 - Add SQL77 program-bound PETA: existing program module, membership, participant

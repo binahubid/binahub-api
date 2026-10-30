@@ -32,10 +32,20 @@ export async function guard(req:NextRequest,admin=false){
  const scope=cap.success?'peta-session-'+hash(cap.data).slice(0,24):'peta-entry';
  const limited=await enforceRateLimit(req,scope+(req.method==='GET'?'-read':'-write'),cap.success?600:120,3600);return limited||{actor:null};
 }
-export async function body(req:NextRequest){
- if(!req.headers.get('content-type')?.toLowerCase().startsWith('application/json'))throw new PetaError('PETA_INVALID_REQUEST');
- const reader=req.body?.getReader();if(!reader)throw new PetaError('PETA_INVALID_REQUEST');const chunks:Uint8Array[]=[];let size=0;
- try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>16384){await reader.cancel();throw new PetaError('PETA_BODY_TOO_LARGE');}chunks.push(value);}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new PetaError('PETA_INVALID_REQUEST');}}finally{reader.releaseLock();}
+export async function body(req:NextRequest,{allowEmpty=false}:{allowEmpty?:boolean}={}){
+ const isJson=req.headers.get('content-type')?.toLowerCase().startsWith('application/json');
+ if(!isJson&&!allowEmpty)throw new PetaError('PETA_INVALID_REQUEST');
+ const reader=req.body?.getReader();
+ if(!reader){if(allowEmpty)return {};throw new PetaError('PETA_INVALID_REQUEST');}
+ const chunks:Uint8Array[]=[];let size=0;
+ try{
+  for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>16384){await reader.cancel();throw new PetaError('PETA_BODY_TOO_LARGE');}chunks.push(value);}
+  // Proxy adapters may expose a stream even when the request has zero bytes.
+  // Only explicitly body-optional endpoints may treat that as an empty object.
+  if(allowEmpty&&size===0)return {};
+  if(!isJson)throw new PetaError('PETA_INVALID_REQUEST');
+  try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new PetaError('PETA_INVALID_REQUEST');}
+ }finally{reader.releaseLock();}
 }
 export function credential(req:NextRequest,write=false){
  const token=PetaToken.safeParse(req.cookies.get('peta_session')?.value),csrf=PetaToken.safeParse(req.cookies.get('peta_csrf')?.value);

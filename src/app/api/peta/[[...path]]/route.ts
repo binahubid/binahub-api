@@ -15,7 +15,7 @@ async function handle(req:NextRequest,ctx:Context){
    const input=path==='program/start'
     ?z.object({consentVersion:z.literal('peta-program-privacy-v1'),consentAccepted:z.literal(true),reviewConsent:z.boolean()}).strict().parse(await body(req))
     :undefined;
-   if(path==='program/resume'&&req.body)z.object({}).strict().parse(await body(req));
+   if(path==='program/resume')z.object({}).strict().parse(await body(req,{allowEmpty:true}));
    await source();const token=key(),csrf=key();
    const session=PetaSession.parse(await rpc('peta_program_open',{...scope,p_credential:hash(token),p_csrf:hash(csrf),p_invitation:hash(key()),p_consent_version:input?.consentVersion??null,p_review_consent:input?.reviewConsent??false}));
    return cookies(json({success:true,session,csrfToken:csrf},input?201:200),token,csrf);
@@ -39,9 +39,9 @@ async function handle(req:NextRequest,ctx:Context){
    const session=PetaSession.parse(await rpc('peta_save_answer',{p_hash:cap.hash,p_csrf:cap.csrfHash,p_revision:revision(req),p_block:input.blockId,p_most:input.most,p_least:input.least}));return json({success:true,session});
   }
   if(path==='submit'&&req.method==='POST'){
-   if(req.body)z.object({}).strict().parse(await body(req));
-   const cap=await scopedCredential(req,true),idempotency=z.string().regex(/^[A-Za-z0-9_-]{16,128}$/).parse(req.headers.get('idempotency-key'));
-   const {mapping}=await source();const result=await rpc('peta_submit',{p_hash:cap.hash,p_csrf:cap.csrfHash,p_revision:revision(req),p_submission:hash(idempotency),p_key:mapping});
+   z.object({}).strict().parse(await body(req,{allowEmpty:true}));
+   const cap=await scopedCredential(req,true),idempotency=z.string().regex(/^[A-Za-z0-9_-]{16,128}$/).parse(req.headers.get('idempotency-key')),expectedRevision=revision(req);
+   const {mapping}=await source();const result=await rpc('peta_submit',{p_hash:cap.hash,p_csrf:cap.csrfHash,p_revision:expectedRevision,p_submission:hash(idempotency),p_key:mapping});
    return json({success:true,...z.object({status:z.literal('submitted'),submittedAt:z.string()}).parse(result)});
   }
   if(path==='result'&&req.method==='GET')return json({success:true,report:PetaReport.parse(await rpc('peta_read_result',{p_hash:(await scopedCredential(req)).hash}))});

@@ -1,6 +1,9 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest';
 import {NextRequest} from 'next/server';
 import {randomUUID} from 'node:crypto';
+import {createServer} from 'node:http';
+import {NodeNextRequest} from 'next/dist/server/base-http/node';
+import {NextRequestAdapter} from 'next/dist/server/web/spec-extension/adapters/next-request';
 const deps=vi.hoisted(()=>({admin:vi.fn(),participant:vi.fn(),limit:vi.fn(),rpc:vi.fn(),from:vi.fn()}));
 vi.mock('server-only',()=>({}));
 vi.mock('@/lib/admin-auth',()=>({requireAdmin:deps.admin}));
@@ -20,6 +23,57 @@ const ctx=(path:string)=>({params:Promise.resolve({path:path.split('/')})});
 beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('PETA_ENCRYPTION_KEY',secret);deps.admin.mockResolvedValue({userId:actor});deps.participant.mockResolvedValue({role:'client',userId:actor,programId:id,participantId:id,accessCodeId:id});deps.limit.mockResolvedValue(null);deps.rpc.mockImplementation(async(name:string)=>({data:name==='peta_credential_scope'?{programId:null,participantId:null,accessId:null}:name==='peta_program_open'||name==='peta_redeem'||name==='peta_read_session'||name==='peta_save_answer'?session:name==='peta_read_result'?report:name==='peta_submit'?{status:'submitted',submittedAt:'2026-10-29T00:00:00Z'}:{},error:null}));deps.from.mockImplementation(()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{public_payload:pub,sealed_key:sealed.sealed,key_fingerprint:sealed.keyFingerprint,public_sha256:pub.contentSha256},error:null})}));});
 afterEach(()=>vi.unstubAllEnvs());
 describe('PETA HTTP trust boundaries',()=>{
+ it.each([undefined,'application/json'])('accepts a proxied zero-byte submit stream with content type %s',async(contentType)=>{
+  const headers:Record<string,string>={Origin:'https://app.binahub.id',Cookie:cookie,'X-CSRF-Token':csrf,'If-Match':'24','Idempotency-Key':'synthetic_proxy_submit'};
+  if(contentType)headers['Content-Type']=contentType;
+  const request=new NextRequest('https://api.binahub.id/api/peta/submit',{method:'POST',headers,body:new ReadableStream({start(controller){controller.close();}}),duplex:'half'});
+  expect(request.body).not.toBeNull();
+  const res=await POST(request,ctx('submit'));expect(res.status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_submit',expect.objectContaining({p_revision:24,p_submission:expect.any(String)}));
+ });
+ it('accepts an empty proxy stream for program resume without creating new consent',async()=>{
+  const request=new NextRequest('https://api.binahub.id/api/peta/program/resume',{method:'POST',headers:{Origin:'https://app.binahub.id'},body:new ReadableStream({start(controller){controller.close();}}),duplex:'half'});
+  expect((await POST(request,ctx('program/resume'))).status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_program_open',expect.objectContaining({p_consent_version:null,p_review_consent:false}));
+ });
+ it('still rejects non-empty invalid or unexpected submit bodies before scoring',async()=>{
+  const headers={Origin:'https://app.binahub.id',Cookie:cookie,'X-CSRF-Token':csrf,'If-Match':'24','Idempotency-Key':'synthetic_proxy_submit','Content-Type':'application/json'};
+  for(const value of ['{','null','[]','{"ownerId":"spoofed"}']){
+   const request=new NextRequest('https://api.binahub.id/api/peta/submit',{method:'POST',headers,body:value});
+   expect((await POST(request,ctx('submit'))).status).toBe(400);
+  }
+  expect(deps.rpc).not.toHaveBeenCalled();expect(deps.from).not.toHaveBeenCalled();
+ });
+ it('accepts a real zero-byte HTTP POST through the installed Next Node adapter',async()=>{
+  let hasStream=false;
+  const server=createServer((incoming,outgoing)=>{void (async()=>{
+   try{
+    const adapted=NextRequestAdapter.fromNodeNextRequest(new NodeNextRequest(incoming),new AbortController().signal);
+    hasStream=adapted.body!==null;
+    const result=await POST(adapted,ctx('submit'));outgoing.writeHead(result.status);outgoing.end(await result.text());
+   }catch{outgoing.writeHead(500);outgoing.end();}
+  })();});
+  await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+  try{
+   const address=server.address();if(!address||typeof address==='string')throw Error('Loopback unavailable');
+   const result=await fetch('http://127.0.0.1:'+address.port+'/api/peta/submit',{method:'POST',headers:{Origin:'https://app.binahub.id',Cookie:cookie,'X-CSRF-Token':csrf,'If-Match':'24','Idempotency-Key':'synthetic_real_http'},signal:AbortSignal.timeout(5000)});
+   expect(hasStream).toBe(true);expect(result.status).toBe(200);expect(await result.json()).toMatchObject({success:true,status:'submitted'});
+  }finally{await new Promise<void>(resolve=>{server.close(()=>resolve());server.closeAllConnections();});}
+ });
+ it('keeps empty-submit authentication, revision and idempotency checks mandatory',async()=>{
+  const valid={Cookie:cookie,'X-CSRF-Token':csrf,'If-Match':'24','Idempotency-Key':'synthetic_empty_submit'};
+  for(const [changed,status] of [[{'X-CSRF-Token':''},401],[{'If-Match':''},400],[{'Idempotency-Key':''},400]] as const){
+   expect((await POST(req('POST',undefined,{...valid,...changed}),ctx('submit'))).status).toBe(status);
+  }
+  expect(deps.rpc.mock.calls.some(call=>call[0]==='peta_submit')).toBe(false);expect(deps.from).not.toHaveBeenCalled();
+ });
+ it('retains content type and size limits for non-empty optional bodies',async()=>{
+  const headers={Cookie:cookie,'X-CSRF-Token':csrf,'If-Match':'24','Idempotency-Key':'synthetic_empty_submit'};
+  expect((await POST(req('POST',{},headers),ctx('submit'))).status).toBe(200);vi.clearAllMocks();
+  expect((await POST(req('POST',{}, {...headers,'Content-Type':'text/plain'}),ctx('submit'))).status).toBe(400);
+  expect((await POST(req('POST',{padding:'x'.repeat(17000)},headers),ctx('submit'))).status).toBe(413);
+  expect(deps.rpc).not.toHaveBeenCalled();expect(deps.from).not.toHaveBeenCalled();
+ });
  it('uses verified program identity, rejects caller ownership fields, and issues participant-only cookies',async()=>{
   const invalid=await POST(req('POST',{participantId:actor,consentVersion:'peta-program-privacy-v1',consentAccepted:true,reviewConsent:false}),ctx('program/start'));expect(invalid.status).toBe(400);expect(deps.rpc).not.toHaveBeenCalled();
   const res=await POST(req('POST',{consentVersion:'peta-program-privacy-v1',consentAccepted:true,reviewConsent:false}),ctx('program/start'));
