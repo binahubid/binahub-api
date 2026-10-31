@@ -48,6 +48,7 @@ beforeAll(async()=>{
  create table inquiries(id uuid primary key default gen_random_uuid(),lead_id uuid,name text,email text,whatsapp text,message text,source text,status text,module_request_data jsonb,follow_up_paused boolean,reply_status text,reply_email_id text,reply_sent_at timestamptz);
  create table assessments(lead_id uuid,follow_up_paused boolean,result_email_sent_at timestamptz,assessment_status text);`);
  await db.exec(readFileSync('supabase/migrations/0071_spin_discovery.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0073_spin_processing_recovery.sql','utf8'));
 },30000);
 afterAll(()=>db.close());
 beforeEach(()=>{
@@ -80,8 +81,52 @@ describe('SPIN persisted submit → AI → report → PDF → email (synthetic P
   expect((await processSpinWork(id)).processed).toBe(false);
   expect(mocks.ai).toHaveBeenCalledOnce();expect(mocks.send).toHaveBeenCalledOnce();
  },20000);
- it('still sends a truthful consultation report when AI is unavailable, without inventing programs',async()=>{
+ it('keeps analysis pending without freezing a report or enqueueing mail when all providers fail',async()=>{
   const id=await submit();mocks.ai.mockRejectedValue(new Error('Synthetic provider failure'));
+  expect(await processSpinWork(id)).toEqual({processed:true,status:'pending'});
+  const row=(await db.query<{status:string;report:unknown;internal_report:unknown;attempts:number;error_code:string}>('select status,report,internal_report,attempts,error_code from spin_submissions where id=$1',[id])).rows[0];
+  expect(row).toEqual({status:'failed',report:null,internal_report:null,attempts:1,error_code:'SPIN_PROCESSING_RETRY'});
+  expect((await db.query('select id from spin_mail_jobs where submission_id=$1',[id])).rows).toHaveLength(0);
+  expect(mocks.send).not.toHaveBeenCalled();
+  expect(await processSpinWork(id)).toEqual({processed:false});
+  expect(mocks.ai).toHaveBeenCalledOnce();
+ },20000);
+ it('recovers after the stored backoff and sends one result without changing client answers',async()=>{
+  const id=await submit();mocks.ai.mockRejectedValueOnce(new Error('Synthetic temporary outage'));
+  const original=(await db.query('select answers,summary,confirmation from spin_submissions where id=$1',[id])).rows[0];
+  expect(await processSpinWork(id)).toEqual({processed:true,status:'pending'});
+  expect((await processSpinWork(id)).processed).toBe(false);
+  await db.query("update spin_submissions set next_attempt_at=now()-interval '1 second' where id=$1",[id]);
+  expect(await processSpinWork(id)).toEqual({processed:true,status:'sent'});
+  expect((await db.query('select answers,summary,confirmation from spin_submissions where id=$1',[id])).rows[0]).toEqual(original);
+  expect(mocks.ai).toHaveBeenCalledTimes(2);expect(mocks.send).toHaveBeenCalledOnce();
+  expect((await processSpinWork(id)).processed).toBe(false);expect(mocks.send).toHaveBeenCalledOnce();
+ },20000);
+ it('stops after three failed analysis attempts and requires explicit admin recovery',async()=>{
+  const id=await submit();mocks.ai.mockRejectedValue(new Error('Synthetic persistent outage'));
+  for(let i=0;i<3;i++){
+   await db.query("update spin_submissions set next_attempt_at=now()-interval '1 second' where id=$1",[id]);
+   expect(await processSpinWork(id)).toEqual({processed:true,status:'pending'});
+  }
+  await db.query("update spin_submissions set next_attempt_at=now()-interval '1 second' where id=$1",[id]);
+  expect((await processSpinWork(id)).processed).toBe(false);
+  expect(mocks.ai).toHaveBeenCalledTimes(3);expect(mocks.send).not.toHaveBeenCalled();
+  const row=(await db.query<{status:string;attempts:number;report:unknown}>('select status,attempts,report from spin_submissions where id=$1',[id])).rows[0];
+  expect(row).toEqual({status:'failed',attempts:3,report:null});
+  const actor=randomUUID();expect(await rpc('spin_retry_processing',{p_id:id,p_actor:actor})).toBe(true);
+  mocks.ai.mockResolvedValue({content:JSON.stringify({matches:[]})});
+  expect(await processSpinWork(id)).toEqual({processed:true,status:'sent'});expect(mocks.send).toHaveBeenCalledOnce();
+  expect(await rpc('spin_retry_processing',{p_id:id,p_actor:actor})).toBe(false);
+  expect((await processSpinWork(id)).processed).toBe(false);expect(mocks.send).toHaveBeenCalledOnce();
+ },20000);
+ it('does not announce a completed result for malformed AI output',async()=>{
+  const id=await submit();mocks.ai.mockResolvedValue({content:'not JSON'});
+  expect(await processSpinWork(id)).toEqual({processed:true,status:'pending'});
+  expect(mocks.send).not.toHaveBeenCalled();
+  expect((await db.query('select id from spin_mail_jobs where submission_id=$1',[id])).rows).toHaveLength(0);
+ },20000);
+ it('still sends a consultation report for a valid analysis with no supported catalog match',async()=>{
+  const id=await submit();mocks.ai.mockResolvedValue({content:JSON.stringify({matches:[]})});
   expect(await processSpinWork(id)).toEqual({processed:true,status:'sent'});
   const report=(await db.query<{report:{solutions:unknown[]}}>('select report from spin_submissions where id=$1',[id])).rows[0].report;
   expect(report.solutions).toEqual([]);expect(mocks.send).toHaveBeenCalledOnce();
@@ -98,7 +143,7 @@ describe('SPIN persisted submit → AI → report → PDF → email (synthetic P
  },20000);
  it('rejects a stale or unverified summary before AI and never enqueues email',async()=>{
   const id=await submit();await db.query("update spin_submissions set summary=summary||'{\"outcome\":\"Stale snapshot\"}'::jsonb where id=$1",[id]);
-  expect((await processSpinWork(id)).processed).toBe(false);expect(mocks.ai).not.toHaveBeenCalled();expect(mocks.send).not.toHaveBeenCalled();
+  expect(await processSpinWork(id)).toEqual({processed:true,status:'pending'});expect(mocks.ai).not.toHaveBeenCalled();expect(mocks.send).not.toHaveBeenCalled();
   expect((await db.query<{status:string}>('select status from spin_submissions where id=$1',[id])).rows[0].status).toBe('failed');
  },20000);
  it('keeps delivery pending on provider rejection and respects the stored backoff',async()=>{

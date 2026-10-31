@@ -4,7 +4,7 @@ import {
   buildSpinMatchingRequest, buildSpinRecommendationResult, spinHasRequiredEvidence, validateSpinMatches,
 } from './recommendation';
 
-/** Internal foundation only: no route, persistence, dispatch or email side effects. */
+/** Validated provider adapter; persistence and delivery belong to the worker. */
 export async function prepareSpinRecommendation(input: unknown) {
   const request = buildSpinMatchingRequest(input);
   if (request.needs.summaryStatus !== 'confirmed' || !spinHasRequiredEvidence(request.needs)) {

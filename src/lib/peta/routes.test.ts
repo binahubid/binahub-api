@@ -23,6 +23,14 @@ const ctx=(path:string)=>({params:Promise.resolve({path:path.split('/')})});
 beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('PETA_ENCRYPTION_KEY',secret);deps.admin.mockResolvedValue({userId:actor});deps.participant.mockResolvedValue({role:'client',userId:actor,programId:id,participantId:id,accessCodeId:id});deps.limit.mockResolvedValue(null);deps.rpc.mockImplementation(async(name:string)=>({data:name==='peta_credential_scope'?{programId:null,participantId:null,accessId:null}:name==='peta_program_open'||name==='peta_redeem'||name==='peta_read_session'||name==='peta_save_answer'?session:name==='peta_read_result'?report:name==='peta_submit'?{status:'submitted',submittedAt:'2026-10-29T00:00:00Z'}:{},error:null}));deps.from.mockImplementation(()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{public_payload:pub,sealed_key:sealed.sealed,key_fingerprint:sealed.keyFingerprint,public_sha256:pub.contentSha256},error:null})}));});
 afterEach(()=>vi.unstubAllEnvs());
 describe('PETA HTTP trust boundaries',()=>{
+ it('passes validated history pagination under the authenticated owner, never caller ownership',async()=>{
+  const request=new NextRequest('https://api.binahub.id/api/peta/admin?scope=history&workspace='+id+'&page=6&search=Peserta&status=submitted');
+  expect((await GET(request,ctx('admin'))).status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_management_dashboard',{p_actor:actor,p_workspace:id,p_scope:'history',p_page:6,p_search:'Peserta',p_status:'submitted'});
+ });
+ it.each(['page=-1','page=1.5','scope=foreign','workspace=invalid','actor='+id,'search='+'x'.repeat(151)])('rejects invalid dashboard query %s before reading data',async(query)=>{
+  expect((await GET(new NextRequest('https://api.binahub.id/api/peta/admin?'+query),ctx('admin'))).status).toBe(400);expect(deps.rpc).not.toHaveBeenCalled();expect(deps.from).not.toHaveBeenCalled();
+ });
  it.each([undefined,'application/json'])('accepts a proxied zero-byte submit stream with content type %s',async(contentType)=>{
   const headers:Record<string,string>={Origin:'https://app.binahub.id',Cookie:cookie,'X-CSRF-Token':csrf,'If-Match':'24','Idempotency-Key':'synthetic_proxy_submit'};
   if(contentType)headers['Content-Type']=contentType;

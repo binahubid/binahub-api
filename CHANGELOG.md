@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.46.3] - 2026-10-31
+
+- SQL78 adds explicit manual program status mode. Manual changes survive list
+  refreshes; date reconciliation remains for automatic programs and concurrent
+  manual edits win over reconciliation. No existing status is rewritten by SQL.
+- Add owner-scoped PETA management pagination/search/counts independent of live
+  participant access. Active programs require enabled PETA, active/in-progress
+  status and a non-ended schedule; finished/disabled programs retain history.
+  Shared program access and optional result permission remain unchanged.
+- Reject program deletion with PETA history before deleting empty T-BOS teams;
+  archive instead. Retention stays one year; no deletion/migration of responses.
+- Keep SPIN provider/schema failure pending with existing bounded retries and
+  admin recovery, instead of emailing a generic report as completed. Valid AI
+  consultation-only results remain supported; answers and mail idempotency stay.
+- Requires SQL78 before deployment, followed by app0.50.1. No new environment,
+  scheduler activation, paid AI call or real email in the verification workflow.
+
 ## [0.46.2] - 2026-10-31
 
 - Patch Next.js and its ESLint config to16.4.3, Zod to the patched4.6 line,

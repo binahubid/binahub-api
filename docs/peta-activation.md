@@ -1,12 +1,22 @@
 # PETA pilot activation
 
-30 October 2026. API0.46.0 / app0.49.0 add PETA to existing programs (SQL77).
+31 October 2026. API0.46.3 / app0.50.1 add retained history and manual status (SQL78).
 The earlier standalone invitation pilot remains available for legacy records.
 Do not advertise psychometric validation, automatic employer access, selection
 decisions or a paid product. No production SQL or real invitations are executed
 by the preparation/test scripts.
 
 ## Apply in this order
+
+For an existing SQL77 installation, apply only
+`supabase/migrations/0078_peta_history_program_status.sql`, then deploy API0.46.3
+and app0.50.1. No new env, source installation, consent or retention change.
+Owner reported SQL78 succeeded on31 October2026; verify production deployment
+separately. Existing statuses remain automatic until an explicit manual edit.
+The new dashboard RPC is service-role-only and keeps owner/result permission checks.
+History remains accessible after a program ends, within the original one-year
+retention; active participant entry keeps its original date/membership gates.
+Program deletion is refused when PETA workspaces exist; archive instead.
 
 1. Back up/review the target project. Run
    `supabase/migrations/0076_peta_invitation_pilot.sql` in the intended Supabase

@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   const { id } = await context.params;
   const { data, error } = await getDb()
     .from("engagements")
-    .update({ status: parsed.data.status })
+    .update({ status: parsed.data.status, status_mode: 'manual', updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
     .single();

@@ -46,16 +46,24 @@ export async function GET(req: NextRequest) {
         status: row.status as ProgramStatus,
         startDate: row.start_date,
         endDate: row.end_date,
+        statusMode: row.status_mode,
       }, today);
       if (nextStatus === row.status) return row;
       const updatedAt = new Date().toISOString();
-      const { error: updateError } = await db
+      const { data: updated, error: updateError } = await db
         .from("engagements")
         .update({ status: nextStatus, updated_at: updatedAt })
         .eq("id", row.id)
-        .eq("status", row.status);
+        .eq("status", row.status)
+        .eq("status_mode", "automatic")
+        .select()
+        .maybeSingle();
       if (updateError) throw updateError;
-      return { ...row, status: nextStatus, updated_at: updatedAt };
+      if (updated) return { ...row, status: updated.status, status_mode: updated.status_mode, updated_at: updated.updated_at };
+      // A concurrent manual edit wins; do not return a status we did not persist.
+      const { data: current, error: currentError } = await db.from("engagements").select("status,status_mode,updated_at").eq("id", row.id).maybeSingle();
+      if (currentError) throw currentError;
+      return current ? { ...row, ...current } : row;
     }));
   } catch (statusError) {
     return NextResponse.json({

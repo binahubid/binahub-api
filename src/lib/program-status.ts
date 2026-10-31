@@ -15,7 +15,9 @@ export function resolveScheduledProgramStatus(input: {
   status: ProgramStatus;
   startDate: string | null;
   endDate: string | null;
+  statusMode?: 'automatic' | 'manual';
 }, today = jakartaCalendarDate()): ProgramStatus {
+  if (input.statusMode === 'manual') return input.status;
   if (input.status === "active") {
     if (input.endDate && input.endDate < today) return "review";
     if (input.startDate && input.startDate <= today) return "in_progress";

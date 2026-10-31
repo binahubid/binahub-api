@@ -5,7 +5,6 @@ import { createServerSupabase } from '@/lib/supabase';
 import { resolvePublicAppUrl } from '@/lib/public-app-url';
 import { spinRPC } from './http';
 import { SPIN_DEFINITION, SpinError, spinHash, spinConfirmedNeeds, validateSpinAnswers } from './intake';
-import { buildSpinRecommendationResult } from './recommendation';
 import { prepareSpinRecommendation } from './service';
 import { buildSpinReport, SpinReportSchema } from './report';
 import { renderSpinPDF } from './pdf';
@@ -30,10 +29,10 @@ export async function processSpinWork(id?:string) {
  if(row)try {
    const answers=validateSpinAnswers(row.answers,true),needs=spinConfirmedNeeds(answers,row.confirmation,row.summary);
    stage='analysis';
-   // Conservative schema failure goes to a consultation report, never a fabricated recommendation.
-   let selection:ReturnType<typeof buildSpinRecommendationResult>;
-   try{selection=await prepareSpinRecommendation(needs);}
-   catch {selection=buildSpinRecommendationResult({...needs,evidence:[{id:'Q05',text:'Kebutuhan perlu dibahas bersama.'}]},{matches:[]},'AI_MATCH_UNAVAILABLE');}
+   const selection=await prepareSpinRecommendation(needs);
+   // Provider/schema failure is retryable work, not a completed consultation report.
+   // A valid AI response with no supported match still follows the consultation path.
+   if(selection.internalConsultant.consultationReasons.includes('AI_MATCH_UNAVAILABLE'))throw new Error('SPIN_ANALYSIS_PENDING');
    stage='report';
    const report=buildSpinReport({id:row.id,submittedAt:row.submitted_at,company:row.contact.company,answers,summary:row.summary,status:row.confirmation.status,selection,bookingUrl:process.env.CALCOM_BOOKING_URL});
    stage='persist';
@@ -42,6 +41,7 @@ export async function processSpinWork(id?:string) {
    // Stage only: never log contact, answers, links, model output or raw errors.
    console.error('[SPIN] PROCESSING_RETRY stage='+stage);
    await spinRPC('spin_finish',{p_id:row.id,p_lease:row.lease,p_report:null,p_internal:null,p_error:'SPIN_PROCESSING_RETRY'});
+   return {processed:true,status:'pending'};
  }
  return processSpinMail(id);
 }

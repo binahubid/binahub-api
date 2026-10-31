@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     ...(parsed.data.code === undefined ? {} : { code: parsed.data.code.toUpperCase() }),
     ...(parsed.data.title === undefined ? {} : { title: parsed.data.title }),
     ...(parsed.data.type === undefined ? {} : { type: parsed.data.type }),
-    ...(parsed.data.status === undefined ? {} : { status: parsed.data.status }),
+    ...(parsed.data.status === undefined ? {} : { status: parsed.data.status, status_mode: 'manual' }),
     ...(parsed.data.startDate === undefined ? {} : { start_date: parsed.data.startDate }),
     ...(parsed.data.endDate === undefined ? {} : { end_date: parsed.data.endDate }),
     ...(parsed.data.location === undefined ? {} : { location: parsed.data.location }),
@@ -85,6 +85,10 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     .eq("program_id", id);
   if (assessmentCountError) return NextResponse.json({ success: false, error: assessmentCountError.message }, { status: 500 });
   if ((assessmentCount || 0) > 0) return NextResponse.json({ success: false, error: "Program memiliki hasil BinaInsight dan hanya dapat diarsipkan.", code: "PROGRAM_HAS_BINAINSIGHT_RESULTS", canArchive: true }, { status: 409 });
+  // Check before any deletion: even a workspace without responses holds program history/settings.
+  const {count:petaCount,error:petaError} = await db.from("peta_workspaces").select("id",{count:"exact",head:true}).eq("program_id",id);
+  if (petaError) return NextResponse.json({success:false,error:"Riwayat PETA belum dapat diperiksa. Program tidak dihapus."},{status:503});
+  if ((petaCount || 0) > 0) return NextResponse.json({success:false,error:"Program memiliki riwayat PETA dan hanya dapat diarsipkan.",code:"PROGRAM_HAS_PETA_HISTORY",canArchive:true},{status:409});
   if (teamIds.length > 0) {
     const { error: deleteTeamsError } = await db.from("tbos_teams").delete().eq("engagement_id", id);
     if (deleteTeamsError) {

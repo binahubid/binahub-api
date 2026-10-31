@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { jakartaCalendarDate, resolveScheduledProgramStatus } from "./program-status";
 
 describe("scheduled program status", () => {
+  it('preserves explicitly selected manual statuses despite the schedule',()=>{
+    expect(resolveScheduledProgramStatus({status:'active',startDate:'2026-01-01',endDate:'2026-02-01',statusMode:'manual'},'2026-10-31')).toBe('active');
+    expect(resolveScheduledProgramStatus({status:'in_progress',startDate:'2027-01-01',endDate:null,statusMode:'manual'},'2026-10-31')).toBe('in_progress');
+  });
   it("memulai program aktif pada tanggal mulai", () => {
     expect(resolveScheduledProgramStatus({ status: "active", startDate: "2026-09-04", endDate: "2026-09-10" }, "2026-09-04")).toBe("in_progress");
   });

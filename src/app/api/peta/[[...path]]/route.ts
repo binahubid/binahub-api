@@ -1,7 +1,7 @@
 import {NextRequest} from 'next/server';
 import {z} from 'zod';
 import {PetaSession,PetaReport,PetaToken,PetaChoice,PetaError} from '@/lib/peta/contracts';
-import {body,guard,json,rpc,key,hash,db,revision,cookies,source,failure,petaHeaders} from '@/lib/peta/http';
+import {body,guard,json,rpc,key,hash,revision,cookies,source,failure,petaHeaders} from '@/lib/peta/http';
 import {programActor,scopedCredential} from '@/lib/peta/program';
 export const runtime='nodejs';
 type Context={params:Promise<{path?:string[]}>};
@@ -46,10 +46,10 @@ async function handle(req:NextRequest,ctx:Context){
   }
   if(path==='result'&&req.method==='GET')return json({success:true,report:PetaReport.parse(await rpc('peta_read_result',{p_hash:(await scopedCredential(req)).hash}))});
   if(path==='admin'&&req.method==='GET'){
-   const data=await rpc('peta_program_dashboard',{p_actor:actor.actor});let configured=false;try{await source();configured=true;}catch{}
-   const {data:programs,error}=await db().from('engagements').select('id,title,code,status,modules:program_modules(module_key,enabled)').order('created_at',{ascending:false}).limit(100);
-   if(error)throw new PetaError('PETA_SETUP_REQUIRED');
-   return json({success:true,...data,programs:(programs||[]).map(program=>({id:program.id,title:program.title,code:program.code,status:program.status,petaEnabled:program.modules?.some(module=>module.module_key==='peta'&&module.enabled)})),sourceReady:configured});
+   const query=z.object({workspace:z.uuid().optional(),scope:z.enum(['active','history','all']).default('active'),page:z.coerce.number().int().min(0).max(100000).default(0),search:z.string().max(150).default(''),status:z.enum(['all','in_progress','submitted','revoked','expired']).default('all')}).strict().parse(Object.fromEntries(req.nextUrl.searchParams));
+   const data=await rpc('peta_management_dashboard',{p_actor:actor.actor,p_workspace:query.workspace??null,p_scope:query.scope,p_page:query.page,p_search:query.search,p_status:query.status});
+   let configured=false;try{await source();configured=true;}catch{}
+   return json({success:true,...data,sourceReady:configured});
   }
   if(path==='admin/workspaces'&&req.method==='POST'){
    const input=z.object({programId:z.uuid(),privacyReference:z.string().trim().min(10).max(500),consultantAccess:z.boolean(),privacyApproved:z.literal(true),contentRightsConfirmed:z.literal(true),pilotAcknowledged:z.literal(true)}).strict().parse(await body(req));await source();
