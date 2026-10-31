@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.46.2] - 2026-10-31
+
+- Patch Next.js and its ESLint config to16.4.3, Zod to the patched4.6 line,
+  Vitest to4.1.12 and Vite to the patched8.1.6 line; refresh the lockfile without
+  force upgrades. Keep the established Vite line used by the app frontend.
+- Remove unused Jimp and its transitive image plugins; source/scripts have no
+  Jimp imports. Keep the existing PDF/image delivery implementation unchanged.
+- Patch transitive brace expansion. Dependency advisory results are not a
+  penetration test or proof of the version currently deployed in production.
+- Add a read-only Node22 CI workflow for runtime advisories, types, lint,
+  synthetic regressions and a build with dummy credentials, not live services.
+- Align the production build command with the Webpack build verified locally,
+  matching the bundler already used by the app and website.
+- No scoring, consent, SQL, environment, cron activation or email/AI call change.
+
 ## [0.46.1] - 2026-10-30
 
 - Fix PETA submit/program resume rejecting zero-byte proxy request streams as

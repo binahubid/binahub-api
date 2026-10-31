@@ -1,0 +1,55 @@
+name: API quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check runtime dependency advisories
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Check types
+        run: npm exec -- next typegen && npm run typecheck
+
+      - name: Check lint
+        run: npm run lint
+
+      - name: Run synthetic regressions, not live/private tests
+        run: npm run test:run -- --maxWorkers=2 --exclude "**/*.live.test.ts" --exclude "**/*.private.test.ts"
+
+      - name: Build without production credentials
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: synthetic-build-only
+          SUPABASE_SERVICE_ROLE_KEY: synthetic-build-only
+          RESEND_API_KEY: re_synthetic_build_only
+
+      # Quality checks only: no secrets, SQL deployment, provider calls or cron.
