@@ -47,25 +47,25 @@ async function handle(req:NextRequest,ctx:Context){
   if(path==='result'&&req.method==='GET')return json({success:true,report:PetaReport.parse(await rpc('peta_read_result',{p_hash:(await scopedCredential(req)).hash}))});
   if(path==='admin'&&req.method==='GET'){
    const query=z.object({workspace:z.uuid().optional(),scope:z.enum(['active','history','all']).default('active'),page:z.coerce.number().int().min(0).max(100000).default(0),search:z.string().max(150).default(''),status:z.enum(['all','in_progress','submitted','revoked','expired']).default('all')}).strict().parse(Object.fromEntries(req.nextUrl.searchParams));
-   const data=await rpc('peta_management_dashboard',{p_actor:actor.actor,p_workspace:query.workspace??null,p_scope:query.scope,p_page:query.page,p_search:query.search,p_status:query.status});
+   const data=await rpc('peta_team_dashboard',{p_actor:actor.actor,p_workspace:query.workspace??null,p_scope:query.scope,p_page:query.page,p_search:query.search,p_status:query.status});
    let configured=false;try{await source();configured=true;}catch{}
    return json({success:true,...data,sourceReady:configured});
   }
   if(path==='admin/workspaces'&&req.method==='POST'){
    const input=z.object({programId:z.uuid(),privacyReference:z.string().trim().min(10).max(500),consultantAccess:z.boolean(),privacyApproved:z.literal(true),contentRightsConfirmed:z.literal(true),pilotAcknowledged:z.literal(true)}).strict().parse(await body(req));await source();
-   return json({success:true,id:await rpc('peta_program_setup',{p_actor:actor.actor,p_program:input.programId,p_reference:input.privacyReference,p_consultant:input.consultantAccess})},201);
+   return json({success:true,id:await rpc('peta_team_program_setup',{p_actor:actor.actor,p_program:input.programId,p_reference:input.privacyReference,p_consultant:input.consultantAccess})},201);
   }
   if(path==='admin/invitations'&&req.method==='POST'){
    const input=z.object({workspaceId:z.uuid(),participantCode:z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)}).strict().parse(await body(req));await source();const token=key();
-   const result=await rpc('peta_legacy_invitation_create',{p_actor:actor.actor,p_workspace:input.workspaceId,p_hash:hash(token),p_code:input.participantCode});return json({success:true,...result,invitationPath:'/peta#invite='+token},201);
+   const result=await rpc('peta_team_invitation_create',{p_actor:actor.actor,p_workspace:input.workspaceId,p_hash:hash(token),p_code:input.participantCode});return json({success:true,...result,invitationPath:'/peta#invite='+token},201);
   }
   if(path==='admin/invitation-revoke'&&req.method==='POST'){
-   const input=z.object({id:z.uuid()}).strict().parse(await body(req));await rpc('peta_revoke_invitation',{p_actor:actor.actor,p_id:input.id});return json({success:true});
+   const input=z.object({id:z.uuid()}).strict().parse(await body(req));await rpc('peta_team_invitation_revoke',{p_actor:actor.actor,p_id:input.id});return json({success:true});
   }
   if(path==='admin/session-action'&&req.method==='POST'){
    const input=z.object({id:z.uuid(),action:z.enum(['result','recover','revoke','erase']),verified:z.boolean().default(false)}).strict().parse(await body(req));
    const token=input.action==='recover'?key():null;
-   const result=await rpc('peta_program_admin_action',{p_actor:actor.actor,p_id:input.id,p_action:input.action,p_hash:token?hash(token):null,p_verified:input.verified});
+   const result=await rpc('peta_team_session_action',{p_actor:actor.actor,p_id:input.id,p_action:input.action,p_hash:token?hash(token):null,p_verified:input.verified});
    return json({success:true,...(input.action==='result'?{report:PetaReport.parse(result)}:result),...(token?{invitationPath:'/peta#invite='+token}:{})});
   }
   return json({success:false,error:'Halaman tidak ditemukan.'},404);

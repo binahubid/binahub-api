@@ -8,6 +8,30 @@ by the preparation/test scripts.
 
 ## Apply in this order
 
+### Current increment: shared admin access (SQL79)
+
+For an installation already running SQL78, apply only
+`supabase/migrations/0079_peta_admin_team_access.sql` before deploying the updated
+PETA API and frontend. Do not rerun SQL76B, rotate keys, or recreate workspaces.
+SQL79 adds service-role-only team RPCs; every HTTP entry still calls requireAdmin
+and uses the authenticated actor, never a caller-provided owner ID. All verified
+admins can see the same active/history progress and manage setup/invitations.
+Consented, submitted and unexpired reports are reviewable by any admin; declined
+consent is still denied. Existing creator/reviewer snapshots are preserved, and
+audit records identify the actual admin performing each action. Facilitators,
+participants and anonymous browser roles receive no new access. No environment
+variable, participant backfill, source reinstall or retention change is required.
+
+Situation14 also has an owner-approved display correction: “antartim” → “antar
+tim”. The validated public DTO corrects the text without altering the immutable
+encrypted source/fingerprint, IDs or scoring. This applies on both new and resumed
+sessions after the API update.
+
+The SQL78 release instructions below are historical; its creator-only RPCs remain
+for compatibility, but the updated admin HTTP routes use the new `peta_team_*` RPCs.
+
+### Previous increment (SQL78)
+
 For an existing SQL77 installation, apply only
 `supabase/migrations/0078_peta_history_program_status.sql`, then deploy API0.46.3
 and app0.50.1. No new env, source installation, consent or retention change.

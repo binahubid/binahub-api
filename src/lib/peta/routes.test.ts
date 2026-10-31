@@ -23,10 +23,32 @@ const ctx=(path:string)=>({params:Promise.resolve({path:path.split('/')})});
 beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('PETA_ENCRYPTION_KEY',secret);deps.admin.mockResolvedValue({userId:actor});deps.participant.mockResolvedValue({role:'client',userId:actor,programId:id,participantId:id,accessCodeId:id});deps.limit.mockResolvedValue(null);deps.rpc.mockImplementation(async(name:string)=>({data:name==='peta_credential_scope'?{programId:null,participantId:null,accessId:null}:name==='peta_program_open'||name==='peta_redeem'||name==='peta_read_session'||name==='peta_save_answer'?session:name==='peta_read_result'?report:name==='peta_submit'?{status:'submitted',submittedAt:'2026-10-29T00:00:00Z'}:{},error:null}));deps.from.mockImplementation(()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{public_payload:pub,sealed_key:sealed.sealed,key_fingerprint:sealed.keyFingerprint,public_sha256:pub.contentSha256},error:null})}));});
 afterEach(()=>vi.unstubAllEnvs());
 describe('PETA HTTP trust boundaries',()=>{
- it('passes validated history pagination under the authenticated owner, never caller ownership',async()=>{
+ it('passes validated history pagination under the authenticated admin team member, never caller ownership',async()=>{
   const request=new NextRequest('https://api.binahub.id/api/peta/admin?scope=history&workspace='+id+'&page=6&search=Peserta&status=submitted');
   expect((await GET(request,ctx('admin'))).status).toBe(200);
-  expect(deps.rpc).toHaveBeenCalledWith('peta_management_dashboard',{p_actor:actor,p_workspace:id,p_scope:'history',p_page:6,p_search:'Peserta',p_status:'submitted'});
+  expect(deps.rpc).toHaveBeenCalledWith('peta_team_dashboard',{p_actor:actor,p_workspace:id,p_scope:'history',p_page:6,p_search:'Peserta',p_status:'submitted'});
+ });
+ it.each(['admin','admin/workspaces','admin/invitations','admin/invitation-revoke','admin/session-action'])('denies non-admin access to %s before any shared RPC or source read',async(path)=>{
+  deps.admin.mockResolvedValue({error:'Denied',status:403});
+  const response=path==='admin'?await GET(req(),ctx(path)):await POST(req('POST',{}),ctx(path));
+  expect(response.status).toBe(403);expect(deps.rpc).not.toHaveBeenCalled();expect(deps.from).not.toHaveBeenCalled();
+ });
+ it('opens a permitted result as the current admin, not the workspace creator supplied by a caller',async()=>{
+  deps.rpc.mockResolvedValue({data:report,error:null});
+  expect((await POST(req('POST',{id,action:'result',verified:false,ownerId:id}),ctx('admin/session-action'))).status).toBe(400);
+  expect(deps.rpc).not.toHaveBeenCalled();
+  const response=await POST(req('POST',{id,action:'result',verified:false}),ctx('admin/session-action'));
+  expect(response.status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_team_session_action',{p_actor:actor,p_id:id,p_action:'result',p_hash:null,p_verified:false});
+  expect(JSON.stringify(await response.json())).not.toContain('NEVER_PUBLIC');
+ });
+ it('corrects only the display text in situation 14 without editing its identifiers or source',async()=>{
+  const blocks=pub.blocks.map(block=>({...block,options:block.options.map(option=>({...option,text:'Koordinasi antartim.'}))}));
+  deps.rpc.mockResolvedValue({data:{...session,blocks},error:null});
+  const response=await POST(req('POST',{token,consentVersion:'peta-privacy-v1',consentAccepted:true,reviewConsent:false}),ctx('start'));
+  expect(response.status).toBe(201);const value=(await response.json()).session;
+  expect(value.blocks[13]).toEqual({...blocks[13],options:blocks[13].options.map(option=>({...option,text:'Koordinasi antar tim.'}))});
+  expect(value.blocks[12]).toEqual(blocks[12]);expect(blocks[13].options[0].text).toBe('Koordinasi antartim.');
  });
  it.each(['page=-1','page=1.5','scope=foreign','workspace=invalid','actor='+id,'search='+'x'.repeat(151)])('rejects invalid dashboard query %s before reading data',async(query)=>{
   expect((await GET(new NextRequest('https://api.binahub.id/api/peta/admin?'+query),ctx('admin'))).status).toBe(400);expect(deps.rpc).not.toHaveBeenCalled();expect(deps.from).not.toHaveBeenCalled();

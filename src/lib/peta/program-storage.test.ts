@@ -28,6 +28,8 @@ beforeAll(async()=>{
  await db.exec(readFileSync('supabase/migrations/0077_peta_program_module.sql','utf8'));
  await db.exec(readFileSync('supabase/migrations/0078_peta_history_program_status.sql','utf8'));
  await db.exec(readFileSync('supabase/migrations/0078_peta_history_program_status.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0079_peta_admin_team_access.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0079_peta_admin_team_access.sql','utf8'));
 },30000);
 afterAll(()=>db.close());
 describe('PETA program integration SQL77',()=>{
@@ -128,5 +130,84 @@ describe('SQL78 PETA active programs and retained history',()=>{
   expect((await dashboard(admin,w,'history',0,'','submitted')).total).toBe(0);
   expect(first.sessions.every(s=>!s.canReadResult)).toBe(true);
   expect((await db.query<{allowed:boolean}>("select has_function_privilege('authenticated','public.peta_management_dashboard(uuid,uuid,text,integer,text,text)','execute') as allowed")).rows[0].allowed).toBe(false);
+ });
+});
+
+describe('SQL79 shared PETA administration',()=>{
+ const secondAdmin=randomUUID();
+ const dashboard=(workspace:string,actor=secondAdmin,scope='active')=>call('peta_team_dashboard',[actor,workspace,scope]) as Promise<{workspaces:{id:string}[];sessions:{id:string;canReadResult:boolean}[];counts:{total:number;inProgress:number;submitted:number};total:number}>;
+ async function finish(f:Awaited<ReturnType<typeof fixture>>,review=true){
+  const token=hash(randomUUID()),csrf=hash(randomUUID());
+  const session=await call('peta_program_open',[...args(f),token,csrf,hash(randomUUID()),'peta-program-privacy-v1',review]) as {id:string};
+  for(let i=0;i<24;i++)await call('peta_save_answer',[token,csrf,i,pub.blocks[i].id,'A','B']);
+  await call('peta_submit',[token,csrf,24,hash(randomUUID()),JSON.stringify(priv.optionToDimension)]);
+  return session;
+ }
+ it('shows the same four started participants to both admins without transferring ownership',async()=>{
+  const f=await fixture(),first=await open(f),w=(await db.query<{id:string}>('select id from peta_workspaces where program_id=$1',[f.program])).rows[0].id;
+  for(let i=0;i<3;i++){
+   const next={...f,participant:randomUUID(),actor:randomUUID(),access:randomUUID()};
+   await db.query("insert into participants values($1,'Additional synthetic participant')",[next.participant]);
+   await db.query('insert into engagement_participants values($1,$2)',[f.program,next.participant]);
+   await db.query('insert into app_client_access_codes values($1,$2,$3,$4,true,null)',[next.access,f.program,next.participant,next.actor]);
+   await open(next);
+  }
+  const creator=await dashboard(w,admin),other=await dashboard(w);
+  expect(other).toEqual(creator);expect(other.counts).toEqual({total:4,inProgress:4,submitted:0});
+  expect(other.workspaces).toContainEqual(expect.objectContaining({id:w}));
+  expect(other.sessions).toContainEqual(expect.objectContaining({id:first.id,canReadResult:false}));
+  expect((await db.query('select owner_id from peta_workspaces where id=$1',[w])).rows[0]).toEqual({owner_id:admin});
+ });
+ it('lets another admin update setup while preserving participant consent, retention and creator provenance',async()=>{
+  const f=await fixture(),s=await open(f,'peta-program-privacy-v1',false);
+  const before=(await db.query('select * from peta_sessions where id=$1',[s.id])).rows[0];
+  const w=await call('peta_team_program_setup',[secondAdmin,f.program,'Updated internal policy reference',true]);
+  expect((await db.query('select owner_id,consultant_id from peta_workspaces where id=$1',[w])).rows[0]).toEqual({owner_id:admin,consultant_id:admin});
+  expect((await db.query('select * from peta_sessions where id=$1',[s.id])).rows[0]).toEqual(before);
+  expect((await db.query('select actor_id from peta_access_audit where workspace_id=$1 and event=\'program_configured\' order by id desc limit 1',[w])).rows[0]).toEqual({actor_id:secondAdmin});
+ });
+ it('lets both admins read a consented report and records the real reader, including after program completion',async()=>{
+  const f=await fixture(),s=await finish(f),w=(await db.query<{id:string}>('select id from peta_workspaces where program_id=$1',[f.program])).rows[0].id;
+  const original=await call('peta_team_session_action',[admin,s.id,'result']);
+  expect(await call('peta_team_session_action',[secondAdmin,s.id,'result'])).toEqual(original);
+  expect((await dashboard(w)).sessions).toContainEqual(expect.objectContaining({id:s.id,canReadResult:true}));
+  await db.query("update engagements set status='completed' where id=$1",[f.program]);
+  expect((await dashboard(w,secondAdmin,'history')).sessions).toContainEqual(expect.objectContaining({id:s.id,canReadResult:true}));
+  expect(await call('peta_team_session_action',[secondAdmin,s.id,'result'])).toEqual(original);
+  const readers=(await db.query<{actor_id:string}>('select distinct actor_id from peta_access_audit where session_id=$1 and event=\'consultant_result_opened\'',[s.id])).rows.map(row=>row.actor_id);
+  expect(readers).toEqual(expect.arrayContaining([admin,secondAdmin]));
+ });
+ it('does not turn declined consent into report access for any admin or allow expired/revoked reports',async()=>{
+  const f=await fixture(),s=await finish(f,false),w=(await db.query<{id:string}>('select id from peta_workspaces where program_id=$1',[f.program])).rows[0].id;
+  for(const actor of [admin,secondAdmin]){
+   expect((await dashboard(w,actor)).sessions[0].canReadResult).toBe(false);
+   await expect(call('peta_team_session_action',[actor,s.id,'result'])).rejects.toThrow('PETA_NOT_FOUND');
+  }
+  expect((await db.query('select review_consent from peta_sessions where id=$1',[s.id])).rows[0]).toEqual({review_consent:false});
+  const allowed=await fixture(),a=await finish(allowed);
+  await db.query("update peta_sessions set retention_until=now()-interval '1 minute' where id=$1",[a.id]);
+  await expect(call('peta_team_session_action',[secondAdmin,a.id,'result'])).rejects.toThrow('PETA_NOT_FOUND');
+  const revoked=await fixture(),r=await finish(revoked);
+  await call('peta_team_session_action',[secondAdmin,r.id,'revoke']);
+  await expect(call('peta_team_session_action',[admin,r.id,'result'])).rejects.toThrow('PETA_NOT_FOUND');
+ });
+ it('keeps team RPCs and raw participant tables inaccessible to browser roles',async()=>{
+  const functions=['peta_team_dashboard(uuid,uuid,text,integer,text,text)','peta_team_program_setup(uuid,uuid,text,boolean)','peta_team_session_action(uuid,uuid,text,text,boolean)','peta_team_invitation_create(uuid,uuid,text,text)','peta_team_invitation_revoke(uuid,uuid)'];
+  for(const name of functions)for(const role of ['anon','authenticated']){
+   expect((await db.query<{allowed:boolean}>('select has_function_privilege($1,$2,\'execute\') as allowed',[role,'public.'+name])).rows[0].allowed).toBe(false);
+  }
+  await expect(call('peta_team_dashboard',[null])).rejects.toThrow('PETA_INVALID_REQUEST');
+  await expect(call('peta_team_session_action',[null,randomUUID(),'result'])).rejects.toThrow('PETA_NOT_FOUND');
+  expect((await db.query<{allowed:boolean}>("select has_table_privilege('authenticated','public.peta_results','select') as allowed")).rows[0].allowed).toBe(false);
+ });
+ it('lets another admin manage legacy invitations without impersonating their creator',async()=>{
+  const w=await call('peta_workspace_create',[admin,'Legacy team fixture','Approved synthetic policy',true]);
+  const invitation=await call('peta_team_invitation_create',[secondAdmin,w,hash(randomUUID()),'LEGACY-TEAM']) as {id:string};
+  expect(await call('peta_team_invitation_revoke',[secondAdmin,invitation.id])).toBe(true);
+  expect((await db.query('select actor_id from peta_access_audit where workspace_id=$1 and event=\'invitation_revoked\'',[w])).rows[0]).toEqual({actor_id:secondAdmin});
+  const f=await fixture(),s=await open(f);
+  await expect(call('peta_team_session_action',[secondAdmin,s.id,'recover',hash(randomUUID()),true])).rejects.toThrow('PETA_INVALID_REQUEST');
+  await expect(call('peta_team_session_action',[secondAdmin,s.id,'erase',null,false])).rejects.toThrow('PETA_INVALID_REQUEST');
+  expect((await db.query('select id from peta_sessions where id=$1',[s.id])).rows).toHaveLength(1);
  });
 });

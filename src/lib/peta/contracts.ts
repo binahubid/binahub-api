@@ -1,7 +1,10 @@
 import {z} from 'zod';
 export const PetaToken=z.string().regex(/^[a-f0-9]{64}$/);
 export const PetaChoice=z.enum(['A','B','C','D']);
-export const PetaBlock=z.object({id:z.string().regex(/^PETA-Q(0[1-9]|1[0-9]|2[0-4])$/),order:z.number().int().min(1).max(24),context:z.string(),options:z.array(z.object({id:z.string(),code:PetaChoice,text:z.string()})).length(4)});
+export const PetaBlock=z.object({id:z.string().regex(/^PETA-Q(0[1-9]|1[0-9]|2[0-4])$/),order:z.number().int().min(1).max(24),context:z.string(),options:z.array(z.object({id:z.string(),code:PetaChoice,text:z.string()})).length(4)})
+ // Display-only correction approved by the owner. Do not mutate the sealed
+ // instrument, its fingerprint, option IDs, order or scoring key.
+ .transform(block=>block.id==='PETA-Q14'?{...block,options:block.options.map(option=>({...option,text:option.text.replace(/\bantartim\b/g,'antar tim')}))}:block);
 export const PetaSession=z.object({id:z.uuid(),status:z.enum(['in_progress','submitted']),revision:z.number().int().nonnegative(),participantCode:z.string(),instrumentVersion:z.literal('1.0.0-pilot'),retentionUntil:z.string(),submittedAt:z.string().nullable(),reviewConsent:z.boolean(),privacyReference:z.string(),consentVersion:z.enum(['peta-privacy-v1','peta-program-privacy-v1']),blocks:z.array(PetaBlock).length(24),answers:z.record(z.string(),z.object({most:PetaChoice.nullable(),least:PetaChoice.nullable()}))});
 export const PetaResult=z.object({instrumentVersion:z.literal('1.0.0-pilot'),method:z.literal('forced_choice_most_least_net_v1'),rows:z.array(z.object({dimension:z.enum(['D','I','S','C']),most:z.number().int().min(0).max(24),least:z.number().int().min(0).max(24),net:z.number().int().min(-24).max(24)})).length(4),topDimensions:z.array(z.enum(['D','I','S','C'])).min(1).max(4),topIsTied:z.boolean(),closeTopScores:z.boolean()}).refine(r=>new Set(r.rows.map(row=>row.dimension)).size===4&&r.rows.reduce((sum,row)=>sum+row.most,0)===24&&r.rows.reduce((sum,row)=>sum+row.least,0)===24&&r.rows.every(row=>row.net===row.most-row.least));
 export const PetaReport=z.object({result:PetaResult,participantCode:z.string(),submittedAt:z.string(),retentionUntil:z.string()});
