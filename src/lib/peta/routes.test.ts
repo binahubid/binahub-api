@@ -10,10 +10,12 @@ vi.mock('@/lib/admin-auth',()=>({requireAdmin:deps.admin}));
 vi.mock('@/lib/transformation/auth',()=>({requireTransformationActor:deps.participant}));
 vi.mock('@/lib/rate-limit',()=>({enforceRateLimit:deps.limit}));
 vi.mock('@/lib/supabase',()=>({createServerSupabase:()=>({rpc:deps.rpc,from:deps.from})}));
+vi.mock('@/lib/peta/pdf',()=>({renderPetaIndividualPDF:vi.fn(async()=>Buffer.from('%PDF-1.7 synthetic')),renderPetaGroupPDF:vi.fn(async()=>Buffer.from('%PDF-1.7 synthetic'))}));
 import {GET,POST,PUT} from '@/app/api/peta/[[...path]]/route';
 import {POST as purge} from '@/app/api/cron/peta-retention/route';
 import {syntheticPeta} from './synthetic';
 import {sealKey} from '../../../scripts/lib/peta-source.mjs';
+import {petaPDFIndividualFixture,petaPDFGroupFixture} from './report-fixtures';
 const {pub,priv}=syntheticPeta(),secret='a'.repeat(64),sealed=sealKey(pub,priv,secret),id=randomUUID(),actor=randomUUID();
 const token='b'.repeat(64),csrf='c'.repeat(64),cookie='peta_session='+token+'; peta_csrf='+csrf;
 const session={id,status:'in_progress',revision:0,participantCode:'SYNTHETIC',instrumentVersion:'1.0.0-pilot',retentionUntil:'2027-10-29T00:00:00Z',submittedAt:null,reviewConsent:true,privacyReference:'Synthetic approved policy',consentVersion:'peta-privacy-v1',blocks:pub.blocks,answers:{},privateKey:'NEVER_PUBLIC'};
@@ -23,6 +25,45 @@ const ctx=(path:string)=>({params:Promise.resolve({path:path.split('/')})});
 beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('PETA_ENCRYPTION_KEY',secret);deps.admin.mockResolvedValue({userId:actor});deps.participant.mockResolvedValue({role:'client',userId:actor,programId:id,participantId:id,accessCodeId:id});deps.limit.mockResolvedValue(null);deps.rpc.mockImplementation(async(name:string)=>({data:name==='peta_credential_scope'?{programId:null,participantId:null,accessId:null}:name==='peta_program_open'||name==='peta_redeem'||name==='peta_read_session'||name==='peta_save_answer'?session:name==='peta_read_result'?report:name==='peta_submit'?{status:'submitted',submittedAt:'2026-10-29T00:00:00Z'}:{},error:null}));deps.from.mockImplementation(()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{public_payload:pub,sealed_key:sealed.sealed,key_fingerprint:sealed.keyFingerprint,public_sha256:pub.contentSha256},error:null})}));});
 afterEach(()=>vi.unstubAllEnvs());
 describe('PETA HTTP trust boundaries',()=>{
+ it.each(['admin/reports/group','admin/reports/group/pdf','admin/reports/individual/pdf'])('denies non-admin PDF/report access to %s before reading data',async(path)=>{
+  deps.admin.mockResolvedValue({error:'Denied',status:403});
+  expect((await POST(req('POST',{workspaceId:id,sessionId:id}),ctx(path))).status).toBe(403);expect(deps.rpc).not.toHaveBeenCalled();
+ });
+ it('uses only verified actor and scope for group preview/export, never caller results or dashboard filters',async()=>{
+  deps.rpc.mockResolvedValue({data:petaPDFGroupFixture,error:null});
+  for(const extra of [{ownerId:id},{members:[]},{page:1},{export:true}])expect((await POST(req('POST',{workspaceId:id,...extra}),ctx('admin/reports/group'))).status).toBe(400);
+  const preview=await POST(req('POST',{workspaceId:id}),ctx('admin/reports/group'));expect(preview.status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_team_group_report',{p_actor:actor,p_workspace:id,p_export:false});
+  const pdf=await POST(req('POST',{workspaceId:id}),ctx('admin/reports/group/pdf'));expect(pdf.status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_team_group_report',{p_actor:actor,p_workspace:id,p_export:true});
+  expect(pdf.headers.get('content-type')).toBe('application/pdf');expect(pdf.headers.get('content-disposition')).toContain('attachment');expect(pdf.headers.get('cache-control')).toContain('no-store');
+ });
+ it('reauthorizes individual exports and fails closed on declined/revoked/missing results',async()=>{
+  deps.rpc.mockResolvedValue({data:petaPDFIndividualFixture,error:null});
+  expect((await POST(req('POST',{sessionId:id}),ctx('admin/reports/individual/pdf'))).status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_team_individual_pdf_data',{p_actor:actor,p_session:id});
+  deps.rpc.mockResolvedValue({data:null,error:{message:'PETA_NOT_FOUND private detail'}});
+  const denied=await POST(req('POST',{sessionId:id}),ctx('admin/reports/individual/pdf'));expect(denied.status).toBe(404);expect(await denied.text()).not.toContain('private detail');
+ });
+ it('requires private participant credentials plus matching live program identity for PDF download',async()=>{
+  expect((await GET(req(),ctx('result/pdf'))).status).toBe(401);expect(deps.rpc).not.toHaveBeenCalled();
+  deps.rpc.mockImplementation(async(name:string)=>({data:name==='peta_credential_scope'?{programId:id,participantId:id,accessId:id}:petaPDFIndividualFixture,error:null}));
+  const res=await GET(req('GET',undefined,{Cookie:cookie}),ctx('result/pdf'));expect(res.status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledWith('peta_participant_pdf_data',expect.objectContaining({p_hash:expect.any(String)}));
+  deps.participant.mockResolvedValue({role:'client',userId:actor,programId:actor,participantId:actor,accessCodeId:actor});
+  vi.mocked(deps.rpc).mockClear();expect((await GET(req('GET',undefined,{Cookie:cookie}),ctx('result/pdf'))).status).toBe(401);
+  expect(deps.rpc.mock.calls.some(call=>call[0]==='peta_participant_pdf_data')).toBe(false);
+ });
+ it('enforces a separate PDF budget before database work or rendering',async()=>{
+  deps.limit.mockImplementation(async(_req:unknown,scope:string)=>scope.startsWith('peta-pdf-')?new Response('{}',{status:429}):null);
+  expect((await POST(req('POST',{workspaceId:id}),ctx('admin/reports/group/pdf'))).status).toBe(429);expect(deps.rpc).not.toHaveBeenCalled();
+ });
+ it('does not blame participant input or emit a PDF when stored report data is invalid',async()=>{
+  deps.rpc.mockResolvedValue({data:{...petaPDFIndividualFixture,report:{...petaPDFIndividualFixture.report,result:{rows:[]}}},error:null});
+  const response=await POST(req('POST',{sessionId:id}),ctx('admin/reports/individual/pdf'));
+  expect(response.status).toBe(503);expect((await response.json()).code).toBe('PETA_SOURCE_INVALID');
+  expect(response.headers.get('content-type')).not.toBe('application/pdf');
+ });
  it('passes validated history pagination under the authenticated admin team member, never caller ownership',async()=>{
   const request=new NextRequest('https://api.binahub.id/api/peta/admin?scope=history&workspace='+id+'&page=6&search=Peserta&status=submitted');
   expect((await GET(request,ctx('admin'))).status).toBe(200);

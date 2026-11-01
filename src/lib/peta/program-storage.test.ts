@@ -4,8 +4,12 @@ import {PGlite} from '@electric-sql/pglite';
 import {beforeAll,afterAll,describe,it,expect} from 'vitest';
 import {syntheticPeta,syntheticHash as hash} from './synthetic';
 import {keyHash} from '../../../scripts/lib/peta-source.mjs';
+import {PetaIndividualPDFData,PetaGroupReport} from './contracts';
 const db=new PGlite(),{pub,priv}=syntheticPeta();
-const call=async(name:string,args:unknown[]=[])=> (await db.query<{value:unknown}>('select public.'+name+'('+args.map((_,i)=>'$'+(i+1)).join(',')+') as value',args)).rows[0].value;
+const call=async(name:string,args:unknown[]=[])=>{
+ try{return (await db.query<{value:unknown}>('select public.'+name+'('+args.map((_,i)=>'$'+(i+1)).join(',')+') as value',args)).rows[0].value;}
+ catch(error){throw Error(name+': '+(error instanceof Error?error.message:String(error)));}
+};
 const admin=randomUUID(),outsider=randomUUID();
 async function fixture(){
  const program=randomUUID(),participant=randomUUID(),actor=randomUUID(),access=randomUUID();
@@ -30,8 +34,72 @@ beforeAll(async()=>{
  await db.exec(readFileSync('supabase/migrations/0078_peta_history_program_status.sql','utf8'));
  await db.exec(readFileSync('supabase/migrations/0079_peta_admin_team_access.sql','utf8'));
  await db.exec(readFileSync('supabase/migrations/0079_peta_admin_team_access.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0080_peta_pdf_reports.sql','utf8'));
+ await db.exec(readFileSync('supabase/migrations/0080_peta_pdf_reports.sql','utf8'));
 },30000);
 afterAll(()=>db.close());
+describe('SQL80 private PETA reports',()=>{
+ const reader=randomUUID();
+ async function member(f:Awaited<ReturnType<typeof fixture>>,review=true){
+  const token=hash(randomUUID()),csrf=hash(randomUUID());
+  const s=await call('peta_program_open',[...args(f),token,csrf,hash(randomUUID()),'peta-program-privacy-v1',review]) as {id:string};
+  for(let i=0;i<24;i++)await call('peta_save_answer',[token,csrf,i,pub.blocks[i].id,'A','B']);
+  await call('peta_submit',[token,csrf,24,hash(randomUUID()),JSON.stringify(priv.optionToDimension)]);
+  return {...s,token};
+ }
+ it('exports the exact authorized individual snapshot with server identity and logs the real admin',async()=>{
+  const f=await fixture(),s=await member(f);
+  const own=await call('peta_participant_pdf_data',[s.token]) as {report:unknown;participantName:string};
+  expect(PetaIndividualPDFData.safeParse(own).success).toBe(true);
+  const other=await call('peta_team_individual_pdf_data',[reader,s.id]) as {report:unknown;participantName:string};
+  expect(own.report).toEqual(other.report);expect(other.participantName).toBe('Synthetic participant');
+  expect((await db.query('select actor_id from peta_access_audit where session_id=$1 and event=$2',[s.id,'admin_individual_pdf_requested'])).rows).toEqual([{actor_id:reader}]);
+  const privateSession=await member(await fixture(),false);
+  await expect(call('peta_team_individual_pdf_data',[reader,privateSession.id])).rejects.toThrow('PETA_NOT_FOUND');
+  expect(await call('peta_participant_pdf_data',[privateSession.token])).toHaveProperty('report');
+  await db.query("update peta_sessions set retention_until=now()-interval '1 day' where id=$1",[s.id]);
+  await expect(call('peta_team_individual_pdf_data',[reader,s.id])).rejects.toThrow('PETA_NOT_FOUND');
+  await expect(call('peta_participant_pdf_data',[s.token])).rejects.toThrow('PETA_SESSION_REQUIRED');
+ });
+ it('includes all and only eligible results, including history, not the first dashboard page',async()=>{
+  const f=await fixture(),s=await member(f),w=(await db.query<{id:string}>('select workspace_id id from peta_sessions where id=$1',[s.id])).rows[0].id;
+  // Isolated synthetic sessions in one workspace, more than one dashboard page.
+  const seed=(start:number,end:number)=>db.query(`with people as (insert into participants(id,name) select gen_random_uuid(),'REPORT-'||i from generate_series($5::int,$6::int)i returning id,name),
+   access as (insert into app_client_access_codes select gen_random_uuid(),$4,id,gen_random_uuid(),true,null from people returning id,participant_id),
+   invites as (
+   insert into peta_invitations(workspace_id,token_hash,participant_code,expires_at)
+   select $1,md5('report-'||i)||md5('hash-'||i),'REPORT-'||i,now()+interval '1 day' from generate_series($5::int,$6::int) i returning id,workspace_id,participant_code),
+   sessions as (insert into peta_sessions(workspace_id,invitation_id,participant_code,consent_version,privacy_reference,status,submitted_at,submission_hash,review_consent,consultant_id,program_id,participant_id,program_access_id)
+    select i.workspace_id,i.id,i.participant_code,'synthetic','Synthetic policy','submitted',now(),'synthetic',true,$2,$4,p.id,a.id from invites i join people p on p.name=i.participant_code join access a on a.participant_id=p.id returning id)
+   insert into peta_results(session_id,result,quality_flags) select id,(select result from peta_results where session_id=$3),'[]'::jsonb from sessions`,[w,admin,s.id,f.program,start,end]);
+  await seed(1,24);
+  const outsider=await member(await fixture());
+  let group=await call('peta_team_group_report',[reader,w,false]) as {counts:{included:number;total:number;restricted:number;unavailable:number};members:{report:{participantCode:string}}[]};
+  expect(group.members).toHaveLength(25);expect(group.counts).toMatchObject({included:25,total:25});
+  expect(PetaGroupReport.safeParse(group).success).toBe(true);
+  expect(JSON.stringify(group)).not.toContain(outsider.id);
+  await db.query("update peta_sessions set review_consent=false where workspace_id=$1 and participant_code='REPORT-1'",[w]);
+  await db.query("update peta_sessions set status='revoked' where workspace_id=$1 and participant_code='REPORT-2'",[w]);
+  await db.query("update peta_sessions set retention_until=now()-interval '1 day' where workspace_id=$1 and participant_code='REPORT-3'",[w]);
+  await db.query("update engagements set status='completed' where id=$1",[f.program]);
+  group=await call('peta_team_group_report',[reader,w,true]) as typeof group;
+  expect(group.members).toHaveLength(22);expect(group.counts).toMatchObject({included:22,total:25,restricted:1,unavailable:2});
+  expect(group.members.some(m=>['REPORT-1','REPORT-2','REPORT-3'].includes(m.report.participantCode))).toBe(false);
+  expect((await db.query('select actor_id from peta_access_audit where workspace_id=$1 and event=$2',[w,'admin_group_pdf_requested'])).rows).toEqual([{actor_id:reader}]);
+  await seed(25,504);
+  await expect(call('peta_team_group_report',[reader,w,true])).rejects.toThrow('PETA_REPORT_TOO_LARGE');
+ });
+ it('rejects empty export, missing scope, invalid actor, and database-role access',async()=>{
+  const f=await fixture(),w=(await db.query<{id:string}>('select id from peta_workspaces where program_id=$1',[f.program])).rows[0].id;
+  expect(await call('peta_team_group_report',[reader,w,false])).toMatchObject({counts:{included:0},members:[]});
+  await expect(call('peta_team_group_report',[reader,w,true])).rejects.toThrow('PETA_NO_REVIEWABLE_RESULTS');
+  await expect(call('peta_team_group_report',[null,w,false])).rejects.toThrow('PETA_INVALID_REQUEST');
+  await expect(call('peta_team_group_report',[reader,randomUUID(),false])).rejects.toThrow('PETA_NOT_FOUND');
+  for(const role of ['anon','authenticated'])for(const fn of ['peta_team_group_report(uuid,uuid,boolean)','peta_team_individual_pdf_data(uuid,uuid)','peta_participant_pdf_data(text)']){
+   expect((await db.query<{allowed:boolean}>('select has_function_privilege($1,$2,\'execute\') allowed',[role,'public.'+fn])).rows[0].allowed).toBe(false);
+  }
+ });
+});
 describe('PETA program integration SQL77',()=>{
  it('requires consent once, binds existing identity, and resumes without resetting retention or permissions',async()=>{
   const f=await fixture();expect(await call('peta_program_context',args(f))).toMatchObject({hasSession:false});

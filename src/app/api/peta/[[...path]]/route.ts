@@ -1,8 +1,9 @@
 import {NextRequest} from 'next/server';
 import {z} from 'zod';
-import {PetaSession,PetaReport,PetaToken,PetaChoice,PetaError} from '@/lib/peta/contracts';
+import {PetaSession,PetaReport,PetaToken,PetaChoice,PetaError,PetaIndividualPDFData,PetaGroupReport} from '@/lib/peta/contracts';
 import {body,guard,json,rpc,key,hash,revision,cookies,source,failure,petaHeaders} from '@/lib/peta/http';
 import {programActor,scopedCredential} from '@/lib/peta/program';
+import {enforceRateLimit} from '@/lib/rate-limit';
 export const runtime='nodejs';
 type Context={params:Promise<{path?:string[]}>};
 async function handle(req:NextRequest,ctx:Context){
@@ -45,6 +46,28 @@ async function handle(req:NextRequest,ctx:Context){
    return json({success:true,...z.object({status:z.literal('submitted'),submittedAt:z.string()}).parse(result)});
   }
   if(path==='result'&&req.method==='GET')return json({success:true,report:PetaReport.parse(await rpc('peta_read_result',{p_hash:(await scopedCredential(req)).hash}))});
+  if(path==='result/pdf'&&req.method==='GET'){
+   const cap=await scopedCredential(req);
+   const limited=await enforceRateLimit(req,'peta-pdf-'+cap.hash.slice(0,24),20,3600);if(limited)return privateResponse(limited);
+   const data=stored(PetaIndividualPDFData,await rpc('peta_participant_pdf_data',{p_hash:cap.hash}));
+   const {renderPetaIndividualPDF}=await import('@/lib/peta/pdf');
+   return pdf(await renderPetaIndividualPDF(data),'peta-individu.pdf');
+  }
+  if(path==='admin/reports/individual/pdf'&&req.method==='POST'){
+   const input=z.object({sessionId:z.uuid()}).strict().parse(await body(req));
+   const limited=await enforceRateLimit(req,'peta-pdf-admin-'+actor.actor,20,3600);if(limited)return privateResponse(limited);
+   const data=stored(PetaIndividualPDFData,await rpc('peta_team_individual_pdf_data',{p_actor:actor.actor,p_session:input.sessionId}));
+   const {renderPetaIndividualPDF}=await import('@/lib/peta/pdf');
+   return pdf(await renderPetaIndividualPDF(data),'peta-individu.pdf');
+  }
+  if((path==='admin/reports/group'||path==='admin/reports/group/pdf')&&req.method==='POST'){
+   const input=z.object({workspaceId:z.uuid()}).strict().parse(await body(req)),exportPDF=path.endsWith('/pdf');
+   if(exportPDF){const limited=await enforceRateLimit(req,'peta-pdf-admin-'+actor.actor,20,3600);if(limited)return privateResponse(limited);}
+   const data=stored(PetaGroupReport,await rpc('peta_team_group_report',{p_actor:actor.actor,p_workspace:input.workspaceId,p_export:exportPDF}));
+   if(!exportPDF)return json({success:true,report:data});
+   const {renderPetaGroupPDF}=await import('@/lib/peta/pdf');
+   return pdf(await renderPetaGroupPDF(data),'peta-grup-internal.pdf');
+  }
   if(path==='admin'&&req.method==='GET'){
    const query=z.object({workspace:z.uuid().optional(),scope:z.enum(['active','history','all']).default('active'),page:z.coerce.number().int().min(0).max(100000).default(0),search:z.string().max(150).default(''),status:z.enum(['all','in_progress','submitted','revoked','expired']).default('all')}).strict().parse(Object.fromEntries(req.nextUrl.searchParams));
    const data=await rpc('peta_team_dashboard',{p_actor:actor.actor,p_workspace:query.workspace??null,p_scope:query.scope,p_page:query.page,p_search:query.search,p_status:query.status});
@@ -71,4 +94,7 @@ async function handle(req:NextRequest,ctx:Context){
   return json({success:false,error:'Halaman tidak ditemukan.'},404);
  }catch(error){return failure(error);}
 }
+function pdf(buffer:Buffer,filename:string){return new Response(new Uint8Array(buffer),{headers:{...petaHeaders,'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${filename}"`,'Content-Length':String(buffer.length)}});}
+function privateResponse(response:Response){for(const [name,value]of Object.entries(petaHeaders))response.headers.set(name,value);return response;}
+function stored<S extends z.ZodType>(schema:S,value:unknown):z.infer<S>{const result=schema.safeParse(value);if(!result.success)throw new PetaError('PETA_SOURCE_INVALID');return result.data;}
 export const GET=handle;export const POST=handle;export const PUT=handle;

@@ -8,6 +8,14 @@ by the preparation/test scripts.
 
 ## Apply in this order
 
+### Current increment: private PDFs and internal group reports (SQL80)
+
+Apply `supabase/migrations/0080_peta_pdf_reports.sql` after SQL79, then deploy
+API0.47.0 before app0.51.0. Owner confirms SQL80 applied on1 November2026.
+No new env variable/scheduler, data rewrite or consent change. Group reports
+are named internal admin outputs, not anonymous employer reports. See the app's
+`docs/peta-reporting-plan.md` for inclusion, audit and downloaded-copy handling.
+
 ### Current increment: shared admin access (SQL79)
 
 For an installation already running SQL78, apply only

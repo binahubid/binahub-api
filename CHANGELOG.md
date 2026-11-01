@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.0] - 2026-11-01
+
+- Add SQL80 service-role-only individual PDF and internal group report readers.
+  Reuse participant identity and team admin gates; do not change consent,
+  answer/result snapshots, retention or database table grants.
+- Generate vector A4 PDFs with exact MOST/LEAST/NET, deterministic narrative,
+  tie-preserving group counts, repeating matrix headers and numbered footers.
+  No LLM, ability ranking, normative averages, source keys or raw answers.
+- Group data covers one workspace in full, regardless of dashboard pagination;
+  exclude unfinished/restricted/revoked/expired/unavailable records. Reject
+  empty PDFs and >500 eligible results without partial exports.
+- Fresh authorization, separate export budget, no-store attachments and audit
+  of requesting admin. No automatic email or durable PDF storage.
+- Requires SQL80 before deployment and app0.51.0. No new env variables.
+
 ## [0.46.3] - 2026-10-31
 
 - SQL78 adds explicit manual program status mode. Manual changes survive list
