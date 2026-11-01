@@ -1,5 +1,12 @@
 # PETA PDF layout - API0.47.1
 
+Access update - API0.47.2: all PDF exports are now admin-only. The participant
+`result/pdf` HTTP route is removed; on-screen private results remain available.
+The original layouts below and admin review/retention safeguards stay intact.
+No SQL/env change is needed; the old participant database helper is service-role
+only and unreachable through the API.91 PETA tests, type/lint checks and the
+production build pass. Browser controls are covered in app0.51.1.
+
 1 November2026. Owner asks for clearer hierarchy, consistent leading and balanced
 spacing, original BinaHub branding, and no “laporan internal admin pendamping”
 label in group PDFs. This is a Read refinement; report data and permission policy

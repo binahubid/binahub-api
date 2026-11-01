@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.47.2] - 2026-11-01
+
+- Remove the participant `result/pdf` endpoint, including program/legacy cookie
+  access. PETA PDF exports now exist only under verified admin routes; participant
+  on-screen results remain available under the same private identity checks.
+- Preserve admin individual/group exports, fresh review consent/retention checks,
+  export budgets and audit. No score, SQL or environment changes. The historical
+  participant PDF database helper remains service-role-only and has no HTTP route.
+
 ## [0.47.1] - 2026-11-01
 
 - Refine individual/group PETA PDF hierarchy, spacing, numeric alignment and

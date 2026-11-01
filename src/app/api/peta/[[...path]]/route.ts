@@ -46,13 +46,6 @@ async function handle(req:NextRequest,ctx:Context){
    return json({success:true,...z.object({status:z.literal('submitted'),submittedAt:z.string()}).parse(result)});
   }
   if(path==='result'&&req.method==='GET')return json({success:true,report:PetaReport.parse(await rpc('peta_read_result',{p_hash:(await scopedCredential(req)).hash}))});
-  if(path==='result/pdf'&&req.method==='GET'){
-   const cap=await scopedCredential(req);
-   const limited=await enforceRateLimit(req,'peta-pdf-'+cap.hash.slice(0,24),20,3600);if(limited)return privateResponse(limited);
-   const data=stored(PetaIndividualPDFData,await rpc('peta_participant_pdf_data',{p_hash:cap.hash}));
-   const {renderPetaIndividualPDF}=await import('@/lib/peta/pdf');
-   return pdf(await renderPetaIndividualPDF(data),'peta-individu.pdf');
-  }
   if(path==='admin/reports/individual/pdf'&&req.method==='POST'){
    const input=z.object({sessionId:z.uuid()}).strict().parse(await body(req));
    const limited=await enforceRateLimit(req,'peta-pdf-admin-'+actor.actor,20,3600);if(limited)return privateResponse(limited);

@@ -16,6 +16,7 @@ import {POST as purge} from '@/app/api/cron/peta-retention/route';
 import {syntheticPeta} from './synthetic';
 import {sealKey} from '../../../scripts/lib/peta-source.mjs';
 import {petaPDFIndividualFixture,petaPDFGroupFixture} from './report-fixtures';
+import {renderPetaIndividualPDF,renderPetaGroupPDF} from './pdf';
 const {pub,priv}=syntheticPeta(),secret='a'.repeat(64),sealed=sealKey(pub,priv,secret),id=randomUUID(),actor=randomUUID();
 const token='b'.repeat(64),csrf='c'.repeat(64),cookie='peta_session='+token+'; peta_csrf='+csrf;
 const session={id,status:'in_progress',revision:0,participantCode:'SYNTHETIC',instrumentVersion:'1.0.0-pilot',retentionUntil:'2027-10-29T00:00:00Z',submittedAt:null,reviewConsent:true,privacyReference:'Synthetic approved policy',consentVersion:'peta-privacy-v1',blocks:pub.blocks,answers:{},privateKey:'NEVER_PUBLIC'};
@@ -45,14 +46,13 @@ describe('PETA HTTP trust boundaries',()=>{
   deps.rpc.mockResolvedValue({data:null,error:{message:'PETA_NOT_FOUND private detail'}});
   const denied=await POST(req('POST',{sessionId:id}),ctx('admin/reports/individual/pdf'));expect(denied.status).toBe(404);expect(await denied.text()).not.toContain('private detail');
  });
- it('requires private participant credentials plus matching live program identity for PDF download',async()=>{
-  expect((await GET(req(),ctx('result/pdf'))).status).toBe(401);expect(deps.rpc).not.toHaveBeenCalled();
-  deps.rpc.mockImplementation(async(name:string)=>({data:name==='peta_credential_scope'?{programId:id,participantId:id,accessId:id}:petaPDFIndividualFixture,error:null}));
-  const res=await GET(req('GET',undefined,{Cookie:cookie}),ctx('result/pdf'));expect(res.status).toBe(200);
-  expect(deps.rpc).toHaveBeenCalledWith('peta_participant_pdf_data',expect.objectContaining({p_hash:expect.any(String)}));
-  deps.participant.mockResolvedValue({role:'client',userId:actor,programId:actor,participantId:actor,accessCodeId:actor});
-  vi.mocked(deps.rpc).mockClear();expect((await GET(req('GET',undefined,{Cookie:cookie}),ctx('result/pdf'))).status).toBe(401);
-  expect(deps.rpc.mock.calls.some(call=>call[0]==='peta_participant_pdf_data')).toBe(false);
+ it.each<Record<string,string>>([{}, {Cookie:cookie}, {Cookie:cookie,Authorization:'Bearer synthetic-program-participant'}])('removes the participant PDF endpoint even with valid session/program credentials %j',async headers=>{
+  for(const method of ['GET','POST','PUT'] as const){
+   const handler={GET,POST,PUT}[method],res=await handler(req(method,undefined,headers),ctx('result/pdf'));
+   expect(res.status).toBe(404);expect(res.headers.get('content-type')).not.toBe('application/pdf');expect(res.headers.get('cache-control')).toContain('no-store');
+  }
+  expect(deps.rpc).not.toHaveBeenCalled();expect(deps.from).not.toHaveBeenCalled();
+  expect(renderPetaIndividualPDF).not.toHaveBeenCalled();expect(renderPetaGroupPDF).not.toHaveBeenCalled();
  });
  it('enforces a separate PDF budget before database work or rendering',async()=>{
   deps.limit.mockImplementation(async(_req:unknown,scope:string)=>scope.startsWith('peta-pdf-')?new Response('{}',{status:429}):null);
