@@ -1,14 +1,16 @@
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {describe,it,expect} from 'vitest';
 import React from 'react';
 import {renderToBuffer} from '@react-pdf/renderer';
 import {PetaGroupReport} from './contracts';
-import {renderPetaIndividualPDF,renderPetaGroupPDF,PetaGroupPDF} from './pdf';
+import {renderPetaIndividualPDF,renderPetaGroupPDF,PetaGroupPDF,PetaIndividualPDF} from './pdf';
 import {petaGroupPattern,petaReportNarrative} from './reporting';
 import {petaPDFIndividualFixture as individual,petaPDFGroupFixture as group} from './report-fixtures';
-type LayoutNode={type:string;box:{top:number;height:number};props:{render?:unknown};children:LayoutNode[];value?:string;lines?:unknown[]};
+type LayoutNode={type:string;box:{top:number;height:number;width:number};props:{render?:unknown;src?:unknown};children:LayoutNode[];value?:string;lines?:{box:{height:number;y:number}}[];style?:{fontSize?:number;lineHeight?:number}};
 const content=(node:LayoutNode):string=>[node.value||'',...(node.children||[]).map(content)].join(' ');
+const nodes=(node:LayoutNode):LayoutNode[]=>[node,...(node.children||[]).flatMap(nodes)];
 
 describe('PETA PDF reports',()=>{
  it('prints a legible numbered confidentiality footer on every page',async()=>{
@@ -16,12 +18,30 @@ describe('PETA PDF reports',()=>{
    const pages=(props as {_INTERNAL__LAYOUT__DATA_:{children:LayoutNode[]}})._INTERNAL__LAYOUT__DATA_.children;
    expect(pages).toHaveLength(2);
    for(const [i,page] of pages.entries()){
-    const footer=page.children.find(node=>node.props.render)!;
+    const footer=nodes(page).find(node=>node.props?.render)!;
     expect(footer.lines?.length).toBeGreaterThan(0);expect(footer.box.top+footer.box.height).toBeLessThan(842);
-    expect(footer.children[0].value).toContain('Rahasia | Internal admin pendamping BinaHub');
+    expect(content(page).replace(/\s+/g,' ')).toContain('Rahasia | PETA - BinaHub');
+    expect(content(page)).not.toMatch(/internal admin pendamping/i);
     expect(footer.children[0].value).toContain(`${i+1} / 2`);
    }
   }}));
+ });
+ it('embeds the original logo and keeps text leading stable through pagination in both reports',async()=>{
+  const logoPath=path.join(process.cwd(),'public','brand','binahub-wordmark.png');
+  expect(createHash('sha256').update(readFileSync(logoPath)).digest('hex')).toBe('b5c2d29be695d4df48669f3295596eeaa4684a53d2e8ddfa309ea4d8c597004a');
+  for(const document of [PetaIndividualPDF({data:individual}),PetaGroupPDF({data:group})]){
+   await renderToBuffer(React.cloneElement(document,{onRender:(props:unknown)=>{
+    const pages=(props as {_INTERNAL__LAYOUT__DATA_:{children:LayoutNode[]}})._INTERNAL__LAYOUT__DATA_.children;
+    expect(pages).toHaveLength(2);
+    for(const page of pages){
+     const logo=nodes(page).find(node=>node.type==='IMAGE');expect(logo?.props.src).toEqual({data:readFileSync(logoPath),format:'png'});expect(logo?.box.width).toBeCloseTo(116);
+     for(const node of nodes(page).filter(node=>node.type==='TEXT'&&node.lines?.length&&node.style?.fontSize)){
+      expect(node.style?.lineHeight).toBeUndefined();
+      for(const line of node.lines!){expect(line.box.height).toBeLessThanOrEqual(node.style!.fontSize!*1.65);}
+     }
+    }
+   }}));
+  }
  });
  it('counts ties and balanced patterns descriptively, without averaging NET or ranking',()=>{
   expect(petaGroupPattern(group.members)).toEqual({counts:{D:2,I:2,S:0,C:0},balanced:1,tied:1});
@@ -49,7 +69,7 @@ describe('PETA PDF reports',()=>{
    expect(pages.length).toBeGreaterThan(2);
    for(const page of pages.slice(1)){
     expect(content(page)).toContain('Rincian hasil peserta');
-    expect(page.children.find(node=>node.props?.render)?.lines?.length).toBeGreaterThan(0);
+    expect(nodes(page).find(node=>node.props?.render)?.lines?.length).toBeGreaterThan(0);
     for(const row of page.children.filter(node=>content(node).includes('Peserta sintetis dengan nama panjang'))){expect(row.box.top+row.box.height).toBeLessThanOrEqual(794);}
    }
    const all=pages.map(content).join(' ');

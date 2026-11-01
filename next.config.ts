@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    '/api/peta/*': [
+      './public/brand/binahub-wordmark.png',
+      './public/fonts/Inter-Regular.ttf',
+      './public/fonts/Inter-SemiBold.ttf',
+    ],
+  },
   turbopack: {
     root: __dirname,
   },

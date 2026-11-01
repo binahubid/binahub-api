@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.47.1] - 2026-11-01
+
+- Refine individual/group PETA PDF hierarchy, spacing, numeric alignment and
+  footer positioning. Use embedded local Inter weights and the exact original
+  BinaHub wordmark instead of text recreated as a logo.
+- Avoid compounded line-height during renderer pagination; use stable font
+  metrics and explicit block spacing. Keep two pages for standard examples,
+  repeating group table headers and full participant coverage on longer reports.
+- Remove the group PDF's admin-companion/internal label from headings, footer
+  and document title, while retaining confidentiality and all access boundaries.
+- Explicitly package logo/font assets in the PETA route trace. No remote image
+  fetch, new dependency, SQL/env change, permission or scoring modification.
+
 ## [0.47.0] - 2026-11-01
 
 - Add SQL80 service-role-only individual PDF and internal group report readers.
