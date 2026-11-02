@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.47.5",
+  "version": "0.47.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:pdf": "vitest run src/lib/pdf-layout.test.tsx src/lib/peta/pdf.test.tsx src/lib/tbos-report-document.test.tsx --maxWorkers=1",
     "test:dependencies": "node --test tools/minimatch-compat.contract.mjs",
     "test:peta:team": "node scripts/test-peta-team.mjs",
     "test:phase7": "node scripts/phase7-smoke.mjs",

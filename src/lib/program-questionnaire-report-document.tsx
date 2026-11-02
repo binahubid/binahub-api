@@ -1,5 +1,6 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { AnswerEvaluation, QuestionnaireQuestion } from "@/lib/program-questionnaires";
+import { PDFHeader, PDFFooter, pdfStyles, pdfFont } from './pdf-brand';
 
 type ReportSubmission = {
   id: string;
@@ -15,25 +16,25 @@ type ReportSubmission = {
 };
 
 const styles = StyleSheet.create({
-  page: { padding: 42, fontFamily: "Helvetica", fontSize: 9, color: "#172033", backgroundColor: "#FFFFFF" },
-  eyebrow: { color: "#A66A12", fontSize: 8, letterSpacing: 1.5, fontFamily: "Helvetica-Bold" },
-  title: { marginTop: 8, fontSize: 22, lineHeight: 1.2, color: "#0B2C6B", fontFamily: "Helvetica-Bold" },
-  subtitle: { marginTop: 7, color: "#5D6B82", fontSize: 10, lineHeight: 1.45 },
+  page: { ...pdfStyles.page },
+  eyebrow: { color: "#A66A12", fontSize: 9, letterSpacing: 1.5, fontFamily: pdfFont, fontWeight: 600 },
+  title: { marginTop: 8, fontSize: 22, color: "#0B2C6B", fontFamily: pdfFont, fontWeight: 600 },
+  subtitle: { marginTop: 7, color: "#5D6B82", fontSize: 10 },
   rule: { marginTop: 18, borderBottomWidth: 1, borderBottomColor: "#D7DFEA" },
   metrics: { marginTop: 18, flexDirection: "row", gap: 10 },
   metric: { flex: 1, padding: 12, backgroundColor: "#F2F5F9", borderTopWidth: 2, borderTopColor: "#0B2C6B" },
-  metricLabel: { color: "#6A7890", fontSize: 7, letterSpacing: 1, fontFamily: "Helvetica-Bold" },
-  metricValue: { marginTop: 5, color: "#0B2C6B", fontSize: 15, fontFamily: "Helvetica-Bold" },
+  metricLabel: { color: "#6A7890", fontSize: 8.5, letterSpacing: 1, fontFamily: pdfFont, fontWeight: 600 },
+  metricValue: { marginTop: 5, color: "#0B2C6B", fontSize: 15, fontFamily: pdfFont, fontWeight: 600 },
   respondent: { marginTop: 22, paddingTop: 14, borderTopWidth: 1, borderTopColor: "#B8C5D8" },
-  respondentName: { color: "#0B2C6B", fontSize: 13, fontFamily: "Helvetica-Bold" },
+  respondentName: { color: "#0B2C6B", fontSize: 13, fontFamily: pdfFont, fontWeight: 600 },
   respondentMeta: { marginTop: 4, color: "#64748B", fontSize: 8 },
   question: { marginTop: 10, padding: 10, backgroundColor: "#F7F9FC" },
   questionTop: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
-  prompt: { flex: 1, color: "#172033", fontSize: 9, lineHeight: 1.35, fontFamily: "Helvetica-Bold" },
-  badgeCorrect: { color: "#067647", fontSize: 7, fontFamily: "Helvetica-Bold" },
-  badgeWrong: { color: "#B42318", fontSize: 7, fontFamily: "Helvetica-Bold" },
-  badgeNeutral: { color: "#667085", fontSize: 7, fontFamily: "Helvetica-Bold" },
-  answer: { marginTop: 5, color: "#475467", fontSize: 8, lineHeight: 1.35 },
+  prompt: { flex: 1, color: "#172033", fontSize: 10.5, fontFamily: pdfFont, fontWeight: 600 },
+  badgeCorrect: { color: "#067647", fontSize: 8.5, fontFamily: pdfFont, fontWeight: 600 },
+  badgeWrong: { color: "#B42318", fontSize: 8.5, fontFamily: pdfFont, fontWeight: 600 },
+  badgeNeutral: { color: "#667085", fontSize: 8.5, fontFamily: pdfFont, fontWeight: 600 },
+  answer: { marginTop: 6, color: "#475467", fontSize: 9.5 },
   footer: { position: "absolute", left: 42, right: 42, bottom: 24, flexDirection: "row", justifyContent: "space-between", color: "#8A96A8", fontSize: 7 },
 });
 
@@ -61,10 +62,7 @@ export function ProgramQuestionnaireReportDocument({
   return (
     <Document title={`${kind} — ${program.title}`} author="BinaHub">
       <Page size="A4" style={styles.page} wrap>
-        <Text style={styles.eyebrow}>BINAHUB · LAPORAN PENGUKURAN PROGRAM</Text>
-        <Text style={styles.title}>{questionnaire.title}</Text>
-        <Text style={styles.subtitle}>{program.title} · {program.code || "Tanpa kode"} · {kind}</Text>
-        <View style={styles.rule} />
+        <PDFHeader title={questionnaire.title} meta={`${program.title} | ${program.code || "Tanpa kode"} | ${kind}`} />
         <View style={styles.metrics}>
           <View style={styles.metric}><Text style={styles.metricLabel}>RESPONDEN</Text><Text style={styles.metricValue}>{submissions.length}</Text></View>
           <View style={styles.metric}><Text style={styles.metricLabel}>RATA-RATA</Text><Text style={styles.metricValue}>{average === "—" ? average : `${average}%`}</Text></View>
@@ -81,8 +79,8 @@ export function ProgramQuestionnaireReportDocument({
               {questions.map((question, questionIndex) => {
                 const evaluation = evaluations.get(question.id);
                 return (
-                  <View key={question.id} style={styles.question} wrap={false}>
-                    <View style={styles.questionTop}>
+                  <View key={question.id} style={styles.question}>
+                    <View style={styles.questionTop} minPresenceAhead={24}>
                       <Text style={styles.prompt}>{questionIndex + 1}. {question.prompt}</Text>
                       <Text style={evaluation?.correct === true ? styles.badgeCorrect : evaluation?.correct === false ? styles.badgeWrong : styles.badgeNeutral}>
                         {evaluation?.correct === true ? "BENAR" : evaluation?.correct === false ? "SALAH" : "TIDAK DINILAI"}
@@ -95,7 +93,7 @@ export function ProgramQuestionnaireReportDocument({
             </View>
           );
         })}
-        <View fixed style={styles.footer}><Text>BinaHub · Dokumen internal program</Text><Text render={({ pageNumber, totalPages }) => `Halaman ${pageNumber}/${totalPages}`} /></View>
+        <PDFFooter label="BinaHub | Dokumen internal program" />
       </Page>
     </Document>
   );

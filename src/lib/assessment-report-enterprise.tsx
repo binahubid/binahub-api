@@ -3,6 +3,7 @@ import { Circle, Document, Line, Page, Polygon, StyleSheet, Svg, Text, View } fr
 import type { Locale } from '@/i18n/config';
 import type { AssessmentResult } from './pdf-service';
 import { DIMENSIONS, type AssessmentData } from './validations';
+import { PDFBrand, PDFFooter, pdfFont } from './pdf-brand';
 
 const NAVY = '#0A285F';
 const INK = '#152033';
@@ -133,120 +134,115 @@ function cleanText(text = '') {
 }
 
 const styles = StyleSheet.create({
-  page: { backgroundColor: PAPER, color: INK, fontFamily: 'Inter' },
-  coverHero: { height: 252, backgroundColor: NAVY, padding: '28 44 24 44', color: '#FFFFFF' },
+  page: { backgroundColor: PAPER, color: INK, fontFamily: pdfFont, paddingBottom: 58 },
+  coverHero: { backgroundColor: '#eef3fa', padding: '38 42 20 42', color: NAVY },
   coverTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   wordmark: { flexDirection: 'row', alignItems: 'baseline' },
-  wordmarkMain: { fontSize: 16, color: '#FFFFFF', fontWeight: 700 },
+  wordmarkMain: { fontSize: 16, color: NAVY, fontWeight: 700 },
   wordmarkAccent: { fontSize: 16, color: GOLD, fontWeight: 700 },
-  wordmarkTag: { marginLeft: 8, fontSize: 5.2, color: '#B9C5D6', fontWeight: 600, letterSpacing: 1.1 },
-  documentId: { fontSize: 6.5, color: '#B9C5D6', letterSpacing: 1.2 },
-  coverEyebrow: { marginTop: 34, fontSize: 7.5, color: GOLD, fontWeight: 700, letterSpacing: 2.1 },
-  coverTitle: { marginTop: 10, fontSize: 28, lineHeight: 1.02, color: '#FFFFFF', fontWeight: 600 },
-  coverTitleAccent: { marginTop: 3, fontSize: 28, lineHeight: 1.02, color: GOLD, fontWeight: 600 },
+  wordmarkTag: { marginLeft: 8, fontSize: 8.5, color: SLATE, fontWeight: 600, letterSpacing: 1.1 },
+  documentId: { fontSize: 8.5, color: SLATE, letterSpacing: 1.2 },
+  coverEyebrow: { marginTop: 12, fontSize: 10.5, color: GOLD, fontWeight: 700, letterSpacing: 1.2 },
+  coverTitle: { marginTop: 10, fontSize: 22, color: NAVY, fontWeight: 600 },
+  coverTitleAccent: { marginTop: 3, fontSize: 22, color: GOLD, fontWeight: 600 },
   coverRule: { marginTop: 18, width: 54, height: 2, backgroundColor: GOLD },
-  coverMeta: { marginTop: 23, flexDirection: 'row', borderTopWidth: 0.6, borderTopColor: '#506790', paddingTop: 13 },
-  coverMetaCell: { width: '25%', paddingRight: 12 },
-  coverMetaLabel: { fontSize: 5.8, color: '#99A9C0', fontWeight: 600, letterSpacing: 1 },
-  coverMetaValue: { marginTop: 5, fontSize: 7.5, color: '#FFFFFF', fontWeight: 600, lineHeight: 1.25 },
-  coverBody: { padding: '24 44 52 44' },
+  coverMeta: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: .6, borderTopColor: LINE_COLOR, paddingTop: 12 },
+  coverMetaCell: { width: '50%', paddingRight: 12, marginBottom: 8 },
+  coverMetaLabel: { fontSize: 8.5, color: SLATE, fontWeight: 600, letterSpacing: 1 },
+  coverMetaValue: { marginTop: 5, fontSize: 8.5, color: NAVY, fontWeight: 600 },
+  coverBody: { padding: '20 42 0 42' },
   metricRail: { flexDirection: 'row', borderTopWidth: 0.7, borderBottomWidth: 0.7, borderColor: LINE_COLOR, paddingVertical: 15 },
   metricCell: { width: '25%', minHeight: 54, paddingRight: 13, paddingLeft: 13, borderRightWidth: 0.6, borderRightColor: LINE_COLOR },
   metricCellFirst: { paddingLeft: 0 },
   metricCellLast: { borderRightWidth: 0, paddingRight: 0 },
-  metricLabel: { fontSize: 5.8, color: MUTED, fontWeight: 700, letterSpacing: 0.9 },
+  metricLabel: { fontSize: 8.5, color: MUTED, fontWeight: 700, letterSpacing: 0.9 },
   metricValueLarge: { marginTop: 5, fontSize: 23, color: NAVY, fontWeight: 600 },
-  metricValue: { marginTop: 7, fontSize: 11, color: NAVY, fontWeight: 600, lineHeight: 1.25 },
-  sectionKicker: { fontSize: 6.2, color: GOLD, fontWeight: 700, letterSpacing: 1.4 },
+  metricValue: { marginTop: 7, fontSize: 11, color: NAVY, fontWeight: 600 },
+  sectionKicker: { fontSize: 8.5, color: GOLD, fontWeight: 700, letterSpacing: 1.4 },
   sectionHeading: { marginTop: 5, fontSize: 17, color: NAVY, fontWeight: 600 },
   profileGrid: { marginTop: 26, flexDirection: 'row', gap: 28 },
   profileLead: { width: '34%' },
   profileBody: { flex: 1 },
-  profileArchetype: { marginTop: 8, fontSize: 17, color: INK, fontWeight: 600, lineHeight: 1.2 },
-  bodyText: { fontSize: 8.5, lineHeight: 1.55, color: SLATE },
+  profileArchetype: { marginTop: 8, fontSize: 17, color: INK, fontWeight: 600 },
+  bodyText: { fontSize: 10.5, color: SLATE },
   maturityBlock: { marginTop: 25, borderTopWidth: 0.7, borderBottomWidth: 0.7, borderColor: LINE_COLOR, paddingVertical: 14 },
   maturityTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   maturityTitle: { marginTop: 5, fontSize: 13, color: NAVY, fontWeight: 600 },
-  maturityMeta: { fontSize: 7, color: SLATE, textAlign: 'right', lineHeight: 1.4 },
+  maturityMeta: { fontSize: 8.5, color: SLATE, textAlign: 'right' },
   maturityTrack: { marginTop: 13, flexDirection: 'row' },
   maturityStep: { flex: 1, height: 29, justifyContent: 'center', alignItems: 'center', backgroundColor: WASH, borderRightWidth: 2, borderRightColor: PAPER },
   maturityStepActive: { backgroundColor: NAVY },
-  maturityStepText: { fontSize: 6.5, color: SLATE, fontWeight: 700 },
+  maturityStepText: { fontSize: 8.5, color: SLATE, fontWeight: 700 },
   maturityStepTextActive: { color: '#FFFFFF' },
   signalGrid: { marginTop: 25, flexDirection: 'row', gap: 28 },
   signal: { flex: 1, borderTopWidth: 0.7, borderTopColor: LINE_COLOR, paddingTop: 11 },
-  signalIndex: { fontSize: 6, color: GOLD, fontWeight: 700, letterSpacing: 1 },
+  signalIndex: { fontSize: 8.5, color: GOLD, fontWeight: 700, letterSpacing: 1 },
   signalTitle: { marginTop: 6, fontSize: 13, color: NAVY, fontWeight: 600 },
-  signalText: { marginTop: 5, fontSize: 7.5, color: SLATE, lineHeight: 1.45 },
-  header: { height: 78, padding: '18 44 12 44', borderBottomWidth: 0.8, borderBottomColor: LINE_COLOR, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  headerLeft: { width: '64%' },
+  signalText: { marginTop: 5, fontSize: 8.5, color: SLATE },
+  header: { padding: '38 42 12 42', borderBottomWidth: .8, borderBottomColor: LINE_COLOR, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  headerLeft: { width: '88%' },
   headerTitle: { marginTop: 4, fontSize: 16, color: NAVY, fontWeight: 600 },
-  headerSubtitle: { marginTop: 3, fontSize: 6.8, color: SLATE },
+  headerSubtitle: { marginTop: 3, fontSize: 8.5, color: SLATE },
   headerSectionNo: { fontSize: 25, color: '#DCE2EA', fontWeight: 600 },
-  content: { padding: '24 44 54 44' },
+  content: { padding: '20 42 0 42' },
   sectionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', borderBottomWidth: 1.1, borderBottomColor: NAVY, paddingBottom: 8 },
   sectionTitleText: { fontSize: 8, color: NAVY, fontWeight: 700, letterSpacing: 1.2 },
-  sectionTitleNote: { fontSize: 6.2, color: MUTED },
+  sectionTitleNote: { fontSize: 8.5, color: MUTED },
   diagnosticGrid: { marginTop: 18, flexDirection: 'row' },
   radarColumn: { width: '44%', paddingRight: 24, borderRightWidth: 0.7, borderRightColor: LINE_COLOR },
   barsColumn: { flex: 1, paddingLeft: 24 },
-  blockLabel: { fontSize: 6, color: MUTED, fontWeight: 700, letterSpacing: 1 },
+  blockLabel: { fontSize: 8.5, color: MUTED, fontWeight: 700, letterSpacing: 1 },
   radarLegend: { marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   radarLegendItem: { width: '31%', borderTopWidth: 0.5, borderTopColor: LINE_COLOR, paddingTop: 4 },
-  radarLegendLabel: { fontSize: 5.3, color: MUTED },
-  radarLegendValue: { marginTop: 2, fontSize: 7, color: NAVY, fontWeight: 700 },
+  radarLegendLabel: { fontSize: 8.5, color: MUTED },
+  radarLegendValue: { marginTop: 2, fontSize: 8.5, color: NAVY, fontWeight: 700 },
   barRow: { marginTop: 12 },
   barTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  barLabel: { fontSize: 7.5, color: INK, fontWeight: 500 },
-  barValue: { fontSize: 7.5, color: NAVY, fontWeight: 700 },
+  barLabel: { fontSize: 8.5, color: INK, fontWeight: 500 },
+  barValue: { fontSize: 8.5, color: NAVY, fontWeight: 700 },
   barTrack: { marginTop: 4, height: 3, backgroundColor: '#E9EDF2' },
   barFill: { height: 3, backgroundColor: NAVY },
   insightSection: { marginTop: 24 },
   insightRow: { flexDirection: 'row', borderTopWidth: 0.6, borderTopColor: LINE_COLOR, paddingVertical: 12 },
   insightNumber: { width: 42, fontSize: 18, color: GOLD, fontWeight: 300 },
-  insightText: { flex: 1, fontSize: 8.4, color: SLATE, lineHeight: 1.5 },
+  insightText: { flex: 1, fontSize: 10.5, color: SLATE },
   darkPanel: { marginTop: 16, backgroundColor: NAVY, padding: '15 18' },
-  darkPanelLabel: { fontSize: 6, color: GOLD, fontWeight: 700, letterSpacing: 1.1 },
-  darkPanelText: { marginTop: 8, fontSize: 9.2, color: '#FFFFFF', lineHeight: 1.5 },
+  darkPanelLabel: { fontSize: 8.5, color: GOLD, fontWeight: 700, letterSpacing: 1.1 },
+  darkPanelText: { marginTop: 8, fontSize: 10.5, color: '#ffffff' },
   summaryGrid: { marginTop: 18, flexDirection: 'row', gap: 28 },
   summaryLead: { width: '28%' },
-  summaryCopy: { flex: 1, fontSize: 9, lineHeight: 1.6, color: SLATE },
+  summaryCopy: { flex: 1, fontSize: 10.5, color: SLATE },
   priorities: { marginTop: 24 },
   priorityRow: { flexDirection: 'row', borderTopWidth: 0.7, borderTopColor: LINE_COLOR, paddingVertical: 12 },
   priorityIndex: { width: 48, fontSize: 23, color: '#CCD3DE', fontWeight: 300 },
   priorityMain: { width: '36%', paddingRight: 18 },
-  priorityService: { fontSize: 5.8, color: GOLD, fontWeight: 700, letterSpacing: 0.8 },
-  priorityTitle: { marginTop: 4, fontSize: 10, color: NAVY, fontWeight: 600, lineHeight: 1.3 },
+  priorityService: { fontSize: 8.5, color: GOLD, fontWeight: 700, letterSpacing: 0.8 },
+  priorityTitle: { marginTop: 4, fontSize: 10, color: NAVY, fontWeight: 600 },
   priorityDetail: { flex: 1 },
-  priorityDiagnosis: { fontSize: 7.4, color: INK, fontWeight: 500, lineHeight: 1.4 },
-  priorityDescription: { marginTop: 5, fontSize: 7.4, color: SLATE, lineHeight: 1.45 },
+  priorityDiagnosis: { fontSize: 8.5, color: INK, fontWeight: 500 },
+  priorityDescription: { marginTop: 5, fontSize: 8.5, color: SLATE },
   roadmapRows: { marginTop: 16 },
   timeline: { marginTop: 22, flexDirection: 'row', borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: LINE_COLOR, paddingVertical: 14 },
   timelinePhase: { flex: 1, minHeight: 94, paddingHorizontal: 14, borderRightWidth: 0.6, borderRightColor: LINE_COLOR },
   timelineFirst: { paddingLeft: 0 },
   timelineLast: { paddingRight: 0, borderRightWidth: 0 },
-  timelinePeriod: { fontSize: 5.8, color: GOLD, fontWeight: 700, letterSpacing: 0.8 },
+  timelinePeriod: { fontSize: 8.5, color: GOLD, fontWeight: 700, letterSpacing: 0.8 },
   timelineTitle: { marginTop: 6, fontSize: 10.5, color: NAVY, fontWeight: 600 },
-  timelineText: { marginTop: 7, fontSize: 7.2, color: SLATE, lineHeight: 1.45 },
+  timelineText: { marginTop: 7, fontSize: 8.5, color: SLATE },
   nextStepBlock: { marginTop: 24, backgroundColor: WASH, padding: '18 20', borderTopWidth: 1.2, borderBottomWidth: 1.2, borderColor: NAVY },
-  nextStepLabel: { fontSize: 6, color: GOLD, fontWeight: 700, letterSpacing: 1.1 },
-  nextStepText: { marginTop: 8, fontSize: 9.2, color: INK, lineHeight: 1.55 },
+  nextStepLabel: { fontSize: 8.5, color: GOLD, fontWeight: 700, letterSpacing: 1.1 },
+  nextStepText: { marginTop: 8, fontSize: 10.5, color: INK },
 });
 
 function Wordmark() {
-  return (
-    <View style={styles.wordmark}>
-      <Text style={styles.wordmarkMain}>Bina</Text>
-      <Text style={styles.wordmarkAccent}>Hub</Text>
-      <Text style={styles.wordmarkTag}>HUMAN SYNERGY PARTNER</Text>
-    </View>
-  );
+  return <PDFBrand />;
 }
 
 function ReportHeader({ section, title, subtitle }: { section: string; title: string; subtitle: string }) {
   return (
-    <View style={styles.header}>
+    <View style={styles.header} fixed>
       <View style={styles.headerLeft}>
+        <PDFBrand />
         <Text style={styles.headerTitle}>{title}</Text>
         <Text style={styles.headerSubtitle}>{subtitle}</Text>
       </View>
@@ -263,7 +259,7 @@ function PriorityRow({
   recommendation: AssessmentResult['recommendations'][number];
 }) {
   return (
-    <View style={styles.priorityRow} wrap={false}>
+    <View style={styles.priorityRow}>
       <Text style={styles.priorityIndex}>{String(index).padStart(2, '0')}</Text>
       <View style={styles.priorityMain}>
         <Text style={styles.priorityService}>{cleanText(recommendation.service).toUpperCase()}</Text>
@@ -416,6 +412,7 @@ export function EnterpriseAssessmentReport({
             </View>
           </View>
         </View>
+        <PDFFooter label={copy.footer} />
       </Page>
 
       <Page size="A4" style={styles.page}>
@@ -494,11 +491,12 @@ export function EnterpriseAssessmentReport({
             ))}
           </View>
 
-          <View style={styles.darkPanel} wrap={false}>
+          <View style={styles.darkPanel}>
             <Text style={styles.darkPanelLabel}>{copy.risk}</Text>
             <Text style={styles.darkPanelText}>{riskProjection}</Text>
           </View>
         </View>
+        <PDFFooter label={copy.footer} />
       </Page>
 
       <Page size="A4" style={styles.page}>
@@ -508,7 +506,7 @@ export function EnterpriseAssessmentReport({
             <Text style={styles.sectionTitleText}>{copy.executiveSummary}</Text>
             <Text style={styles.sectionTitleNote}>{result.category.toUpperCase()}</Text>
           </View>
-          <View style={styles.summaryGrid} wrap={false}>
+          <View style={styles.summaryGrid}>
             <View style={styles.summaryLead}>
               <Text style={styles.sectionKicker}>{result.archetype || (locale === 'en' ? 'STRATEGIC BUILDER' : 'PEMBANGUN STRATEGIS')}</Text>
               <Text style={styles.sectionHeading}>{scores.overall} / 100</Text>
@@ -526,11 +524,12 @@ export function EnterpriseAssessmentReport({
             ))}
           </View>
 
-          <View style={styles.darkPanel} wrap={false}>
+          <View style={styles.darkPanel}>
             <Text style={styles.darkPanelLabel}>{copy.strategicDirection}</Text>
             <Text style={styles.darkPanelText}>{strategicKey}</Text>
           </View>
         </View>
+        <PDFFooter label={copy.footer} />
       </Page>
 
       <Page size="A4" style={styles.page}>
@@ -575,6 +574,7 @@ export function EnterpriseAssessmentReport({
             <Text style={styles.nextStepText}>{copy.nextStepText}</Text>
           </View>
         </View>
+        <PDFFooter label={copy.footer} />
       </Page>
     </Document>
   );

@@ -1,14 +1,20 @@
 import type { NextConfig } from "next";
 
+const pdfAssets = [
+  './public/brand/binahub-wordmark.png',
+  './public/fonts/Inter-Regular.ttf',
+  './public/fonts/Inter-SemiBold.ttf',
+  './public/fonts/Inter-Bold.ttf',
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  outputFileTracingIncludes: {
-    '/api/peta/*': [
-      './public/brand/binahub-wordmark.png',
-      './public/fonts/Inter-Regular.ttf',
-      './public/fonts/Inter-SemiBold.ttf',
-    ],
-  },
+  outputFileTracingIncludes: Object.fromEntries([
+    '/api/assessment', '/api/assessment/worker', '/api/admin/assessments',
+    '/api/admin/proposals/preview', '/api/proposal/view', '/api/tbos/export',
+    '/api/admin/program-questionnaires/export', '/api/peta/*',
+    '/api/discovery/spin/*', '/api/admin/discovery/*',
+  ].map(route => [route, pdfAssets])),
   turbopack: {
     root: __dirname,
   },

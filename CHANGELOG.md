@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.6] - 2026-11-02
+
+- Align generated organization, proposal, recommendation, T-BOS and program-test
+  PDFs with the approved PETA print identity: original local wordmark, embedded
+  Inter, consistent A4 margins, readable type, and automatic numbered footers.
+- Allow long questionnaire answers and T-BOS notes to continue across pages;
+  keep short observation cards together and use landscape for the wide heatmap.
+- Consolidate organization rendering on the current template; remove the unused
+  proposal renderer and obsolete BINAINSIGHT_PDF_STYLE=legacy rendering branch.
+  Scores, source results, catalog matching, prices and export authorization remain
+  unchanged. Previously frozen/sent attachments are not regenerated or replaced.
+- Add ten synthetic layout regressions, including long answers, large teams,
+  both organization locales and commercial/preliminary proposals. Preserve PETA's
+  admin-only exports and original design. No SQL, env or scheduler activation.
+
 ## [0.47.5] - 2026-11-02
 
 - Mark public health as liveness only. Add an admin-only, uncached queue/readiness

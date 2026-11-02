@@ -14,6 +14,7 @@ import type {
   TbosProgramReport,
   TbosTeamReport,
 } from "@/lib/tbos-report-data";
+import { PDFBrand, PDFFooter, pdfStyles } from './pdf-brand';
 
 const NAVY = "#071B3D";
 const BLUE = "#0B2C6B";
@@ -23,78 +24,78 @@ const SLATE = "#475569";
 const BORDER = "#DCE3EC";
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 34, paddingHorizontal: 34, paddingBottom: 34, fontSize: 9, color: "#1E293B", backgroundColor: "#FFFFFF", fontFamily: "Helvetica" },
+  page: { ...pdfStyles.page },
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", borderBottomWidth: 2, borderBottomColor: GOLD, paddingBottom: 9, marginBottom: 15 },
   brand: { fontSize: 17, fontWeight: 700, color: BLUE },
   brandAccent: { color: GOLD },
-  eyebrow: { fontSize: 7, fontWeight: 700, color: GOLD, letterSpacing: 1.2, textTransform: "uppercase" },
-  pageTitle: { marginTop: 3, fontSize: 15, fontWeight: 700, color: NAVY },
-  meta: { marginTop: 3, fontSize: 7.5, color: "#64748B" },
-  footer: { position: "absolute", bottom: 14, left: 34, right: 34, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.7, borderTopColor: BORDER, paddingTop: 5, fontSize: 6.5, color: "#64748B" },
-  section: { marginBottom: 14 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, color: NAVY, marginBottom: 6 },
-  sectionDescription: { marginTop: -3, marginBottom: 8, fontSize: 7.5, color: "#64748B", lineHeight: 1.4 },
+  eyebrow: { fontSize: 8.5, fontWeight: 700, color: GOLD, letterSpacing: 1.2, textTransform: "uppercase" },
+  pageTitle: { marginTop: 6, fontSize: 20, fontWeight: 600, color: BLUE },
+  meta: { marginTop: 3, fontSize: 8.5, color: "#64748B" },
+  footer: { position: "absolute", bottom: 14, left: 34, right: 34, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.7, borderTopColor: BORDER, paddingTop: 5, fontSize: 8.5, color: "#64748B" },
+  section: { marginBottom: 12 },
+  sectionTitle: { fontSize: 14, fontWeight: 600, color: BLUE, marginBottom: 10 },
+  sectionDescription: { marginTop: -3, marginBottom: 8, fontSize: 8.5, color: "#64748B" },
   metrics: { flexDirection: "row", gap: 7, marginBottom: 15 },
   metric: { flex: 1, borderWidth: 0.8, borderColor: BORDER, borderRadius: 7, backgroundColor: PAPER, padding: 9 },
-  metricLabel: { fontSize: 6.5, color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 },
+  metricLabel: { fontSize: 8.5, color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 },
   metricValue: { marginTop: 3, fontSize: 15, fontWeight: 700, color: BLUE },
   twoColumns: { flexDirection: "row", gap: 10 },
   column: { flex: 1 },
   callout: { borderRadius: 7, padding: 10, backgroundColor: "#F0F7FF", borderWidth: 0.8, borderColor: "#CFE0F7" },
   calloutTitle: { fontSize: 8, fontWeight: 700, color: BLUE, marginBottom: 4 },
-  calloutText: { fontSize: 8, color: SLATE, lineHeight: 1.45 },
+  calloutText: { fontSize: 10.5, color: SLATE },
   listCard: { borderRadius: 7, padding: 9, borderWidth: 0.8, borderColor: BORDER },
   listRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
-  listIndex: { width: 15, height: 15, borderRadius: 8, backgroundColor: NAVY, color: "#FFFFFF", textAlign: "center", paddingTop: 3, fontSize: 7, fontWeight: 700 },
-  listText: { flex: 1, fontSize: 7.5, color: SLATE },
+  listIndex: { width: 15, height: 15, borderRadius: 8, backgroundColor: NAVY, color: "#FFFFFF", textAlign: "center", paddingTop: 3, fontSize: 8.5, fontWeight: 700 },
+  listText: { flex: 1, fontSize: 8.5, color: SLATE },
   listScore: { width: 28, textAlign: "right", fontSize: 8, fontWeight: 700, color: BLUE },
-  barRow: { marginBottom: 7 },
+  barRow: { marginBottom: 5 },
   barHeader: { flexDirection: "row", justifyContent: "space-between", gap: 8, marginBottom: 3 },
-  barLabel: { flex: 1, fontSize: 7.2, fontWeight: 600, color: "#334155" },
-  barScore: { width: 30, textAlign: "right", fontSize: 7.5, fontWeight: 700, color: BLUE },
+  barLabel: { flex: 1, fontSize: 8.5, fontWeight: 600, color: "#334155" },
+  barScore: { width: 30, textAlign: "right", fontSize: 8.5, fontWeight: 700, color: BLUE },
   barTrack: { height: 6, borderRadius: 3, backgroundColor: "#E8EDF3", overflow: "hidden" },
   barFill: { height: 6, borderRadius: 3 },
-  table: { borderWidth: 0.8, borderColor: BORDER, borderRadius: 6, overflow: "hidden" },
+  table: { borderWidth: .8, borderColor: BORDER, borderRadius: 6 },
   tableHeader: { flexDirection: "row", alignItems: "center", minHeight: 24, paddingHorizontal: 6, backgroundColor: NAVY },
-  tableHeaderText: { fontSize: 6.5, fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase" },
+  tableHeaderText: { fontSize: 8.5, fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase" },
   tableRow: { flexDirection: "row", alignItems: "center", minHeight: 25, paddingHorizontal: 6, borderTopWidth: 0.6, borderTopColor: BORDER },
   tableRowAlt: { backgroundColor: PAPER },
-  tableCell: { fontSize: 7, color: "#334155" },
+  tableCell: { fontSize: 9, color: "#334155", paddingVertical: 8, paddingRight: 6 },
   radarGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   radarCard: { width: "48.7%", borderWidth: 0.8, borderColor: BORDER, borderRadius: 7, padding: 8, backgroundColor: "#FFFFFF" },
   radarTitle: { fontSize: 8.5, fontWeight: 700, color: NAVY },
-  radarMeta: { marginTop: 2, fontSize: 6.5, color: "#64748B" },
+  radarMeta: { marginTop: 2, fontSize: 8.5, color: "#64748B" },
   radarBody: { flexDirection: "row", alignItems: "center", gap: 4 },
   radarLegend: { flex: 1 },
   radarLegendRow: { flexDirection: "row", justifyContent: "space-between", gap: 4, marginBottom: 2 },
-  radarLegendLabel: { flex: 1, fontSize: 5.6, color: SLATE },
-  radarLegendScore: { fontSize: 5.8, fontWeight: 700, color: BLUE },
+  radarLegendLabel: { flex: 1, fontSize: 8.5, color: SLATE },
+  radarLegendScore: { fontSize: 8.5, fontWeight: 700, color: BLUE },
   heatmapHeader: { flexDirection: "row", minHeight: 40, alignItems: "stretch", backgroundColor: NAVY },
   heatmapRow: { flexDirection: "row", minHeight: 24, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: BORDER },
-  heatmapTeam: { width: 105, paddingHorizontal: 5, fontSize: 6.4, fontWeight: 700, color: NAVY },
-  heatmapBatch: { width: 50, paddingHorizontal: 3, fontSize: 6, color: SLATE },
+  heatmapTeam: { width: 105, paddingHorizontal: 5, fontSize: 8.5, fontWeight: 700, color: NAVY },
+  heatmapBatch: { width: 50, paddingHorizontal: 3, fontSize: 8.5, color: SLATE },
   heatmapDimensionHeader: { flex: 1, paddingHorizontal: 2, paddingVertical: 6, textAlign: "center", alignSelf: "stretch" },
   heatmapCell: { flex: 1, height: 18, marginHorizontal: 1.5, borderRadius: 3, alignItems: "center", justifyContent: "center" },
-  heatmapCellText: { fontSize: 6, fontWeight: 700 },
+  heatmapCellText: { fontSize: 8.5, fontWeight: 700 },
   batchCard: { marginBottom: 9, borderWidth: 0.8, borderColor: BORDER, borderRadius: 7, padding: 9, backgroundColor: PAPER },
   batchHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 7 },
   batchName: { fontSize: 9, fontWeight: 700, color: NAVY },
   batchScore: { fontSize: 9, fontWeight: 700, color: GOLD },
   teamHero: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderRadius: 9, padding: 12, backgroundColor: NAVY, color: "#FFFFFF", marginBottom: 12 },
   teamName: { fontSize: 17, fontWeight: 700, color: "#FFFFFF" },
-  teamMeta: { marginTop: 3, fontSize: 7.5, color: "#CBD5E1" },
+  teamMeta: { marginTop: 3, fontSize: 8.5, color: "#CBD5E1" },
   teamScore: { fontSize: 22, fontWeight: 700, color: "#F3CE7A", textAlign: "right" },
-  teamScoreLabel: { marginTop: 2, fontSize: 6.5, color: "#CBD5E1", textAlign: "right", textTransform: "uppercase" },
+  teamScoreLabel: { marginTop: 2, fontSize: 8.5, color: "#CBD5E1", textAlign: "right", textTransform: "uppercase" },
   rosterBox: { borderWidth: 0.8, borderColor: BORDER, borderRadius: 7, padding: 9, backgroundColor: PAPER },
-  memberRow: { flexDirection: "row", justifyContent: "space-between", gap: 6, paddingVertical: 3, borderBottomWidth: 0.4, borderBottomColor: BORDER },
-  memberName: { fontSize: 7.2, color: "#334155" },
-  captain: { fontSize: 6.5, fontWeight: 700, color: "#9A6A12" },
+  memberRow: { flexDirection: "row", justifyContent: "space-between", gap: 6, paddingVertical: 2, borderBottomWidth: 0.4, borderBottomColor: BORDER },
+  memberName: { fontSize: 9.5, color: "#334155", flex: 1, paddingRight: 8 },
+  captain: { fontSize: 8.5, fontWeight: 700, color: "#9A6A12" },
   missionCard: { marginBottom: 6, borderWidth: 0.8, borderColor: BORDER, borderRadius: 6, padding: 7 },
   missionHeader: { flexDirection: "row", justifyContent: "space-between", gap: 6 },
-  missionName: { flex: 1, fontSize: 7.5, fontWeight: 700, color: NAVY },
+  missionName: { flex: 1, fontSize: 8.5, fontWeight: 700, color: NAVY },
   missionScore: { width: 30, textAlign: "right", fontSize: 8, fontWeight: 700, color: BLUE },
-  missionMeta: { marginTop: 3, fontSize: 6.5, color: "#64748B" },
-  missionNote: { marginTop: 3, fontSize: 6.5, color: SLATE, fontStyle: "italic" },
+  missionMeta: { marginTop: 3, fontSize: 8.5, color: "#64748B" },
+  missionNote: { marginTop: 3, fontSize: 8.5, color: SLATE, fontStyle: "normal" },
 });
 
 function ReportHeader({ eyebrow, title, report, scopeLabel }: { eyebrow: string; title: string; report: TbosProgramReport; scopeLabel?: string }) {
@@ -102,9 +103,9 @@ function ReportHeader({ eyebrow, title, report, scopeLabel }: { eyebrow: string;
     ? `${scopeLabel} | ${report.program.title} | ${report.program.code}`
     : `${report.program.title} | ${report.program.code}`;
   return (
-    <View style={styles.header}>
+    <View style={styles.header} fixed>
       <View>
-        <Text style={styles.brand}>Bina<Text style={styles.brandAccent}>Hub</Text></Text>
+        <PDFBrand />
         <Text style={styles.meta}>Team Behavioral Observation System</Text>
       </View>
       <View style={{ maxWidth: 300, alignItems: "flex-end" }}>
@@ -117,13 +118,7 @@ function ReportHeader({ eyebrow, title, report, scopeLabel }: { eyebrow: string;
 }
 
 function PageFooter({ report }: { report: TbosProgramReport }) {
-  return (
-    <View style={styles.footer} fixed>
-      <Text>BinaHub | T-BOS | Rahasia</Text>
-      <Text render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} dari ${totalPages}`} />
-      <Text>{formatDate(report.generatedAt)}</Text>
-    </View>
-  );
+  return <PDFFooter label={`BinaHub | T-BOS | Rahasia | ${formatDate(report.generatedAt)}`} />;
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
@@ -186,7 +181,7 @@ function TeamRadar({ dimensions }: { dimensions: TbosDimensionResult[] }) {
 
 function TeamDetailPage({ report, team, scopeLabel }: { report: TbosProgramReport; team: TbosTeamReport; scopeLabel?: string }) {
   return (
-    <Page size="A4" style={styles.page} wrap={false}>
+    <Page size="A4" style={styles.page} wrap>
       <ReportHeader eyebrow="Laporan per Tim" title={team.name} report={report} scopeLabel={scopeLabel} />
       <View style={styles.teamHero} wrap={false}>
         <View>
@@ -230,12 +225,14 @@ function TeamDetailPage({ report, team, scopeLabel }: { report: TbosProgramRepor
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Catatan Observasi</Text>
-        {team.missions.length === 0 ? <Text style={styles.calloutText}>Belum ada observasi yang tersimpan.</Text> : team.missions.map((mission) => (
-          <View key={mission.code} style={styles.missionCard} wrap={false}>
-            <View style={styles.missionHeader}><Text style={styles.missionName}>{mission.name}</Text><Text style={styles.missionScore}>{formatScore(mission.score)}</Text></View>
-            <Text style={styles.missionMeta}>Fasilitator: {mission.facilitatorName} | Tanggal: {formatDate(mission.observedAt)}</Text>
-            {mission.notes && <Text style={styles.missionNote}>Catatan: {mission.notes}</Text>}
+        {team.missions.length === 0 ? <View wrap={false}><Text style={styles.sectionTitle}>Catatan Observasi</Text><Text style={styles.calloutText}>Belum ada observasi yang tersimpan.</Text></View> : team.missions.map((mission, index) => (
+          <View key={mission.code} wrap={(mission.notes?.length || 0) > 1500}>
+            {index === 0 && <Text style={styles.sectionTitle}>Catatan Observasi</Text>}
+            <View style={styles.missionCard} wrap={(mission.notes?.length || 0) > 1500}>
+              <View style={styles.missionHeader} minPresenceAhead={30}><Text style={styles.missionName}>{mission.name}</Text><Text style={styles.missionScore}>{formatScore(mission.score)}</Text></View>
+              <Text style={styles.missionMeta}>Fasilitator: {mission.facilitatorName} | Tanggal: {formatDate(mission.observedAt)}</Text>
+              {mission.notes && <Text style={styles.missionNote}>Catatan: {mission.notes}</Text>}
+            </View>
           </View>
         ))}
       </View>
@@ -330,7 +327,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
         <PageFooter report={report} />
       </Page>
 
-      <Page size="A4" style={styles.page} wrap>
+      <Page size="A4" orientation="landscape" style={styles.page} wrap>
         <ReportHeader eyebrow="Heatmap" title="Perbandingan Kompetensi" report={report} scopeLabel={scopeLabel} />
         <Text style={styles.sectionDescription}>Warna menunjukkan level skor: merah lebih rendah, kuning menengah, dan hijau lebih tinggi.</Text>
         <View style={{ borderWidth: 0.8, borderColor: BORDER }}>
@@ -343,7 +340,7 @@ export function TbosGroupReportDocument({ report, batch }: { report: TbosProgram
                 style={[
                   styles.tableHeaderText,
                   styles.heatmapDimensionHeader,
-                  { fontSize: report.dimensions.length <= 4 ? 6.2 : report.dimensions.length <= 6 ? 5.5 : 4.8 },
+                  { fontSize: report.dimensions.length <= 4 ? 9 : 8 },
                 ]}
               >
                 {dimension.name}
