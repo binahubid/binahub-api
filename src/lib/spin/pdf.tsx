@@ -16,7 +16,7 @@ const s=StyleSheet.create({
  evidence:{marginBottom:10,fontSize:9.5},objective:{fontSize:8.5,color:'#526479',marginTop:5},tags:{fontSize:9,color:'#0b2c6b',marginTop:5},
  price:{fontSize:14,fontFamily:pdfFont,fontWeight:600,color:'#0b2c6b',marginBottom:10},line:{marginBottom:7},rule:{borderBottomWidth:1,borderBottomColor:'#dce4ef',paddingBottom:8,marginBottom:9},
  footer:{position:'absolute',bottom:22,left:36,right:36,fontSize:8.5,color:'#526479',flexDirection:'row',justifyContent:'space-between'},
- body:{marginBottom:8},snapshot:{marginBottom:10,width:'47%',fontSize:9.5},snapshots:{flexDirection:'row',flexWrap:'wrap',gap:12},small:{fontSize:8.5,color:'#526479'},
+ body:{marginBottom:8},snapshot:{marginBottom:10,width:'100%',fontSize:9.5},snapshots:{gap:6},small:{fontSize:8.5,color:'#526479'},
 });
 const footer=<PDFFooter label="BinaHub | Rekomendasi pengembangan organisasi"/>;
 const brief=(value:string)=>value.length>220?value.slice(0,217).replace(/\s+\S*$/,'')+'...':value;
