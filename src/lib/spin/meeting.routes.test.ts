@@ -15,6 +15,15 @@ const ctx={params:Promise.resolve({id})};
 const req=(body?:unknown,method='GET',origin='https://app.binahub.id')=>new NextRequest('https://api.binahub.id/api/admin/discovery/'+id+'/meeting',{method,headers:{Origin:origin,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
 beforeEach(()=>{vi.resetAllMocks();mocks.limit.mockResolvedValue(null);mocks.auth.mockResolvedValue({error:'Denied',status:403});mocks.read.mockResolvedValue({checklist,original:{role:'R1'},definition:{}});mocks.rpc.mockResolvedValue({data:{...checklist,revision:1,updated_at:'2026-10-26T00:00:00Z'},error:null});});
 describe('meeting routes use existing admin boundary, no live services',()=>{
+ it('passes normalized bounded list queries to the existing RPC and rejects invalid input',async()=>{
+  mocks.auth.mockResolvedValue({userId:actor});
+  expect((await list(new NextRequest('https://api.binahub.id/api/admin/discovery/meetings?page=2&search=%20Arunika%20'))).status).toBe(200);
+  expect(mocks.rpc).toHaveBeenCalledWith('spin_meeting_inbox',{p_page:2,p_search:'Arunika'});
+  mocks.rpc.mockClear();
+  expect((await list(new NextRequest('https://api.binahub.id/api/admin/discovery/meetings?page=-1'))).status).toBe(400);
+  expect((await list(new NextRequest('https://api.binahub.id/api/admin/discovery/meetings?search=a%00b'))).status).toBe(400);
+  expect(mocks.rpc).not.toHaveBeenCalled();
+ });
  it('rejects all reads and writes before touching storage for non-admins',async()=>{
   expect((await read(req(),ctx)).status).toBe(403);expect((await save(req({},'PATCH'),ctx)).status).toBe(403);
   expect((await list(req())).status).toBe(403);expect((await create(req({},'POST'))).status).toBe(403);

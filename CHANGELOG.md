@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.47.7] - 2026-11-02
+
+- Add server-wide literal contact search to the admin recommendation archive,
+  applying the filter before exact count and bounded20-row pagination. Keep
+  submitted-only scope and add deterministic ID tie-breaking. Advertise search
+  capability so an older API cannot appear to return matching archive results.
+- Share bounded page/search validation with the primary meeting inbox; escape
+  regex and PostgREST grammar independently. Test punctuation, quotes, wildcard
+  characters and Unicode against in-memory PostgreSQL matching, plus mocked
+  route authorization, rate-limit, count/page, and safe-error boundaries.
+- No migration/env, changed grants, result/answer mutation, AI/email invocation,
+  scheduler activation or changes to the existing meeting-inbox RPC.
+
 ## [0.47.6] - 2026-11-02
 
 - Align generated organization, proposal, recommendation, T-BOS and program-test
