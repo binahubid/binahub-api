@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.47.2",
+  "version": "0.47.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:dependencies": "node --test tools/minimatch-compat.contract.mjs",
     "test:peta:team": "node scripts/test-peta-team.mjs",
     "test:phase7": "node scripts/phase7-smoke.mjs",
     "test:phase10": "node scripts/phase10-smoke.mjs",
@@ -60,6 +61,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "minimatch": "11.0.1",
     "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -74,6 +76,7 @@
     "vitest": "^4.1.12"
   },
   "overrides": {
+    "minimatch": "11.0.1",
     "sharp": "^0.35.5",
     "vite": "$vite",
     "brace-expansion@>=1 <2": "1.1.21",

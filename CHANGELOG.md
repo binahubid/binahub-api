@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.47.3] - 2026-11-02
+
+- Close the remaining minimatch advisory chain in development tooling using
+  official11.0.1. Keep ESLint9/Next16 and all lint rules; a lint-process-only
+  CommonJS facade preserves legacy callable APIs without an old matcher engine,
+  node_modules edits or install/build hooks.
+- Add isolated Node contract tests and a full dependency audit to read-only CI.
+  Keep the Node contracts outside Vitest's test-name discovery.
+- Full/runtime npm audits:0 advisories.859 synthetic regressions and3 dependency
+  contracts pass; lint, typecheck and production build pass (one pre-existing
+  unused ProposalPDF warning). No SQL/env, runtime logic or scheduler changes.
+
 ## [0.47.2] - 2026-11-01
 
 - Remove the participant `result/pdf` endpoint, including program/legacy cookie

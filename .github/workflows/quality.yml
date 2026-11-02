@@ -32,8 +32,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Check runtime dependency advisories
-        run: npm audit --omit=dev --audit-level=high
+      - name: Check all dependency advisories, including lint tooling
+        run: npm audit --audit-level=moderate
+
+      - name: Check patched matcher compatibility
+        run: npm run test:dependencies
 
       - name: Check types
         run: npm exec -- next typegen && npm run typecheck
