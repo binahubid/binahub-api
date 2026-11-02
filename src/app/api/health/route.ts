@@ -9,6 +9,8 @@ export function GET() {
   return NextResponse.json({
     status: "ok",
     service: "binahub-api",
+    check: "liveness",
+    readiness: "not_checked",
     version: packageMetadata.version,
     revision: revision ? revision.slice(0, 12) : null,
     observability: {

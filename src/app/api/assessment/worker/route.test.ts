@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const deps = vi.hoisted(() => ({ process: vi.fn(), rpc: vi.fn(),personalEmail:vi.fn(),discovery:vi.fn() }));
+const deps = vi.hoisted(() => ({ process: vi.fn(), rpc: vi.fn(),personalEmail:vi.fn(),discovery:vi.fn(),heartbeat:vi.fn() }));
+vi.mock('@/lib/service-health',()=>({reportWorkerHeartbeat:deps.heartbeat}));
 vi.mock('@/lib/assessment-worker', () => ({ processAssessmentJob: deps.process }));
 vi.mock('@/lib/supabase', () => ({ createServerSupabase: () => ({ rpc: deps.rpc }) }));
 vi.mock('@/lib/individual-assessment/email',()=>({processPEReportEmail:deps.personalEmail}));
@@ -18,6 +19,7 @@ beforeEach(() => {
   deps.process.mockResolvedValue({ processed: true });
   deps.personalEmail.mockResolvedValue({processed:false});
   deps.discovery.mockResolvedValue({processed:false});
+  deps.heartbeat.mockResolvedValue(true);
   deps.rpc.mockResolvedValue({ data: 2, error: null });
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
@@ -29,6 +31,7 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     expect(deps.process).not.toHaveBeenCalled();
     expect(deps.personalEmail).not.toHaveBeenCalled();
     expect(deps.discovery).not.toHaveBeenCalled();
+    expect(deps.heartbeat).not.toHaveBeenCalled();
   });
   it('runs bounded cleanup and keeps the response uncached', async () => {
     const response = await GET(request());
@@ -36,6 +39,9 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     expect(await response.json()).toEqual({ processed: true, personalDataPurged: 2,personalEmail:{processed:false},discovery:{processed:false} });
     expect(deps.rpc).toHaveBeenCalledWith('pe_purge_expired_participants', { p_limit: 100 });
     expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(deps.heartbeat).toHaveBeenCalledTimes(2);
+    expect(deps.heartbeat.mock.calls[1][1]).toBe(deps.heartbeat.mock.calls[0][1]);
+    expect(deps.heartbeat.mock.calls[1][2]).toBe('ok');
   });
   it('keeps legacy assessment recovery working before SQL 65 is installed', async () => {
     deps.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } });
@@ -57,6 +63,7 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     const response = await GET(request());
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: 'Assessment worker unavailable' });
+    expect(deps.heartbeat.mock.calls.at(-1)?.[2]).toBe('error');
   });
   it('isolates personal email failure from organization recovery without leaking diagnostics',async()=>{
     deps.personalEmail.mockRejectedValue(new Error('PRIVATE PROVIDER DETAIL'));
@@ -70,5 +77,13 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     expect((await GET(request())).status).toBe(200);
     expect(deps.process).toHaveBeenCalledOnce();
     expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE SPIN DETAIL');
+    expect(deps.heartbeat.mock.calls.at(-1)?.[2]).toBe('degraded');
+  });
+  it('keeps jobs running during the SQL81 rolling deployment and marks held work as degraded',async()=>{
+    deps.heartbeat.mockResolvedValue(false);
+    deps.discovery.mockResolvedValue({processed:true,status:'pending'});
+    expect((await GET(request())).status).toBe(200);
+    expect(deps.process).toHaveBeenCalledOnce();
+    expect(deps.heartbeat.mock.calls.at(-1)?.[2]).toBe('degraded');
   });
 });

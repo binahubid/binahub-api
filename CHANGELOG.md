@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.5] - 2026-11-02
+
+- Mark public health as liveness only. Add an admin-only, uncached queue/readiness
+  overview and authenticated HEAD probe; unavailable evidence is not a green zero.
+- SQL81 exposes aggregate metadata for team analysis, individual report email,
+  program recommendation analysis/email and a bounded latest-worker heartbeat.
+  No participant/contact/result payload leaves these RPCs; backend-only grants.
+- Record recovery invocation/partial failures without enabling the scheduler or
+  changing job claims, retry, scoring, retention, delivery or sending controls.
+  Older overlapping runs cannot overwrite a newer heartbeat; missing telemetry
+  during a rolling deployment does not stop existing recovery.
+- Add isolated SQL, helper, authorization/probe, liveness and worker regressions.
+  SQL81 execution confirmed by owner; no new env or production worker invocation.
+  See docs/service-health-2026-11-02.md for exact coverage and activation limits.
+
 ## [0.47.4] - 2026-11-02
 
 - Bound legacy AI prompts with request-local identity/contact references,
