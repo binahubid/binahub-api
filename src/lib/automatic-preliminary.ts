@@ -226,6 +226,7 @@ export async function createAndSendAutomaticPreliminary(
     let selectionReason: string;
     let selectionMethod: "ai" | "assessment_catalog_match" = "ai";
     const selectionInput = {
+      privateIdentities: [form.name, form.email, form.company, form.whatsapp].filter((value): value is string => typeof value === 'string'),
       locale,
       challenge: String(form.challenge || ""), target: String(form.target || ""),
       category: assessment.category || "", scores: objectValue(assessment.scores) as Record<string, number>,

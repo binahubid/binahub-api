@@ -350,6 +350,7 @@ export async function runLeadDiscovery(input: {
       if (scored.eligible && config.aiScoringEnabled) {
         try {
           const review = await refineLeadDiscoveryScoreWithAI({
+            privateIdentities: [candidate.fullName],
             roleTitle: candidate.roleTitle,
             company: candidate.company,
             industry: candidate.industry,

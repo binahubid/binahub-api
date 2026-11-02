@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.4] - 2026-11-02
+
+- Bound legacy AI prompts with request-local identity/contact references,
+  irreversible URL/credential removal and safe local JSON personalization.
+  Reject corrupted/foreign references during provider response validation.
+- Project/associate matching uses qualification allowlists and transient IDs;
+  map verified results to server-owned identity. Lead evidence excludes unknown
+  nested records. Preserve deterministic scores, catalog prices and delivery.
+- Add synthetic prompt/restore regressions covering business analysis, leads,
+  proposals, correspondence, matching, profile import and chat. Keep existing
+  SPIN/PE projections and routing. No paid provider calls, SQL or new env.
+- Document necessary CV/profile extraction exceptions and free-text/vision
+  limitations in docs/ai-data-boundaries-2026-11-02.md; not anonymization or a
+  production pentest. Scheduler activation remains deferred.
+
 ## [0.47.3] - 2026-11-02
 
 - Close the remaining minimatch advisory chain in development tooling using
