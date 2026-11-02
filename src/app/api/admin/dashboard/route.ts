@@ -1,43 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
-import { evaluateAssessmentProposalEligibility } from "@/lib/proposal-eligibility";
-import { qualifyPublicAssessment } from "@/lib/lead-qualification";
-import { assessmentAreaText } from "@/lib/assessment-area-copy";
+import { mapAdminAssessment } from "@/lib/admin-assessment-record";
 
 const DIMENSIONS = ["Insights", "Lab", "Coach", "Play", "Academy", "Works", "Impact"] as const;
 
-type Dimension = (typeof DIMENSIONS)[number];
-
-type Scores = Record<Dimension, number> & { overall: number };
-
-type Recommendation = {
-  title?: string;
-  service?: string;
-  priority?: string;
-  description?: string;
-};
-
-type FormData = {
-  name?: string;
-  email?: string;
-  company?: string;
-  role?: string;
-  whatsapp?: string;
-  employees?: string;
-  industry?: string;
-  location?: string;
-  timeline?: string;
-  budgetStatus?: string;
-  sponsorStatus?: string;
-  nextStepIntent?: string;
-  businessConsequence?: string;
-  source?: string;
-  challenge?: string;
-  target?: string;
-  answers?: Record<string, number>;
-  attribution?: Record<string, string>;
-};
 
 type AssessmentRow = {
   id: string;
@@ -444,31 +411,6 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return value as T;
 }
 
-function normalizeScore(value: unknown): number {
-  const numberValue = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(numberValue) ? Math.round(numberValue) : 0;
-}
-
-function getScores(value: unknown, overallScore?: number | null): Scores {
-  const parsed = parseJson<Partial<Scores>>(value, {});
-  const scores = Object.fromEntries(
-    DIMENSIONS.map((dimension) => [dimension, normalizeScore(parsed[dimension])])
-  ) as Record<Dimension, number>;
-
-  return {
-    ...scores,
-    overall: normalizeScore(parsed.overall ?? overallScore),
-  };
-}
-
-function getRecommendations(value: unknown): Recommendation[] {
-  const parsed = parseJson<Recommendation[]>(value, []);
-  return Array.isArray(parsed) ? parsed : [];
-}
-
-function getFormData(value: unknown): FormData {
-  return parseJson<FormData>(value, {});
-}
 
 function average(values: number[]) {
   if (!values.length) return 0;
@@ -736,81 +678,7 @@ export async function GET(req: NextRequest) {
 
   const leadsById = new Map((leadRows || []).map((lead) => [lead.id, lead as LeadRow]));
 
-  const assessments = ((assessmentRows || []) as AssessmentRow[]).map((row) => {
-    const form = getFormData(row.form_data);
-    const lead = row.lead_id ? leadsById.get(row.lead_id) : undefined;
-    const scores = getScores(row.scores, row.overall_score);
-    const recommendations = getRecommendations(row.recommendations);
-    // Per-assessment, read-only recalculation. Never overwrite historical lead scores in a GET.
-    const qualification = qualifyPublicAssessment({ ...form }, Object.keys(form.answers || {}).length === 49);
-    const proposalEligibility = evaluateAssessmentProposalEligibility({
-      formData: row.form_data,
-      scores: row.scores,
-      category: row.category,
-      aiAnalysis: row.ai_analysis ? assessmentAreaText(row.ai_analysis) : row.ai_analysis,
-      recommendations: row.recommendations,
-      overallScore: row.overall_score,
-    });
-
-    return {
-      id: row.id,
-      leadId: row.lead_id,
-      name: form.name || lead?.name || "-",
-      email: form.email || lead?.email || "-",
-      company: form.company || lead?.company || "-",
-      role: form.role || "-",
-      whatsapp: form.whatsapp || lead?.phone || "",
-      employees: form.employees || "Tidak diketahui",
-      industry: form.industry || lead?.industry || "",
-      location: form.location || lead?.location || "",
-      timeline: form.timeline || "unknown",
-      budgetStatus: form.budgetStatus || "unknown",
-      sponsorStatus: form.sponsorStatus || "unknown",
-      nextStepIntent: form.nextStepIntent || "explore",
-      businessConsequence: form.businessConsequence || "",
-      source: form.source || lead?.source || "insight_assessment",
-      challenge: form.challenge || "",
-      target: form.target || "",
-      scores,
-      category: row.category || "Tidak diketahui",
-      aiAnalysis: assessmentAreaText(row.ai_analysis || ""),
-      recommendations,
-      proposalEligibility,
-      answers: form.answers || {},
-      overallScore: scores.overall,
-      assessmentStatus: row.assessment_status || (row.result_email_sent_at ? "Result Email Terkirim" : "Result Otomatis Terkirim"),
-      resultEmailSentAt: row.result_email_sent_at || null,
-      resultEmailId: row.result_email_id || null,
-      proposalStatus: row.proposal_status || "Belum Diminta",
-      proposalRequestedAt: row.proposal_requested_at || null,
-      proposalSentAt: row.proposal_sent_at || null,
-      proposalEmailId: row.proposal_email_id || null,
-      proposalDraft: row.proposal_draft_data || null,
-      proposalGateStatus: row.proposal_gate_status || "not_evaluated",
-      proposalGateReasons: Array.isArray(row.proposal_gate_reasons) ? row.proposal_gate_reasons : [],
-      proposalCatalogVersion: row.proposal_catalog_version || null,
-      proposalGeneratedAt: row.proposal_generated_at || null,
-      proposalApprovedAt: row.proposal_approved_at || null,
-      proposalApprovedBy: row.proposal_approved_by || null,
-      resultFollowUpLevel: row.result_follow_up_level || 0,
-      resultFollowUpSentAt: row.result_follow_up_sent_at || null,
-      proposalFollowUpLevel: row.proposal_follow_up_level || 0,
-      proposalFollowUpSentAt: row.proposal_follow_up_sent_at || null,
-      followUpPaused: row.follow_up_paused === true,
-      leadScore: qualification.score,
-      leadStatus: qualification.temperature,
-      leadTemperature: qualification.temperature,
-      leadScoreConfidence: qualification.confidence,
-      leadScoreReason: qualification.reasoning,
-      leadScoreEvidence: qualification,
-      leadScoreRuleVersion: qualification.ruleVersion,
-      recordedLeadScoreRuleVersion: lead?.lead_score_rule_version || null,
-      lifecycleStage: lead?.lifecycle_stage || "prospect",
-      opportunityStage: lead?.opportunity_stage || "identified",
-      attribution: form.attribution || (lead?.source_metadata as Record<string, string> | undefined) || {},
-      createdAt: row.created_at,
-    };
-  });
+  const assessments = ((assessmentRows || []) as AssessmentRow[]).map((row) => mapAdminAssessment(row, row.lead_id ? leadsById.get(row.lead_id) : undefined));
 
   const dimensionStats = DIMENSIONS.map((dimension) => {
     const values = assessments.map((assessment) => assessment.scores[dimension]);

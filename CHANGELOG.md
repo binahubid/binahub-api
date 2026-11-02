@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.47.8] - 2026-11-02
+
+- Add admin-only diagnosis inbox/detail/answer-aggregate GET route. SQL82 searches
+  and filters all historical records before20-row pagination; queue counts use
+  the existing proposal/follow-up semantics and deterministic timestamp/ID order.
+- Read-only service-role functions support literal search, lead fallbacks,
+  legacy JSON strings, score normalization and complete category/employee facets.
+  Summaries omit source answers, narratives, drafts, attachments and lead scores.
+- Reuse the existing dashboard record normalizer for detail, without rewriting
+  scores or CRM qualification. Fetch selected columns for one record and linked
+  lead only. Preserve authorization/rate limits, no-store, safe errors and all
+  mutation endpoints; unknown storage evidence never becomes a healthy zero.
+- Add SQL/route and dashboard regressions using in-memory/mocked services.
+  Requires SQL82 (owner confirmed applied); no env, AI/email, retention, consent,
+  worker or scheduler changes. Deploy API before app0.51.4.
+
 ## [0.47.7] - 2026-11-02
 
 - Add server-wide literal contact search to the admin recommendation archive,
