@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.47.9] - 2026-11-03
+
+- Add admin-only, private/no-store Inquiry inbox and one-record detail reads.
+  SQL83 applies literal search/source/status filters across the full archive
+  before exact totals, metrics and bounded 20-row pagination. Timestamp/ID
+  ordering is deterministic; facets include all historical source/status values.
+- Keep messages bounded to a 500-character list preview; notes, full context,
+  module requests and reviewed reply bodies load only for an opened record.
+  Due indicators mirror the existing 2/7/14-day rule and stopped/paused states;
+  they do not bypass actual delivery policy or claim that a worker is running.
+- Validate bounds/ambiguous parameters, authenticate before storage, rate-limit
+  reads and expose safe unavailable errors rather than healthy empty results.
+  SQL functions are read-only and executable by service_role only.
+- Add isolated PostgreSQL and mocked route regressions, including archive search
+  beyond 1,000 records. Requires SQL83 (owner confirmed applied); no new env or
+  mutation/provider/scheduler changes. Deploy API before app 0.51.5.
+
 ## [0.47.8] - 2026-11-02
 
 - Add admin-only diagnosis inbox/detail/answer-aggregate GET route. SQL82 searches
