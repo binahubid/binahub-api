@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.47.10] - 2026-11-03
+
+- Add admin-only contact inbox/detail GETs with SQL84 read-only service-role
+  projections. Merge normalized email or phone-only identities before filtering,
+  exact counts and 20-row pagination. Prefer a lead as the canonical write target;
+  return deterministic representatives/order and all archive filter options.
+- List DTOs omit private notes and message context; typed composite IDs prevent
+  collisions across lead/inquiry/coach/employee sources. Detail does not expose
+  a source table wholesale or any assessment answers, private PDFs or CV files.
+- Keep persisted statuses, never infer commercial progress from narrative text.
+  Allow an authenticated notes-only contact PATCH to omit status; explicit
+  status changes still accept only approved values. Other mutation behavior,
+  pipeline transitions and sending remain unchanged.
+- Add isolated PostgreSQL and mocked auth/validation/mutation regressions,
+  including searches beyond 1,000 rows and non-persistent identity merging.
+  SQL84 owner-confirmed applied; no new env or delivery/scheduler changes.
+  Deploy API before app 0.51.6. This does not complete CRM/AMS pagination.
+
 ## [0.47.9] - 2026-11-03
 
 - Add admin-only, private/no-store Inquiry inbox and one-record detail reads.

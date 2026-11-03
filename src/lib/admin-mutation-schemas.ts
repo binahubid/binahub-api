@@ -63,7 +63,7 @@ const notesSchema = z.string().max(4000, "Catatan maksimal 4.000 karakter.");
 
 export const contactUpdateSchema = z.object({
   id: z.string().uuid("ID kontak tidak valid."),
-  status: contactStatusSchema,
+  status: contactStatusSchema.optional(),
   notes: notesSchema,
 }).strict();
 

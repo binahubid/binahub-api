@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await createServerSupabase()
     .from("leads")
     .update({
-      lead_status: status,
+      ...(status === undefined ? {} : { lead_status: status }),
       notes,
     })
     .eq("id", id)
