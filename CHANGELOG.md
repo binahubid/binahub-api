@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.13] - 2026-11-03
+
+- Add SQL87 service-role-only read projections and an authenticated/rate-limited
+  no-store consultation archive/detail GET. Search/filter before exact counts
+  and deterministic 20-row pages, with no general-dashboard record cap.
+- Classify today in WIB; distinguish elapsed slots from explicit completion,
+  cancelled/rejected/no-show and records needing review. Older slots in a
+  booking series remain historical using creation lineage, not update time.
+- Exclude provider payload, meeting URL, organizer and cancellation reason from
+  list DTOs; read detail by UUID. Hide storage diagnostics and expose missing
+  SQL87 as unavailable rather than an empty archive. No booking mutations.
+- Add isolated PostgreSQL >1,000-record and API auth/input/no-cache regressions.
+  Deploy before app 0.51.9 after SQL87 operator confirmation. No new env or
+  email, scheduling, scoring, consent or retention changes.
+
 ## [0.47.12] - 2026-11-03
 
 - Add an authenticated/rate-limited no-store CRM priority GET backed by SQL86
