@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.47.11] - 2026-11-03
+
+- Add authenticated/rate-limited, no-store pipeline inbox/detail GETs backed by
+  SQL85 service-role-only read projections. Search/filter the entire archive
+  before exact counts, stage/value aggregates, deterministic sorting and 20-row
+  paging. Retain existing attention/overdue/test-exclusion rules; no AI ranking.
+- Read opportunity details by UUID with independently paged 20-event history.
+  Count linked diagnoses/bookings/accounts by explicit relationships, not email.
+  List payloads exclude qualification context and activity notes; database errors
+  stay private and missing functions never become a healthy empty pipeline.
+- Add isolated PostgreSQL and mocked endpoint tests for >1,000 opportunities,
+  literal searches, filters/sorting, closed/unknown stages, scoped history,
+  browser-role denial and malformed queries. Mutation routes are unchanged.
+- SQL85 owner-confirmed applied. Deploy before app 0.51.7; no new env, sends,
+  scoring/consent/retention changes or scheduler activation. Cross-source CRM
+  priority aggregation remains outside this pipeline batch.
+
 ## [0.47.10] - 2026-11-03
 
 - Add admin-only contact inbox/detail GETs with SQL84 read-only service-role
