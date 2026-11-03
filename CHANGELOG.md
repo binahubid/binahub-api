@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.47.12] - 2026-11-03
+
+- Add an authenticated/rate-limited no-store CRM priority GET backed by SQL86
+  service-role-only read functions. Search/filter the complete task projection
+  before exact counts and stable 20-task paging; no general-dashboard caps.
+- Retain one primary action per diagnosis, explicit source-qualified IDs,
+  proposal reconciliation/review precedence and overdue opportunity tasks.
+  Return minimal task metadata, not answers, narratives, reply bodies or drafts.
+- Exclude reminder candidates paused/closed/handled across full lead/booking
+  history, suppressions, three-message event/claim caps and an already claimed
+  next channel/level. Preserve legacy conservative normalized-email stopping,
+  also checking explicit relationship IDs and requested bookings. Do not match
+  blank identities; this is neither identity merging nor a new sending policy.
+- Sending APIs still re-check eligibility, timing, settings and human gates.
+  SQL86 creates no claim or mutation and sends nothing. Add isolated PostgreSQL
+  >1,000-record, API auth/input/no-cache and regression tests.
+- Requires operator SQL86, deploy before app 0.51.8; no new env, scheduler,
+  participant scoring, consent or retention changes.
+
 ## [0.47.11] - 2026-11-03
 
 - Add authenticated/rate-limited, no-store pipeline inbox/detail GETs backed by
