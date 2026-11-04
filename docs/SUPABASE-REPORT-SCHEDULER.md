@@ -1,12 +1,16 @@
 # Scheduler laporan — Supabase Cron
 
-API0.47.15 / SQL89 · 4 November 2026. Mengikuti pola SLJ: Supabase Cron →
+API0.47.16 / SQL89 (pemasang tidak berubah) · 4 November 2026. Mengikuti pola SLJ: Supabase Cron →
 `pg_net` HTTP → worker BinaHub. Tidak memerlukan n8n laptop atau Vercel Cron.
 Hosting API dan ketentuan paket hosting tetap urusan terpisah.
 
+Status operator 4 November: pengguna melaporkan SQL89 berhasil dijalankan.
+Ini bukan inspeksi langsung database. Vault/status/aktivasi masih perlu diperiksa;
+SQL89 tidak perlu diulang hanya karena GitHub quality check gagal.
+
 ## Setup singkat — satu kali
 
-1. Pastikan deployment API0.47.15 berhasil dan `https://api.binahub.id` adalah
+1. Pastikan deployment API0.47.15 atau lebih baru berhasil dan `https://api.binahub.id` adalah
    API produksi milik BinaHub. SQL89 hanya mengirim ke domain/path tetap tersebut;
    jangan mengaktifkannya jika domain belum menuju deployment yang benar.
 2. Jalankan **file penuh** `supabase/migrations/0089_supabase_report_scheduler.sql`
@@ -22,6 +26,24 @@ Hosting API dan ketentuan paket hosting tetap urusan terpisah.
    Tidak ada nama environment API baru. Jika credential existing belum terisi
    atau kurang dari32 karakter, operator perlu menetapkan secret acak32–512
    karakter tanpa spasi pada API dan Vault yang sama, lalu redeploy API.
+
+   **Panduan klik:**
+
+   - Vercel → project **binahub-api** → **Settings → Environment Variables**.
+     Cari `FOLLOW_UP_CRON_SECRET` untuk **Production**, lalu salin **Value** jika
+     bisa dilihat. Jangan salin nama variabel, menambahkan `Bearer`, tanda kutip
+     atau spasi. Jika tipenya Secret/Sensitive, nilainya memang tidak dapat
+     dilihat setelah disimpan; gunakan catatan credential aman milik operator
+     atau koordinasikan rotasi, bukan menghapus/mengganti key lain sembarangan.
+   - Supabase → **project yang sama dengan SQL89** → **Integrations → Vault →
+     Secrets**, pilih **Add new secret** (label dapat berupa Create secret).
+   - **Name:** `binahub_report_worker_secret`.
+   - **Secret/Value:** tempel **nilai** yang disalin dari Vercel.
+   - **Description:** opsional; klik **Save**. Jika nama ini sudah ada, perbarui
+     entri itu, bukan membuat nama lain. Jangan tempel token di SQL/chat/repo.
+   - Tidak perlu mengubah environment/redeploy jika hanya menyalin nilai existing
+     ke Vault. Jangan ubah RLS atau menambah policy publik untuk konfigurasi ini.
+
 4. Jalankan pemeriksaan tanpa efek samping:
 
    ```sql

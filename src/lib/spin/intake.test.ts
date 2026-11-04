@@ -1,5 +1,6 @@
 import { describe,it,expect,vi } from 'vitest';
 import { readFileSync,writeFileSync,mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 vi.mock('server-only',()=>({}));
 import { SPIN_DEFINITION,summaryHash,validateSpinAnswers,validateSpinWrite,spinInternalRules,spinNeeds } from './intake';
 import { spinOptions,spinVisible,spinSummary,spinSanitize,SPIN_NOTICE_VERSION,type SpinAnswers } from './form';
@@ -29,7 +30,13 @@ describe('SPIN public question and report contract',()=>{
   expect(r.advisory?.reasons.join(' ')).toContain('Sasaran pengembangan akan dirumuskan bersama');
   expect(spinNeeds({...a,benefits:['unknown'],benefitOther:''},'confirmed').evidence.some(e=>e.id.startsWith('Q14'))).toBe(false);
  });
- it('keeps browser validation identical, without a server dependency',()=>{expect(readFileSync('../app-binahub/src/lib/spin-form.ts','utf8').replace(/\r/g,'')).toBe(readFileSync('src/lib/spin/form.ts','utf8').replace(/\r/g,''));});
+ it('keeps browser validation on the pinned public contract without a sibling checkout or server dependency',()=>{
+  const source=readFileSync(new URL('./form.ts',import.meta.url),'utf8').replace(/\r/g,'');
+  const contract=JSON.parse(readFileSync(new URL('./form.contract.json',import.meta.url),'utf8'));
+  expect(contract).toMatchObject({name:'binahub-spin-public-form',version:1,normalization:'remove-carriage-returns'});
+  expect(createHash('sha256').update(source).digest('hex')).toBe(contract.sha256);
+  expect(source).not.toMatch(/^\s*import\s|\brequire\s*\(|\bprocess\.env|server-only|node:/m);
+ });
  it('accepts a complete path and preserves confirmed raw source answers',()=>{const a=validateSpinAnswers(completeAnswers(),true);expect(spinSummary(SPIN_DEFINITION,a).outcome).toContain('Rapat');expect(summaryHash(a)).toHaveLength(64);});
  it('rejects unknown fields, bad options, exclusive combinations and sensitive free text',()=>{
  for(const a of [{...completeAnswers(),price:1},{...completeAnswers(),problemCluster:'C99'},{...completeAnswers(),effects:['E1','E8']},{...completeAnswers(),desiredOutcome:'Hubungi person@example.invalid'}])expect(()=>validateSpinAnswers(a,true)).toThrow();

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.47.16] - 2026-11-04
+
+- Fix the API quality failure caused by a unit test reading the adjacent
+  app-binahub checkout, which does not exist on a standalone GitHub runner.
+  Pin the public SPIN form contract hash in both repositories; each checks its
+  own source independently. Do not skip the contract test when the app is absent.
+- Verify browser-safe validation without server dependencies. No form, scoring,
+  API runtime, scheduler SQL, access, retention or sending changes.
+- Expand the operator guide with Vercel-to-Vault field mapping and a read-only
+  status check. SQL89 success is operator-confirmed; activation is not assumed.
+
 ## [0.47.15] - 2026-11-04
 
 - SQL89 installs a paused Supabase Cron job for existing report recovery, using
