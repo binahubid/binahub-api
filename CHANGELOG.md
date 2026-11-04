@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.47.14] - 2026-11-04
+
+- Add SQL88 service-role-only campaign archive projections and authenticated,
+  rate-limited, private/no-store GET. Search before deterministic 20-row pages
+  and exact scope totals; count statuses before filters, without sample caps.
+- Scope recipient, delivery, batch and audit records by campaign UUID. Inbound
+  uses exact first-touch UTM campaign/source/medium evidence; event history also
+  requires a journey within that campaign scope. Attribution is not identity.
+- Exclude raw prospect/source data, provider errors/IDs, email bodies, signed
+  links and event metadata. Validate input and response scope; missing SQL88 is
+  unavailable, not an empty list. No approval, send, retry or delete actions.
+- Add isolated PostgreSQL and route regressions with >1,000 synthetic records.
+  Deploy after operator SQL88 confirmation and before app 0.51.11. No new env.
+
 ## [0.47.13] - 2026-11-03
 
 - Add SQL87 service-role-only read projections and an authenticated/rate-limited

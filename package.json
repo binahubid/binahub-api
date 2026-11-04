@@ -1,6 +1,6 @@
 {
   "name": "binahub-api",
-  "version": "0.47.13",
+  "version": "0.47.14",
   "private": true,
   "scripts": {
     "dev": "next dev",
