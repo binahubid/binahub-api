@@ -43,7 +43,7 @@ AI asesmen dan fitur AI lain memakai LapakVIP sebagai provider utama ketika `LAP
 
 `AUTOMATION_PILOT_ENABLED` dan `AUTOMATION_LIVE_ENABLED` bukan secret, tetapi merupakan master circuit breaker server-side. Pertahankan keduanya `false` pada deployment normal. Pilot membutuhkan `AUTOMATION_PILOT_ENABLED=true`; live membutuhkan kedua variable `true`. Worker tetap menilai dry-run per workflow, requested mode database, release non-mock berstatus scheduled, dan change window pada setiap invocation, sehingga satu variable saja tidak pernah cukup untuk membuka outbound.
 
-Follow-up otomatis tersedia melalui `GET /api/admin/follow-up` dengan header `Authorization: Bearer <FOLLOW_UP_CRON_SECRET>`. Endpoint ini tetap memerlukan scheduler eksternal (misalnya n8n) dan tidak akan berjalan periodik hanya karena API sudah di-deploy. Worker event tersedia melalui `POST /api/events/process` dengan `TRANSFORMATION_WORKER_SECRET`.
+Follow-up otomatis tersedia melalui `GET /api/admin/follow-up` dengan header `Authorization: Bearer <FOLLOW_UP_CRON_SECRET>`. Endpoint ini tetap memerlukan scheduler tersendiri dan tidak akan berjalan periodik hanya karena API sudah di-deploy. Worker event tersedia melalui `POST /api/events/process` dengan `TRANSFORMATION_WORKER_SECRET`. Pemulihan laporan memakai Supabase Cron melalui SQL89 dan GET `/api/assessment/worker`; lihat [setup sekali jalan](docs/SUPABASE-REPORT-SCHEDULER.md). SQL89 memasang job nonaktif dan tidak ikut mengaktifkan follow-up/outreach atau event AMS.
 
 Worker memakai header `x-worker-secret: <TRANSFORMATION_WORKER_SECRET>`. Gunakan `TRANSFORMATION_WORKER_DRY_RUN=true` pada lokal/UAT agar endpoint hanya menghitung `pendingDue` tanpa mengklaim atau memproses event.
 

@@ -2,6 +2,17 @@
 
 Dokumen ini adalah urutan resmi untuk database bersama `app-binahub` dan `binahub-api`.
 
+## Supabase Cron — API0.47.15 / SQL89
+
+Pasang `0089_supabase_report_scheduler.sql` sebagai file penuh. Job recovery
+laporan dipasang nonaktif; penerapan SQL tidak mengirim request/email atau
+menghapus data peserta. Konfigurasikan Vault `binahub_report_worker_secret`
+dengan nilai `FOLLOW_UP_CRON_SECRET` produksi API, verifikasi deployment dan
+antrean, lalu aktifkan satu job sesuai
+[panduan setup](../docs/SUPABASE-REPORT-SCHEDULER.md). Tidak ada env baru.
+Retensi PETA bulanan, AMS dan outreach tidak dipindahkan/diaktifkan oleh SQL89.
+Tidak perlu replay SQL lama atau menunggu Vercel Cron untuk recovery laporan.
+
 ## Workspace penjualan dan assessment background (API/app 0.29.0)
 
 1. Setelah SQL 60, terapkan `0061_outbound_campaign_settings.sql` lalu `0062_assessment_background_jobs.sql`.

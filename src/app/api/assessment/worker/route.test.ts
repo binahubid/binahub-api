@@ -7,7 +7,7 @@ vi.mock('@/lib/assessment-worker', () => ({ processAssessmentJob: deps.process }
 vi.mock('@/lib/supabase', () => ({ createServerSupabase: () => ({ rpc: deps.rpc }) }));
 vi.mock('@/lib/individual-assessment/email',()=>({processPEReportEmail:deps.personalEmail}));
 vi.mock('@/lib/spin/worker',()=>({processSpinWork:deps.discovery}));
-import { GET } from './route';
+import { GET, HEAD } from './route';
 
 const request = (token = 'synthetic-scheduler-secret') => new NextRequest('https://api.example.invalid/api/assessment/worker', {
   headers: { Authorization: `Bearer ${token}` },
@@ -25,6 +25,31 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe('Assessment scheduler retention and legacy recovery', () => {
+  it('requires Bearer authentication, not an unprefixed secret header', async () => {
+    const response = await GET(new NextRequest('https://api.example.invalid/api/assessment/worker', {
+      headers: { Authorization: 'synthetic-scheduler-secret' },
+    }));
+    expect(response.status).toBe(401);
+    for (const call of Object.values(deps)) expect(call).not.toHaveBeenCalled();
+  });
+  it('fails closed when the server credential is missing', async () => {
+    vi.stubEnv('FOLLOW_UP_CRON_SECRET', '');
+    expect((await GET(request())).status).toBe(401);
+    for (const call of Object.values(deps)) expect(call).not.toHaveBeenCalled();
+  });
+  it('rejects HEAD probes without invoking any stateful worker', () => {
+    const response = HEAD();
+    expect(response.status).toBe(405);
+    expect(response.headers.get('Allow')).toBe('GET');
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    for (const call of Object.values(deps)) expect(call).not.toHaveBeenCalled();
+  });
+  it('does not accept the cron secret in the URL instead of the Authorization header', async () => {
+    const response = await GET(new NextRequest('https://api.example.invalid/api/assessment/worker?secret=synthetic-scheduler-secret'));
+    expect(response.status).toBe(401);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    for (const call of Object.values(deps)) expect(call).not.toHaveBeenCalled();
+  });
   it('rejects an invalid credential before cleanup or recovery', async () => {
     expect((await GET(request('incorrect'))).status).toBe(401);
     expect(deps.rpc).not.toHaveBeenCalled();

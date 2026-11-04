@@ -11,10 +11,11 @@ export const maxDuration = 120;
 export async function GET(request: NextRequest) {
   // Reuse the existing trusted scheduler credential; no new daily env toggle.
   const secret = process.env.FOLLOW_UP_CRON_SECRET;
-  const token = request.headers.get('authorization')?.replace(/^Bearer /, '') || '';
+  const authorization = request.headers.get('authorization') || '';
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
   if (!secret || Buffer.byteLength(token) !== Buffer.byteLength(secret)
     || !timingSafeEqual(Buffer.from(token), Buffer.from(secret))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   const runToken = randomUUID();
   let heartbeatDb: ReturnType<typeof createServerSupabase> | null = null;
@@ -43,4 +44,10 @@ export async function GET(request: NextRequest) {
     if (heartbeatDb) await reportWorkerHeartbeat(heartbeatDb, runToken, 'error');
     return NextResponse.json({ error: 'Assessment worker unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
+}
+
+// Next may otherwise implement HEAD by executing GET. A liveness probe must not
+// claim jobs, purge expired PE data, invoke providers or send result emails.
+export function HEAD() {
+  return new NextResponse(null, { status: 405, headers: { Allow: 'GET', 'Cache-Control': 'no-store' } });
 }

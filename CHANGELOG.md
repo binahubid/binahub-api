@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.47.15] - 2026-11-04
+
+- SQL89 installs a paused Supabase Cron job for existing report recovery, using
+  the SLJ pg_cron/pg_net pattern. Operator-only controls, Vault credential,
+  fixed HTTPS destination and no credentials in job SQL, URL or status output.
+- Bound repeated enqueue/in-flight requests; preserve activation and identity
+  on migration reapplication. Keep PETA monthly retention, outreach and AMS
+  schedules unchanged. Installation/activation checks do not invoke the worker.
+- Restrict browser/PUBLIC reads of pg_net's pending request headers. Existing
+  job leases, retry/backoff and service-health heartbeat remain authoritative.
+- Explicitly reject HEAD probes on the stateful recovery route and require a
+  Bearer header. No new environment variable; operator Vault setup is required.
+- Add isolated PostgreSQL extension-fixture and route regression coverage.
+  Live Supabase extensions, deployed endpoint, provider/email and scheduler
+  activation still require operator verification; no paid provider call in tests.
+
 ## [0.47.14] - 2026-11-04
 
 - Add SQL88 service-role-only campaign archive projections and authenticated,
