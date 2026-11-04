@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.47.17] - 2026-11-04
+
+- Add admin-only, read/compute-only PE/RM trial endpoint for the CEO demonstration.
+  Load actual integrity-checked private banks: PE24 self-report/12 SJT; RM27/13.
+  Deliberately allowlist participant DTOs; never return keys, credits or anchors.
+- Require complete, domain-valid and source-revision-bound submissions. Reuse
+  deterministic instrument scorers, show separate methods plus provisional50:50
+  module score, preserve missing evidence as null and leave RM competency SJT and
+  combined unset until CEO provides weighting. No invented AI scoring.
+- Guard GET/POST with authoritative admin auth, per-actor limits, bounded JSON
+  body, no-store headers and non-disclosing source errors. No commerce, payment,
+  entitlement, participant persistence, email, worker or provider calls. No SQL/env.
+
 ## [0.47.16] - 2026-11-04
 
 - Fix the API quality failure caused by a unit test reading the adjacent
