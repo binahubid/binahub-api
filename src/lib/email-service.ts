@@ -437,7 +437,7 @@ export async function sendOutreachEmail(
   subject: string,
   htmlContent: string,
   company?: string,
-  options?: { idempotencyKey: string; category?: string }
+  options?: { idempotencyKey: string; category?: string; senderName?: string; replyTo?: string; attachments?: { filename: string; content: Buffer }[] }
 ) {
   const normalizedTo = normalizeRecipientEmail(to);
   const db = createServerSupabase();
@@ -463,9 +463,9 @@ export async function sendOutreachEmail(
       .replaceAll('{{company}}', escapeHtml(company || 'Perusahaan Anda')),
   );
   const response = await resend.emails.send({
-    from: `${COMPANY_NAME} <${FROM}>`,
+    from: `${options?.senderName ? safeHeader(options.senderName).replace(/[<>"\\,]/g, '') : COMPANY_NAME} <${FROM}>`,
     to: normalizedTo,
-    replyTo: REPLY_TO,
+    replyTo: options?.replyTo || REPLY_TO,
     subject: safeHeader(subject),
     html: appendUnsubscribeFooter(renderedHtml, unsubscribeUrl),
     headers: {
@@ -473,6 +473,7 @@ export async function sendOutreachEmail(
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
     tags: [{ name: 'category', value: options?.category || 'commercial_follow_up' }],
+    ...(options?.attachments ? { attachments: options.attachments } : {}),
   }, options ? { idempotencyKey: options.idempotencyKey } : undefined);
   if (response.error) throw new Error(`Resend gagal mengirim follow up: ${response.error.message}`);
   return response;

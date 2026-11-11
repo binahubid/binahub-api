@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { supabase, createServerSupabase } from "./supabase";
 
-export type AppRole = "admin" | "facilitator" | "client" | "peserta";
+export type AppRole = "admin" | "facilitator" | "client" | "peserta" | "consultant";
 
 type AuthError = {
   error: string;
@@ -58,7 +58,7 @@ export function getUserRole(user: User): AppRole | null {
     .trim()
     .toLowerCase();
 
-  if (role === "admin" || role === "facilitator" || role === "client" || role === "peserta") {
+  if (role === "admin" || role === "facilitator" || role === "client" || role === "peserta" || role === "consultant") {
     return role;
   }
 
@@ -76,11 +76,12 @@ export async function getAuthoritativeUserRole(user: User): Promise<AppRole | nu
     throw new Error(`Gagal memverifikasi role pengguna: ${error.message}`);
   }
 
+  if (data?.role === "consultant") return "consultant";
   if (isAdminFallbackEmail(user.email)) return "admin";
   if (isFacilitatorFallbackEmail(user.email)) return "facilitator";
 
   const storedRole = String(data?.role || "").trim().toLowerCase();
-  if (storedRole === "admin" || storedRole === "facilitator" || storedRole === "client" || storedRole === "peserta") {
+  if (storedRole === "admin" || storedRole === "facilitator" || storedRole === "client" || storedRole === "peserta" || storedRole === "consultant") {
     return storedRole;
   }
 

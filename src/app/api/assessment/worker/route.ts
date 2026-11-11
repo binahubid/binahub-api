@@ -5,6 +5,7 @@ import { createServerSupabase } from '@/lib/supabase';
 import { processPEReportEmail } from '@/lib/individual-assessment/email';
 import { processSpinWork } from '@/lib/spin/worker';
 import { reportWorkerHeartbeat } from '@/lib/service-health';
+import { processConsultantMessage } from '@/lib/consultant/messages';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -35,10 +36,12 @@ export async function GET(request: NextRequest) {
     try { personalEmail = await processPEReportEmail(); } catch { degraded = true; console.error('[PE email] PE_WORKER_UNAVAILABLE'); }
     let discovery: { processed: boolean; status?: string } = { processed: false };
     try { discovery = await processSpinWork(); } catch { degraded = true; console.error('[SPIN] WORKER_UNAVAILABLE'); }
+    let consultant: { processed: boolean; status?: string } = { processed: false };
+    try { consultant = await processConsultantMessage(); } catch { degraded = true; console.error('[Consultant] WORKER_UNAVAILABLE'); }
     const assessment = await processAssessmentJob();
-    const held = [personalEmail.status, discovery.status, assessment.status].some(status => ['failed','uncertain','pending','setup_required'].includes(status || ''));
+    const held = [personalEmail.status, discovery.status, assessment.status, consultant.status].some(status => ['failed','uncertain','pending','setup_required'].includes(status || ''));
     await reportWorkerHeartbeat(heartbeatDb, runToken, degraded || held ? 'degraded' : 'ok');
-    return NextResponse.json({ ...assessment, personalDataPurged, personalEmail, discovery }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ...assessment, personalDataPurged, personalEmail, discovery, consultant }, { headers: { 'Cache-Control': 'no-store' } });
   }
   catch {
     if (heartbeatDb) await reportWorkerHeartbeat(heartbeatDb, runToken, 'error');

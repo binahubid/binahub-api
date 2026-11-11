@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
     '/api/admin/proposals/preview', '/api/proposal/view', '/api/tbos/export',
     '/api/admin/program-questionnaires/export', '/api/peta/*',
     '/api/discovery/spin/*', '/api/admin/discovery/*',
+    '/api/konsultan/*',
   ].map(route => [route, pdfAssets])),
   turbopack: {
     root: __dirname,

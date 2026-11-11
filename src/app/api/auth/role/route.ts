@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (profile) {
     role = profile.role || null;
     fullName = profile.full_name || "";
-    if (!role || !["admin", "facilitator", "client", "peserta"].includes(role)) {
+    if (!role || !["admin", "facilitator", "client", "peserta", "consultant"].includes(role)) {
       return NextResponse.json(
         { success: false, error: "Role profil pengguna tidak valid." },
         { status: 500 },
