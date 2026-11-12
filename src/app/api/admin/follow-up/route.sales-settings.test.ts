@@ -8,8 +8,10 @@ vi.mock("@/lib/sales-follow-up-settings", async (original) => ({ ...await origin
 vi.mock("@/lib/email-service", () => ({ sendOutreachEmail: mocks.sender, OutreachSuppressedError: class extends Error {} }));
 vi.mock("@/lib/ai-service", () => ({ generateAssessmentFollowUp: vi.fn(), generateInquiryFollowUp: vi.fn() }));
 vi.mock("@/lib/outreach-template", () => ({ loadApprovedOutreachTemplate: mocks.template, isOutboundAutomationActive: vi.fn(), ApprovedOutreachTemplateRequiredError: class extends Error {} }));
-import { GET } from "./route";
-const request = () => new NextRequest("https://api.example.com/api/admin/follow-up", { headers: { authorization: "Bearer test-cron-secret" } });
+import { GET, HEAD } from "./route";
+const request = (supabase = false) => new NextRequest("https://api.example.com/api/admin/follow-up", {
+  headers: { authorization: "Bearer test-cron-secret", ...(supabase ? { "x-binahub-scheduler": "supabase-cron" } : {}) },
+});
 let pauseBeforeSend = false;
 beforeEach(() => {
   vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-06T03:00:00Z")); pauseBeforeSend = false;
@@ -50,6 +52,22 @@ describe("sales-controlled follow-up scheduler", () => {
     pauseBeforeSend = true;
     expect((await GET(request())).status).toBe(423);
     expect(mocks.sender).not.toHaveBeenCalled(); expect(mocks.claimRun).not.toHaveBeenCalled();
+  });
+  it("records a Supabase run and keeps recipient and provider details out of its response", async () => {
+    const response = await GET(request(true));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ success: true, status: "succeeded", sentCount: 1, failureCount: 0 });
+    expect(mocks.claimRun).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ triggerSource: "supabase-cron", dryRun: false }));
+  });
+  it("does not run cron outside the configured sending window or without the app control", async () => {
+    vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
+    expect((await GET(request(true))).status).toBe(202);
+    vi.setSystemTime(new Date("2026-10-06T03:00:00Z"));
+    mocks.settings.mockResolvedValue(null);
+    expect((await GET(request(true))).status).toBe(503);
+    expect(HEAD().status).toBe(405);
+    expect(mocks.sender).not.toHaveBeenCalled();
+    expect(mocks.legacy).not.toHaveBeenCalled();
   });
   it("rechecks a pause after preparing the approved email and before sending", async () => {
     mocks.template.mockImplementation(async () => { pauseBeforeSend = true; return { subject: "Follow-up", html: "Hello", version: "v1" }; });

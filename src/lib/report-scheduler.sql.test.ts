@@ -21,6 +21,8 @@ const age = () => db.exec("update binahub_scheduler.report_dispatch_state set qu
 
 beforeAll(async () => {
   await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
+    create table public.sales_follow_up_settings(id boolean primary key,enabled boolean);
+    insert into public.sales_follow_up_settings values(true,false);
     create schema vault;create table vault.secrets(name text primary key,decrypted_secret text);
     create view vault.decrypted_secrets as select * from vault.secrets;
     create schema cron;
@@ -56,6 +58,55 @@ beforeEach(async () => {
     update binahub_scheduler.report_dispatch_state set request_id=null,queued_at=null;
     delete from cron.job where jobname<>'binahub-report-recovery';`);
   await db.query('update cron.job set command=$1,schedule=$2,active=false,username=current_user,database=current_database()', [command, '* * * * *']);
+});
+
+describe("SQL91 automatic sales follow-up schedule", () => {
+  const migration = readFileSync("supabase/migrations/0091_supabase_sales_follow_up_cron.sql", "utf8");
+  const enable = () => db.exec("select binahub_scheduler.set_sales_follow_up_cron_enabled(true)");
+  const dispatch = () => db.exec("select binahub_scheduler.dispatch_sales_follow_up()");
+  const readStatus = async () => (await db.query<{ value: Record<string, unknown> }>(
+    "select binahub_scheduler.sales_follow_up_cron_status() value",
+  )).rows[0].value;
+
+  beforeEach(async () => {
+    await db.exec(migration);
+    await db.exec(`update binahub_scheduler.sales_follow_up_dispatch_state set queued_at=null,request_id=null;
+      update public.sales_follow_up_settings set enabled=false`);
+  });
+
+  it("installs inactive and checks both existing Vault credential and app enable switch", async () => {
+    expect(await readStatus()).toMatchObject({ installed: true, active: false, schedule: "*/15 * * * *", appEnabled: false });
+    await expect(enable()).rejects.toThrow("Configure binahub_report_worker_secret");
+    await putSecret();
+    await expect(enable()).rejects.toThrow("Enable automatic follow-up");
+    await dispatch();
+    expect((await db.query("select * from net.http_request_queue")).rows).toEqual([]);
+  });
+
+  it("queues the sales endpoint separately, honors a pause and does not accumulate an undrained request", async () => {
+    await putSecret();
+    await db.exec("update public.sales_follow_up_settings set enabled=true");
+    await enable();
+    expect((await status()).active).toBe(false);
+    await dispatch();
+    const jobs = await db.query<{ id: number }>("select id,url,headers,params from net.http_request_queue");
+    expect(jobs.rows).toEqual([{
+      id: expect.any(Number), url: "https://api.binahub.id/api/admin/follow-up", params: {},
+      headers: { Authorization: "Bearer " + secret, "X-BinaHub-Scheduler": "supabase-cron", "Cache-Control": "no-store" },
+    }]);
+    await db.exec("update binahub_scheduler.sales_follow_up_dispatch_state set queued_at=now()-interval '15 minutes'");
+    await dispatch();
+    expect((await db.query("select id from net.http_request_queue")).rows).toHaveLength(1);
+    await db.exec("truncate net.http_request_queue;update public.sales_follow_up_settings set enabled=false");
+    await db.query("insert into net._http_response(id,status_code,content) values($1,202,'PRIVATE')", [jobs.rows[0].id]);
+    await dispatch();
+    const result = await readStatus();
+    expect(result).toMatchObject({ active: true, appEnabled: false, httpState: "outside_sending_window" });
+    expect(JSON.stringify(result)).not.toMatch(/PRIVATE|synthetic-only/);
+    expect((await db.query("select id from net.http_request_queue")).rows).toHaveLength(0);
+    await db.exec(migration);
+    expect((await readStatus()).active).toBe(true);
+  });
 });
 
 describe('SQL89 Supabase report scheduler (extension fixtures, no live network)', () => {

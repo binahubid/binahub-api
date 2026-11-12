@@ -731,6 +731,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: false, error: "Target follow up tidak valid." }, { status: 400 });
 }
 
+export function HEAD() {
+  return new Response(null, { status: 405, headers: { Allow: "GET, POST" } });
+}
+
 export async function GET(req: NextRequest) {
   const runStartedAt = new Date().toISOString();
   const secret = process.env.FOLLOW_UP_CRON_SECRET;
@@ -739,6 +743,7 @@ export async function GET(req: NextRequest) {
   if (!secret || token !== secret) {
     return NextResponse.json({ success: false, error: "Akses cron tidak valid." }, { status: 403 });
   }
+  const fromSupabase = req.headers.get("x-binahub-scheduler") === "supabase-cron";
 
   const window = evaluateFollowUpWindow(new Date(), followUpWindowFromEnvironment());
   if (!window.allowed && process.env.FOLLOW_UP_ENFORCE_BUSINESS_WINDOW !== "false") {
@@ -760,6 +765,9 @@ export async function GET(req: NextRequest) {
   let salesSettings: SalesFollowUpSettings | null = null;
   try {
     salesSettings = await loadSalesFollowUpSettings(db);
+    if (fromSupabase && !salesSettings) {
+      return adminError("Pengaturan tindak lanjut belum tersedia.", 503, "SALES_FOLLOW_UP_SETTINGS_UNAVAILABLE");
+    }
     const enabled = Boolean(salesSettings?.enabled) && salesFollowUpSetupBlockers().length === 0;
     runtimeControl = salesSettings ? {
       requestedMode: enabled ? "live" as const : "disabled" as const,
@@ -843,12 +851,15 @@ export async function GET(req: NextRequest) {
     const claim = await claimAutomationRun(db, {
       workflowKey: "follow_up_scheduler",
       idempotencyKey,
-      triggerSource: "n8n",
+      triggerSource: fromSupabase ? "supabase-cron" : "n8n",
       dryRun,
       referenceDate: window.localDate,
       startedAt: runStartedAt,
     });
     if (!claim.claimed) {
+      if (fromSupabase) {
+        return NextResponse.json({ success: true, duplicate: true }, { headers: { "Cache-Control": "no-store" } });
+      }
       return NextResponse.json({
         success: true,
         duplicate: true,
@@ -985,6 +996,16 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     return adminError(error instanceof Error ? error.message : "Audit follow-up gagal disimpan.", 500, "AUTOMATION_RUN_FINALIZE_FAILED");
+  }
+
+  // pg_net stores response bodies. Keep delivery IDs and provider errors out of its log.
+  if (fromSupabase) {
+    return NextResponse.json({
+      success: failures.length === 0,
+      status: runStatus,
+      sentCount: sent.length,
+      failureCount: failures.length,
+    }, { status: failures.length ? 207 : 200, headers: { "Cache-Control": "no-store" } });
   }
 
   return NextResponse.json(
