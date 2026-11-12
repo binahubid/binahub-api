@@ -8,10 +8,14 @@ import {
   consultantRPC,
 } from "@/lib/consultant/http";
 import { consultantManagement } from "@/lib/consultant/schemas";
+import { listEligibleConsultants, verifyConsultantAssignee } from "@/lib/consultant/ams-eligibility";
 export async function GET(req: NextRequest) {
   const a = await requireAdmin(req);
   if ("error" in a) return consultantJson({ error: a.error }, a.status);
   try {
+    if (req.nextUrl.searchParams.get("view") === "assignees") {
+      return consultantJson({ members: await listEligibleConsultants() });
+    }
     const db = createServerSupabase();
     const [members, accounts, bookings] = await Promise.all([
       db.from("consultant_members").select("*").order("display_name"),
@@ -44,11 +48,14 @@ export async function POST(req: NextRequest) {
   if ("error" in a) return consultantJson({ error: a.error }, a.status);
   try {
     const value = consultantManagement.parse(await consultantBody(req));
+    const ams = value.action === "assign"
+      ? await verifyConsultantAssignee(value.userId)
+      : {};
     return consultantJson(
       await consultantRPC("consultant_manage", {
         p_actor: a.userId,
         p_action: value.action,
-        p_data: value,
+        p_data: { ...value, ...ams },
       }),
     );
   } catch (e) {

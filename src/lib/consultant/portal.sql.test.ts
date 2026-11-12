@@ -21,8 +21,13 @@ async function rpc<T = Record<string, unknown>>(
     )
   ).rows[0].value;
 }
-const manage = (action: string, data: unknown) =>
-  rpc("consultant_manage", [admin, action, data]);
+const amsProof = (userId: string) => ({
+  amsAssociateId: userId,
+  verifiedAmsEmail: userId === alice ? "alice@example.invalid" : "bob@example.invalid",
+});
+const manage = (action: string, data: Record<string, unknown>) =>
+  rpc("consultant_manage", [admin, action,
+    action === "assign" ? { ...data, ...amsProof(String(data.userId)) } : data]);
 const save = (actor: string, version: number, action: string, data: unknown) =>
   rpc("consultant_save_work", [actor, lead, version, action, data]);
 const read = (actor = alice, owner = "all", page = 0, search = "") =>
@@ -58,7 +63,7 @@ const queue = (
 
 beforeAll(async () => {
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
-    create schema auth; create table auth.users(id uuid primary key,email text);
+    create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now());
     create table profiles(id uuid primary key,role text,full_name text);
     create table leads(id uuid primary key,name text,email text,company text,phone text,opportunity_stage text,
       opportunity_owner text,next_action text,next_action_due_at timestamptz,created_at timestamptz default now(),
@@ -70,6 +75,7 @@ beforeAll(async () => {
   await db.exec(
     readFileSync("supabase/migrations/0090_consultant_portal.sql", "utf8"),
   );
+  await db.exec(readFileSync("supabase/migrations/0092_consultant_ams_assignment.sql", "utf8"));
 }, 30000);
 beforeEach(async () => {
   await db.exec(
@@ -101,12 +107,14 @@ beforeEach(async () => {
 });
 afterAll(() => db.close());
 
-describe("SQL90 consultant portal authorization and workflow", () => {
-  it("updates assignment when the admin changes the owner through the existing pipeline", async () => {
-    await db.query("update leads set opportunity_owner=$1 where id=$2", [
+describe("SQL90/92 consultant portal authorization and workflow", () => {
+  it("requires Portal verification for a new consultant owner while preserving Pipeline's regular owners", async () => {
+    await expect(db.query("update leads set opportunity_owner=$1 where id=$2", [
       "bob@example.invalid",
       lead,
-    ]);
+    ])).rejects.toThrow("CONSULTANT_ASSIGN_VIA_PORTAL");
+    expect((await read(alice)).records[0].assigneeId).toBe(alice);
+    await manage("assign", { leadId: lead, userId: bob, version: 1 });
     expect((await read(alice)).records[0]).toMatchObject({
       assigneeId: bob,
       canEdit: false,
@@ -123,6 +131,27 @@ describe("SQL90 consultant portal authorization and workflow", () => {
       assigneeId: null,
       canEdit: false,
     });
+  });
+
+  it("does not assign an unverified or mismatched AMS identity", async () => {
+    const data = { leadId: lead, userId: bob, version: 1 };
+    await expect(rpc("consultant_manage", [admin, "assign", data]))
+      .rejects.toThrow("CONSULTANT_AMS_REQUIRED");
+    await expect(rpc("consultant_manage", [admin, "assign", { ...data, ...amsProof(alice) }]))
+      .rejects.toThrow("CONSULTANT_AMS_REQUIRED");
+    await db.query("update auth.users set email='changed@example.invalid' where id=$1", [bob]);
+    expect((await db.query("select * from consultant_ams_roster($1)", [bob])).rows).toEqual([]);
+    await expect(manage("assign", data)).rejects.toThrow("CONSULTANT_INVALID_MEMBER");
+    expect((await read(alice)).records[0].assigneeId).toBe(alice);
+  });
+
+  it("keeps the verified APP roster private and omits unconfirmed logins", async () => {
+    await db.query("update auth.users set email_confirmed_at=null where id=$1", [bob]);
+    expect((await db.query("select user_id from consultant_ams_roster()")).rows).toEqual([{ user_id: alice }]);
+    await db.exec("set role authenticated");
+    try {
+      await expect(db.query("select * from consultant_ams_roster()")).rejects.toThrow(/permission denied/);
+    } finally { await db.exec("reset role"); }
   });
 
   it("paginates the team agenda and allows a read-only consultant to filter the assigned tasks", async () => {

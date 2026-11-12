@@ -30,7 +30,7 @@ export async function consultantRPC<T = unknown>(
   const { data, error } = await createServerSupabase().rpc(name, args);
   if (error) {
     if (["42883", "42P01", "PGRST202", "PGRST205"].includes(error.code || ""))
-      throw new ConsultantError("CONSULTANT_SETUP_REQUIRED", 503);
+      throw new ConsultantError(name === "consultant_ams_roster" ? "CONSULTANT_AMS_SETUP_REQUIRED" : "CONSULTANT_SETUP_REQUIRED", 503);
     const code = /CONSULTANT_[A-Z_]+/.exec(error.message)?.[0];
     if (!code) throw new ConsultantError("CONSULTANT_UNAVAILABLE", 503);
     throw new ConsultantError(
@@ -127,6 +127,12 @@ export function consultantFailure(error: unknown) {
       "Pengiriman sedang diproses. Coba lagi setelah hasilnya tercatat.",
     CONSULTANT_INVALID_MEMBER:
       "Pilih konsultan dengan akun dan akses yang sesuai.",
+    CONSULTANT_AMS_REQUIRED:
+      "Akun ini belum tercatat sebagai associate aktif di AMS dengan email yang sama.",
+    CONSULTANT_AMS_UNAVAILABLE:
+      "Daftar akun AMS belum dapat diperiksa. Coba lagi beberapa saat.",
+    CONSULTANT_AMS_SETUP_REQUIRED:
+      "Daftar konsultan belum siap. Hubungi admin BinaHub untuk melengkapi integrasi AMS.",
     CONSULTANT_EMAIL_SETUP:
       "Pengiriman email bisnis belum siap. Hubungi admin untuk memeriksa koneksinya.",
     CONSULTANT_MATERIAL_UNAVAILABLE:

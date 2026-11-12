@@ -29,6 +29,7 @@ export async function PATCH(req: NextRequest) {
   });
 
   if (error) {
+    if (error.message.includes("CONSULTANT_ASSIGN_VIA_PORTAL")) return adminError("Tetapkan konsultan dari detail klien di Portal Konsultan agar akun AMS dapat diperiksa.", 409, "CONSULTANT_ASSIGN_VIA_PORTAL");
     if (error.message.includes("LEAD_NOT_FOUND")) return adminError("Lead tidak ditemukan.", 404, "LEAD_NOT_FOUND");
     if (error.message.includes("LOST_REASON_REQUIRED")) return adminError("Alasan lost wajib diisi.", 400, "LOST_REASON_REQUIRED");
     if (error.message.includes("OPPORTUNITY_OWNER_REQUIRED")) return adminError("Owner peluang wajib ditetapkan.", 400, "OPPORTUNITY_OWNER_REQUIRED");
