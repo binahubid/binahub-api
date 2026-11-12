@@ -3,8 +3,6 @@ import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { z } from "zod";
 import type { User } from "@supabase/supabase-js";
-import { consultantRPC, consultantFailure } from '@/lib/consultant/http';
-import { resolvePublicAppUrl } from '@/lib/public-app-url';
 
 const roleSchema = z.enum(["peserta", "facilitator", "admin", "client", "consultant"]);
 const inviteSchema = z.object({
@@ -124,14 +122,10 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ success: false, error: "Data undangan tidak valid." }, { status: 400 });
   const { email, role: targetRole, full_name } = parsed.data;
 
-  if (targetRole === 'consultant') {
-    try {
-      if (!await consultantRPC<boolean>('consultant_actor', { p_actor: auth.userId })) {
-        return NextResponse.json({ success: false, error: 'Akun admin diperlukan untuk mengundang konsultan.' }, { status: 403 });
-      }
-    }
-    catch (error) { return consultantFailure(error); }
-  }
+  if (targetRole === 'consultant') return NextResponse.json({
+    success: false, code: 'CONSULTANT_MANAGE_IN_AMS',
+    error: 'Undang konsultan melalui menu Tim Konsultan di AMS.',
+  }, { status: 409 });
 
   try {
     const { createClient } = await import("@supabase/supabase-js");
@@ -144,7 +138,6 @@ export async function POST(req: NextRequest) {
     // Invite user via Supabase Auth
     const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: full_name || email.split("@")[0] },
-      ...(targetRole === 'consultant' ? { redirectTo: `${resolvePublicAppUrl()}/auth/consultant-invite` } : {}),
     });
 
     if (inviteErr) {
@@ -171,11 +164,7 @@ export async function POST(req: NextRequest) {
         await supabaseAdmin.auth.admin.deleteUser(inviteData.user.id);
         return NextResponse.json({ success: false, error: metadataError.message }, { status: 500 });
       }
-      if (targetRole === 'consultant') {
-        try { await consultantRPC('consultant_manage', { p_actor: auth.userId, p_action: 'member',
-          p_data: { userId: inviteData.user.id, name: full_name || email.split('@')[0], active: true } }); }
-        catch (error) { await supabaseAdmin.auth.admin.deleteUser(inviteData.user.id); return consultantFailure(error); }
-      }
+
     }
 
     return NextResponse.json({ success: true, user: inviteData.user });

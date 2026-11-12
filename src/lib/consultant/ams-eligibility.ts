@@ -20,7 +20,7 @@ async function verifyAmsAccounts(emails: string[]) {
     for (let i = 0; i < validEmails.length; i += 100) {
       const batch = validEmails.slice(i, i + 100);
       const response = responseSchema.parse(await callAms(
-        "/api/integrations/app/associates/eligible", { emails: batch },
+        "/api/integrations/app/consultant-team/eligible", { emails: batch },
       ));
       const seen = new Set<string>();
       for (const { id, email } of response.data) {

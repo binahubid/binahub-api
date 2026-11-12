@@ -35,7 +35,7 @@ describe("Consultant assignment AMS directory", () => {
     mock.rpc.mockResolvedValueOnce({ data: [member, { ...member, user_id: admin, email: "other@example.com" }], error: null });
     const result = await GET(new NextRequest(base + "?view=assignees"));
     expect(await result.json()).toEqual({ members: [{ id: target, name: member.display_name }] });
-    expect(mock.ams).toHaveBeenCalledWith("/api/integrations/app/associates/eligible", { emails: [email, "other@example.com"] });
+    expect(mock.ams).toHaveBeenCalledWith("/api/integrations/app/consultant-team/eligible", { emails: [email, "other@example.com"] });
   });
 
   it("verifies the submitted account again and adds proof server-side", async () => {

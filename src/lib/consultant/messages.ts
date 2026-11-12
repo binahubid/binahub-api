@@ -10,6 +10,7 @@ import { consultantRPC, ConsultantError } from "./http";
 import { consultantProposalPDF } from "./pdf";
 import type { ProposalSnapshot } from "./proposal";
 import { messageInput, type ConsultantDetail } from "./schemas";
+import { assertActiveConsultantMembership, ConsultantMembershipError } from "./membership";
 
 const envelopeSchema = z
   .object({
@@ -66,6 +67,7 @@ export async function queueConsultantMessage(
     .maybeSingle();
   if (error || !member?.active)
     throw new ConsultantError("CONSULTANT_INVALID_MEMBER", 409);
+  await assertActiveConsultantMembership(member.user_id);
   const envelope = envelopeSchema.parse({
     to: detail.record.email,
     name: detail.record.name,
@@ -158,6 +160,12 @@ export async function processConsultantMessage(
     if (!consultantEmailReady()) {
       status = "cancelled";
       throw new Error("DELIVERY_PAUSED");
+    }
+    try {
+      await assertActiveConsultantMembership(envelope.senderId);
+    } catch (error) {
+      if (error instanceof ConsultantMembershipError && error.code === "CONSULTANT_FORBIDDEN") status = "cancelled";
+      throw new Error("MEMBERSHIP_UNAVAILABLE");
     }
     const html = `<p>Yth. Bapak/Ibu ${escape(envelope.name)},</p><div>${escape(envelope.body).replace(/\n/g, "<br>")}</div><p>Salam hangat,<br><strong>${escape(envelope.senderName)}</strong><br>Konsultan BinaHub<br>People. Learning. Elevated.</p>`;
     sending = true;

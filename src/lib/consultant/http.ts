@@ -5,6 +5,7 @@ import { createServerSupabase } from "@/lib/supabase";
 import { getAuthoritativeUserRole, getUserFromBearer } from "@/lib/auth-role";
 import { spinBody, spinOrigin } from "@/lib/spin/http";
 import { SpinError } from "@/lib/spin/intake";
+import { assertActiveConsultantMembership, ConsultantMembershipError } from "./membership";
 
 export const consultantHeaders = {
   "Cache-Control": "private, no-store",
@@ -57,6 +58,7 @@ export async function requireConsultant(req: NextRequest) {
   const admin = await consultantRPC<boolean>("consultant_actor", {
     p_actor: auth.user.id,
   });
+  if (!admin) await assertActiveConsultantMembership(auth.user.id);
   return {
     id: auth.user.id,
     role,
@@ -71,6 +73,8 @@ export async function consultantBody(req: NextRequest) {
 }
 
 export function consultantFailure(error: unknown) {
+  if (error instanceof ConsultantMembershipError)
+    return consultantFailure(new ConsultantError(error.code, error.code === "CONSULTANT_FORBIDDEN" ? 403 : 503));
   if (error instanceof SpinError) {
     const status =
       error.code === "SPIN_FORBIDDEN"
@@ -106,6 +110,7 @@ export function consultantFailure(error: unknown) {
     CONSULTANT_NOT_ASSIGNED:
       "Pekerjaan ini hanya dapat diubah oleh penanggung jawabnya.",
     CONSULTANT_ADMIN_REQUIRED: "Tindakan ini memerlukan admin.",
+    CONSULTANT_MANAGE_IN_AMS: "Kelola keanggotaan dan persetujuan konsultan melalui AMS.",
     CONSULTANT_NOT_FOUND: "Pekerjaan tidak ditemukan.",
     CONSULTANT_CONFLICT:
       "Pekerjaan telah berubah. Muat versi terbaru sebelum melanjutkan.",

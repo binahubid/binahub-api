@@ -25,8 +25,14 @@ const amsProof = (userId: string) => ({
   amsAssociateId: userId,
   verifiedAmsEmail: userId === alice ? "alice@example.invalid" : "bob@example.invalid",
 });
-const manage = (action: string, data: Record<string, unknown>) =>
-  rpc("consultant_manage", [admin, action,
+const syncMember = async (id: string, name: string, active = true, revision = 1) => {
+  const email = id === alice ? "alice@example.invalid" : "bob@example.invalid";
+  await db.query("insert into ams_identity_links values($1,$1,$2) on conflict do nothing", [id, email]);
+  return rpc("consultant_sync_team", [id,id,id,revision,active?"active":"paused","2026-11-01T00:00:00Z","a".repeat(64),"active","2026-11-01T00:00:00Z",name,email]);
+};
+const manage = (action: string, data: Record<string, unknown>) => action === "member"
+  ? syncMember(String(data.userId), String(data.name), Boolean(data.active), data.active ? 1 : 2)
+  : rpc("consultant_manage", [admin, action,
     action === "assign" ? { ...data, ...amsProof(String(data.userId)) } : data]);
 const save = (actor: string, version: number, action: string, data: unknown) =>
   rpc("consultant_save_work", [actor, lead, version, action, data]);
@@ -64,6 +70,7 @@ const queue = (
 beforeAll(async () => {
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now());
+    create table ams_identity_links(ams_associate_id uuid primary key,profile_id uuid unique,email text);
     create table profiles(id uuid primary key,role text,full_name text);
     create table leads(id uuid primary key,name text,email text,company text,phone text,opportunity_stage text,
       opportunity_owner text,next_action text,next_action_due_at timestamptz,created_at timestamptz default now(),
@@ -76,10 +83,11 @@ beforeAll(async () => {
     readFileSync("supabase/migrations/0090_consultant_portal.sql", "utf8"),
   );
   await db.exec(readFileSync("supabase/migrations/0092_consultant_ams_assignment.sql", "utf8"));
+  await db.exec(readFileSync("supabase/migrations/0093_consultant_ams_membership.sql", "utf8"));
 }, 30000);
 beforeEach(async () => {
   await db.exec(
-    "truncate consultant_messages,consultant_proposals,consultant_tasks,consultant_workspaces,consultant_members,opportunity_activities,calendar_bookings,spin_submissions,leads,profiles,auth.users cascade",
+    "truncate consultant_messages,consultant_proposals,consultant_tasks,consultant_workspaces,consultant_members,opportunity_activities,calendar_bookings,spin_submissions,leads,profiles,auth.users,ams_identity_links cascade",
   );
   for (const [id, role, name] of [
     [admin, "admin", "Admin"],
@@ -108,6 +116,19 @@ beforeEach(async () => {
 afterAll(() => db.close());
 
 describe("SQL90/92 consultant portal authorization and workflow", () => {
+  it("grants access only from accepted AMS membership and prevents stale activation after revocation", async () => {
+    await expect(rpc("consultant_manage",[admin,"member",{userId:bob,name:"Bob",active:true}]))
+      .rejects.toThrow("CONSULTANT_MANAGE_IN_AMS");
+    await syncMember(alice,"Alice",false,2);
+    await expect(read(alice)).rejects.toThrow("CONSULTANT_FORBIDDEN");
+    expect(await syncMember(alice,"Alice",true,1)).toMatchObject({stale:true});
+    await expect(read(alice)).rejects.toThrow("CONSULTANT_FORBIDDEN");
+    await expect(syncMember(alice,"Alice",true,2)).rejects.toThrow("CONSULTANT_CONFLICT");
+    await syncMember(alice,"Alice",true,3);
+    expect((await read(alice)).total).toBe(1);
+    await db.query("update consultant_members set ams_membership_id=null where user_id=$1",[alice]);
+    await expect(read(alice)).rejects.toThrow("CONSULTANT_FORBIDDEN");
+  });
   it("requires Portal verification for a new consultant owner while preserving Pipeline's regular owners", async () => {
     await expect(db.query("update leads set opportunity_owner=$1 where id=$2", [
       "bob@example.invalid",

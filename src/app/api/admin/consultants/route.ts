@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
   if ("error" in a) return consultantJson({ error: a.error }, a.status);
   try {
     const value = consultantManagement.parse(await consultantBody(req));
+    if (value.action === "member") return consultantJson({
+      error: "Kelola undangan, persetujuan, dan status konsultan di AMS.",
+      code: "CONSULTANT_MANAGE_IN_AMS",
+    }, 409);
     const ams = value.action === "assign"
       ? await verifyConsultantAssignee(value.userId)
       : {};

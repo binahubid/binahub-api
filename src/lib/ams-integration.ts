@@ -179,17 +179,20 @@ export async function listAmsAssignablePrograms(requesterEmail: string) {
   return { actorProfileId, actorMode, programs };
 }
 
-export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurredAt = new Date().toISOString()) {
+export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurredAt = new Date().toISOString(), purpose: "program" | "consultant" = "program") {
   const db = createServerSupabase();
   const normalizedEmail = identity.email.trim().toLowerCase();
   const { data: existingLink } = await db
     .from("ams_identity_links")
-    .select("profile_id, last_event_at")
+    .select("profile_id, email, last_event_at")
     .eq("ams_associate_id", identity.id)
     .maybeSingle();
 
   if (existingLink && new Date(existingLink.last_event_at).getTime() > new Date(occurredAt).getTime()) {
     return { profileId: existingLink.profile_id as string, stale: true };
+  }
+  if (existingLink && existingLink.email.toLowerCase() !== normalizedEmail) {
+    throw new Error("Email associate berubah. Hubungi admin untuk meninjau hubungan akun AMS dan APP.");
   }
 
   let user = await findAuthUserByEmail(normalizedEmail);
@@ -218,7 +221,7 @@ export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurred
     const { error } = await db.from("profiles").insert({
       id: user.id,
       full_name: identity.fullName,
-      role: "facilitator",
+      role: purpose === "consultant" ? "consultant" : "facilitator",
     });
     if (error) throw new Error("Gagal membuat profil associate di APP.");
   } else {
@@ -227,7 +230,8 @@ export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurred
     // oleh tabel assignment per program, bukan oleh role ini saja.
     const { error } = await db.from("profiles").update({
       full_name: identity.fullName,
-      role: profile.role === "admin" ? "admin" : "facilitator",
+      role: profile.role === "admin" ? "admin"
+        : purpose === "program" || profile.role === "facilitator" ? "facilitator" : "consultant",
     }).eq("id", user.id);
     if (error) throw new Error("Gagal memperbarui profil associate di APP.");
   }
@@ -336,8 +340,14 @@ export async function applyAmsAssignment(event: AmsIntegrationEvent, profileId: 
 }
 
 export async function createAmsAccessTicket(identity: AmsAssociateIdentity, nextPath?: string) {
-  const { profileId } = await ensureAmsIdentity(identity);
   const safeNextPath = nextPath?.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/fasilitator/tbos";
+  if (identity.status !== "active") throw new Error("Akses associate tidak aktif.");
+  const consultant = safeNextPath === "/konsultan" || safeNextPath.startsWith("/konsultan/");
+  const { profileId } = await ensureAmsIdentity(identity, undefined, consultant ? "consultant" : "program");
+  if (consultant) {
+    const { assertActiveConsultantMembership } = await import("./consultant/membership");
+    await assertActiveConsultantMembership(profileId);
+  }
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
@@ -363,6 +373,12 @@ export async function claimAmsAccessSession(ticket: string) {
   });
   const login = Array.isArray(claimed) ? claimed[0] : null;
   if (claimError || !login?.email) return null;
+  if (login.next_path === "/konsultan" || login.next_path?.startsWith("/konsultan/")) {
+    const { data: identity } = await db.from("ams_identity_links").select("profile_id").eq("email", login.email).maybeSingle();
+    if (!identity) return null;
+    const { assertActiveConsultantMembership } = await import("./consultant/membership");
+    await assertActiveConsultantMembership(identity.profile_id);
+  }
 
   const { data: link, error: linkError } = await db.auth.admin.generateLink({
     type: "magiclink",

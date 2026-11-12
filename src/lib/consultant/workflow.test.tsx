@@ -7,6 +7,10 @@ import type { ConsultantDetail } from "./schemas";
 
 const db = vi.hoisted(() => ({ rpc: vi.fn(), row: vi.fn(), send: vi.fn() }));
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/consultant/membership", () => ({
+  assertActiveConsultantMembership: vi.fn().mockResolvedValue(undefined),
+  ConsultantMembershipError: class extends Error {},
+}));
 vi.mock("@/lib/supabase", () => ({
   createServerSupabase: () => ({
     rpc: db.rpc,
