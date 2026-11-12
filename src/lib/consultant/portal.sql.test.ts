@@ -78,6 +78,15 @@ beforeAll(async () => {
       pipeline_updated_at timestamptz,lost_reason text,won_at timestamptz,lost_at timestamptz);
     create table spin_submissions(id uuid primary key,contact jsonb,answers jsonb,question_version text,submitted_at timestamptz);
     create table calendar_bookings(id uuid primary key,lead_id uuid,title text,attendee_name text,start_time timestamptz,end_time timestamptz,status text,meeting_url text);
+    create schema binahub_scheduler;
+    create function binahub_scheduler.report_cron_status() returns jsonb language sql as $$ select '{}'::jsonb $$;
+    create schema vault;
+    create table vault.decrypted_secrets(name text,decrypted_secret text);
+    insert into vault.decrypted_secrets values('binahub_report_worker_secret','synthetic-report-worker-secret-value');
+    create schema net;
+    create table net.requests(id bigint generated always as identity,url text,body jsonb);
+    create function net.http_post(url text,headers jsonb,body jsonb,timeout_milliseconds integer)
+    returns bigint language sql as $$ insert into net.requests(url,body) values($1,$3) returning id $$;
     create table opportunity_activities(id uuid primary key default gen_random_uuid(),lead_id uuid,event_type text,actor text,note text,metadata jsonb,created_at timestamptz default now());`);
   await db.exec(
     readFileSync("supabase/migrations/0090_consultant_portal.sql", "utf8"),
@@ -85,10 +94,11 @@ beforeAll(async () => {
   await db.exec(readFileSync("supabase/migrations/0092_consultant_ams_assignment.sql", "utf8"));
   await db.exec(readFileSync("supabase/migrations/0093_consultant_ams_membership.sql", "utf8"));
   await db.exec(readFileSync("supabase/migrations/0094_consultant_notification_outbox.sql", "utf8"));
+  await db.exec(readFileSync("supabase/migrations/0095_consultant_notification_immediate.sql", "utf8"));
 }, 30000);
 beforeEach(async () => {
   await db.exec(
-    "truncate consultant_notification_outbox,consultant_messages,consultant_proposals,consultant_tasks,consultant_workspaces,consultant_members,opportunity_activities,calendar_bookings,spin_submissions,leads,profiles,auth.users,ams_identity_links cascade",
+    "truncate net.requests,consultant_notification_outbox,consultant_messages,consultant_proposals,consultant_tasks,consultant_workspaces,consultant_members,opportunity_activities,calendar_bookings,spin_submissions,leads,profiles,auth.users,ams_identity_links cascade",
   );
   for (const [id, role, name] of [
     [admin, "admin", "Admin"],
@@ -116,7 +126,21 @@ beforeEach(async () => {
 });
 afterAll(() => db.close());
 
-describe("SQL90/92/93/94 consultant portal authorization and workflow", () => {
+describe("SQL90/92–95 consultant portal authorization and workflow", () => {
+  it("wakes the bridge once for a completed payload and claims only that event", async () => {
+    const rows = (await db.query<{id:string}>("select id from consultant_notification_outbox")).rows;
+    expect(rows).toHaveLength(1);
+    const queued = (await db.query<{url:string;body:{id:string}}>("select url,body from net.requests")).rows;
+    expect(queued).toHaveLength(1);
+    expect(new URL(queued[0].url).pathname).toBe("/api/integrations/ams/notification-dispatch");
+    expect(queued[0].body).toEqual({ id:rows[0].id });
+    const claim = (id:string) => db.query("select * from consultant_notice_claim_new($1,$2)",[randomUUID(),id]);
+    expect((await claim(randomUUID())).rows).toHaveLength(0);
+    expect((await claim(rows[0].id)).rows).toMatchObject([{ id:rows[0].id, status:"processing", attempts:1 }]);
+    expect((await claim(rows[0].id)).rows).toHaveLength(0);
+    await db.exec(readFileSync("supabase/migrations/0095_consultant_notification_immediate.sql", "utf8"));
+    expect((await db.query("select * from net.requests")).rows).toHaveLength(1);
+  });
   it("queues only the current recipient and drops stale work after reassignment", async () => {
     const original = (await db.query<{ id: string }>("select id from consultant_notification_outbox where kind='assignment'")).rows[0];
     expect(await rpc("consultant_notice_payload", [original.id])).toMatchObject({ associateId: alice, active: true, leadId: lead });

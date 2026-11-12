@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { processAssessmentJob } from '@/lib/assessment-worker';
 import { createServerSupabase } from '@/lib/supabase';
 import { processPEReportEmail } from '@/lib/individual-assessment/email';
@@ -7,16 +7,12 @@ import { processSpinWork } from '@/lib/spin/worker';
 import { reportWorkerHeartbeat } from '@/lib/service-health';
 import { processConsultantMessage } from '@/lib/consultant/messages';
 import { processConsultantNotifications } from '@/lib/consultant/notifications';
+import { hasReportWorkerAuthorization } from '@/lib/scheduler-authorization';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 export async function GET(request: NextRequest) {
-  // Reuse the existing trusted scheduler credential; no new daily env toggle.
-  const secret = process.env.FOLLOW_UP_CRON_SECRET;
-  const authorization = request.headers.get('authorization') || '';
-  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-  if (!secret || Buffer.byteLength(token) !== Buffer.byteLength(secret)
-    || !timingSafeEqual(Buffer.from(token), Buffer.from(secret))) {
+  if (!hasReportWorkerAuthorization(request.headers.get('authorization'))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   const runToken = randomUUID();

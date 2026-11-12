@@ -14,9 +14,11 @@ export async function consultantNotificationCurrent(input: z.infer<typeof consul
   return Boolean(data && data.active === true && data.associateId === input.associateId
     && data.sourceId === input.sourceId && data.kind === input.kind && data.version === input.version);
 }
-export async function processConsultantNotifications() {
+export async function processConsultantNotifications(eventId?: string) {
   const db = createServerSupabase(), lease = randomUUID();
-  const { data, error } = await db.rpc('consultant_notice_claim', { p_lease: lease, p_limit: 5 });
+  const { data, error } = eventId
+    ? await db.rpc('consultant_notice_claim_new', { p_lease: lease, p_id: eventId })
+    : await db.rpc('consultant_notice_claim', { p_lease: lease, p_limit: 5 });
   if (error) {
     if (['42883','42P01','PGRST202'].includes(error.code || '')) return { state: 'setup_required', accepted: 0 };
     throw new Error('CONSULTANT_NOTICE_UNAVAILABLE');
