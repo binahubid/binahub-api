@@ -84,10 +84,11 @@ beforeAll(async () => {
   );
   await db.exec(readFileSync("supabase/migrations/0092_consultant_ams_assignment.sql", "utf8"));
   await db.exec(readFileSync("supabase/migrations/0093_consultant_ams_membership.sql", "utf8"));
+  await db.exec(readFileSync("supabase/migrations/0094_consultant_notification_outbox.sql", "utf8"));
 }, 30000);
 beforeEach(async () => {
   await db.exec(
-    "truncate consultant_messages,consultant_proposals,consultant_tasks,consultant_workspaces,consultant_members,opportunity_activities,calendar_bookings,spin_submissions,leads,profiles,auth.users,ams_identity_links cascade",
+    "truncate consultant_notification_outbox,consultant_messages,consultant_proposals,consultant_tasks,consultant_workspaces,consultant_members,opportunity_activities,calendar_bookings,spin_submissions,leads,profiles,auth.users,ams_identity_links cascade",
   );
   for (const [id, role, name] of [
     [admin, "admin", "Admin"],
@@ -115,7 +116,34 @@ beforeEach(async () => {
 });
 afterAll(() => db.close());
 
-describe("SQL90/92 consultant portal authorization and workflow", () => {
+describe("SQL90/92/93/94 consultant portal authorization and workflow", () => {
+  it("queues only the current recipient and drops stale work after reassignment", async () => {
+    const original = (await db.query<{ id: string }>("select id from consultant_notification_outbox where kind='assignment'")).rows[0];
+    expect(await rpc("consultant_notice_payload", [original.id])).toMatchObject({ associateId: alice, active: true, leadId: lead });
+    await manage("assign", { leadId: lead, userId: bob, version: 1 });
+    expect(await rpc("consultant_notice_payload", [original.id])).toBeNull();
+    const current = (await db.query<{ id: string }>("select id from consultant_notification_outbox where kind='assignment' order by sequence desc limit 1")).rows[0];
+    expect(await rpc("consultant_notice_payload", [current.id])).toMatchObject({ associateId: bob, active: true });
+    await syncMember(bob,"Bob",false,2);
+    expect(await rpc("consultant_notice_payload", [current.id])).toBeNull();
+  });
+
+  it("invalidates schedule and task notifications when work changes", async () => {
+    const schedule = randomUUID(), task = randomUUID();
+    await db.query("insert into calendar_bookings(id,lead_id,status,start_time) values($1,$2,'confirmed',now()+interval '2 days')", [schedule,lead]);
+    await db.query("insert into consultant_tasks(id,lead_id,title,due_at,created_by) values($1,$2,'Synthetic task',now()+interval '1 day',$3)", [task,lead,admin]);
+    const [initialSchedule, initialTask] = await Promise.all([schedule,task].map(async id =>
+      (await db.query<{ id: string }>("select id from consultant_notification_outbox where source_id=$1 order by sequence desc limit 1",[id])).rows[0].id,
+    ));
+    expect(await rpc("consultant_notice_payload",[initialSchedule])).toMatchObject({ kind:'schedule', status:'confirmed', active:true });
+    expect(await rpc("consultant_notice_payload",[initialTask])).toMatchObject({ kind:'task', status:'open', active:true });
+    await db.query("update calendar_bookings set status='cancelled' where id=$1",[schedule]);
+    await db.query("update consultant_tasks set status='completed' where id=$1",[task]);
+    expect(await rpc("consultant_notice_payload",[initialSchedule])).toBeNull();
+    expect(await rpc("consultant_notice_payload",[initialTask])).toBeNull();
+    const newSchedule=(await db.query<{ id: string }>("select id from consultant_notification_outbox where source_id=$1 order by sequence desc limit 1",[schedule])).rows[0].id;
+    expect(await rpc("consultant_notice_payload",[newSchedule])).toMatchObject({ status:'cancelled', active:true, associateId:alice });
+  });
   it("grants access only from accepted AMS membership and prevents stale activation after revocation", async () => {
     await expect(rpc("consultant_manage",[admin,"member",{userId:bob,name:"Bob",active:true}]))
       .rejects.toThrow("CONSULTANT_MANAGE_IN_AMS");

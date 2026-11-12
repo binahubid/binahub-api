@@ -6,6 +6,7 @@ import { processPEReportEmail } from '@/lib/individual-assessment/email';
 import { processSpinWork } from '@/lib/spin/worker';
 import { reportWorkerHeartbeat } from '@/lib/service-health';
 import { processConsultantMessage } from '@/lib/consultant/messages';
+import { processConsultantNotifications } from '@/lib/consultant/notifications';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -38,10 +39,17 @@ export async function GET(request: NextRequest) {
     try { discovery = await processSpinWork(); } catch { degraded = true; console.error('[SPIN] WORKER_UNAVAILABLE'); }
     let consultant: { processed: boolean; status?: string } = { processed: false };
     try { consultant = await processConsultantMessage(); } catch { degraded = true; console.error('[Consultant] WORKER_UNAVAILABLE'); }
-    const assessment = await processAssessmentJob();
+    const [assessment, consultantNotifications] = await Promise.all([
+      processAssessmentJob(),
+      processConsultantNotifications().catch(() => {
+        console.error('[Consultant notifications] WORKER_UNAVAILABLE');
+        return { state: 'degraded', accepted: 0 };
+      }),
+    ]);
+    if (consultantNotifications.state === 'degraded') degraded = true;
     const held = [personalEmail.status, discovery.status, assessment.status, consultant.status].some(status => ['failed','uncertain','pending','setup_required'].includes(status || ''));
     await reportWorkerHeartbeat(heartbeatDb, runToken, degraded || held ? 'degraded' : 'ok');
-    return NextResponse.json({ ...assessment, personalDataPurged, personalEmail, discovery, consultant }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ...assessment, personalDataPurged, personalEmail, discovery, consultant, consultantNotifications }, { headers: { 'Cache-Control': 'no-store' } });
   }
   catch {
     if (heartbeatDb) await reportWorkerHeartbeat(heartbeatDb, runToken, 'error');

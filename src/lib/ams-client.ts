@@ -7,7 +7,7 @@ function configuration() {
   return { baseUrl, secret };
 }
 
-export async function callAms<T>(path: string, payload: unknown): Promise<T> {
+export async function callAms<T>(path: string, payload: unknown, timeoutMs = 15000): Promise<T> {
   const { baseUrl, secret } = configuration();
   const body = JSON.stringify(payload);
   const timestamp = String(Date.now());
@@ -21,7 +21,7 @@ export async function callAms<T>(path: string, payload: unknown): Promise<T> {
     },
     body,
     cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.success) throw new Error(result.error || "AMS tidak dapat dihubungi.");

@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const deps = vi.hoisted(() => ({ process: vi.fn(), rpc: vi.fn(),personalEmail:vi.fn(),discovery:vi.fn(),heartbeat:vi.fn(),consultant:vi.fn() }));
+const deps = vi.hoisted(() => ({ process: vi.fn(), rpc: vi.fn(),personalEmail:vi.fn(),discovery:vi.fn(),heartbeat:vi.fn(),consultant:vi.fn(),notifications:vi.fn() }));
 vi.mock('@/lib/service-health',()=>({reportWorkerHeartbeat:deps.heartbeat}));
 vi.mock('@/lib/assessment-worker', () => ({ processAssessmentJob: deps.process }));
 vi.mock('@/lib/supabase', () => ({ createServerSupabase: () => ({ rpc: deps.rpc }) }));
 vi.mock('@/lib/individual-assessment/email',()=>({processPEReportEmail:deps.personalEmail}));
 vi.mock('@/lib/spin/worker',()=>({processSpinWork:deps.discovery}));
 vi.mock('@/lib/consultant/messages',()=>({processConsultantMessage:deps.consultant}));
+vi.mock('@/lib/consultant/notifications',()=>({processConsultantNotifications:deps.notifications}));
 import { GET, HEAD } from './route';
 
 const request = (token = 'synthetic-scheduler-secret') => new NextRequest('https://api.example.invalid/api/assessment/worker', {
@@ -21,6 +22,7 @@ beforeEach(() => {
   deps.personalEmail.mockResolvedValue({processed:false});
   deps.discovery.mockResolvedValue({processed:false});
   deps.consultant.mockResolvedValue({processed:false});
+  deps.notifications.mockResolvedValue({state:'ok',accepted:0,deferred:0,skipped:0});
   deps.heartbeat.mockResolvedValue(true);
   deps.rpc.mockResolvedValue({ data: 2, error: null });
 });
@@ -63,7 +65,7 @@ describe('Assessment scheduler retention and legacy recovery', () => {
   it('runs bounded cleanup and keeps the response uncached', async () => {
     const response = await GET(request());
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ processed: true, personalDataPurged: 2,personalEmail:{processed:false},discovery:{processed:false},consultant:{processed:false} });
+    expect(await response.json()).toEqual({ processed: true, personalDataPurged: 2,personalEmail:{processed:false},discovery:{processed:false},consultant:{processed:false},consultantNotifications:{state:'ok',accepted:0,deferred:0,skipped:0} });
     expect(deps.rpc).toHaveBeenCalledWith('pe_purge_expired_participants', { p_limit: 100 });
     expect(response.headers.get('Cache-Control')).toBe('no-store');
     expect(deps.heartbeat).toHaveBeenCalledTimes(2);
@@ -74,7 +76,7 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     deps.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } });
     const response = await GET(request());
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ processed: true, personalDataPurged: null,personalEmail:{processed:false},discovery:{processed:false},consultant:{processed:false} });
+    expect(await response.json()).toMatchObject({ processed: true, personalDataPurged: null,personalEmail:{processed:false},discovery:{processed:false},consultant:{processed:false} });
     expect(deps.process).toHaveBeenCalledOnce();
   });
   it('isolates a cleanup transport failure without logging the sensitive error', async () => {
@@ -112,5 +114,14 @@ describe('Assessment scheduler retention and legacy recovery', () => {
     expect((await GET(request())).status).toBe(200);
     expect(deps.process).toHaveBeenCalledOnce();
     expect(deps.heartbeat.mock.calls.at(-1)?.[2]).toBe('degraded');
+  });
+  it('continues report recovery when the AMS notification queue is unavailable', async () => {
+    deps.notifications.mockRejectedValue(new Error('PRIVATE NOTIFICATION DIAGNOSTIC'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ processed: true, consultantNotifications: { state: 'degraded' } });
+    expect(deps.heartbeat.mock.calls.at(-1)?.[2]).toBe('degraded');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE NOTIFICATION DIAGNOSTIC');
   });
 });
