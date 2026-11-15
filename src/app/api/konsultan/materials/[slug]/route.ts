@@ -9,7 +9,9 @@ import {
   ConsultantError,
 } from "@/lib/consultant/http";
 const files: Record<string, string> = {
+  "company-profile-v1": "company-profile-binahub-v1.pdf",
   "company-profile": "company-profile-binahub.pdf",
+  "product-knowledge-v1": "product-knowledge-binahub-v1.pdf",
   "product-knowledge": "product-knowledge-binahub.pdf",
 };
 const bucket = "consultant-materials";
@@ -86,6 +88,7 @@ export async function PUT(
       .from(bucket)
       .upload(files[slug], bytes, {
         contentType: "application/pdf",
+        cacheControl: "0",
         upsert: true,
       });
     if (result.error) throw new ConsultantError("CONSULTANT_UNAVAILABLE", 503);
