@@ -9,7 +9,6 @@ import {
   requireConsultant,
   ConsultantError,
 } from "@/lib/consultant/http";
-const files: Record<string, string> = Object.fromEntries(consultantDocuments.map((document) => [document.slug, document.storageName]));
 const bucket = "consultant-materials";
 export const runtime = "nodejs";
 export async function GET(
@@ -18,19 +17,20 @@ export async function GET(
 ) {
   try {
     await requireConsultant(req);
-    const slug = (await ctx.params).slug;
-    if (!Object.hasOwn(files, slug))
+    const { slug } = await ctx.params;
+    const document = consultantDocuments.find((entry) => entry.slug === slug);
+    if (!document)
       throw new ConsultantError("CONSULTANT_NOT_FOUND", 404);
     const { data, error } = await createServerSupabase()
       .storage.from(bucket)
-      .download(files[slug]);
+      .download(document.storageName);
     if (error || !data)
       throw new ConsultantError("CONSULTANT_MATERIAL_UNAVAILABLE", 404);
     return new NextResponse(data, {
       headers: {
         ...consultantHeaders,
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${files[slug]}"`,
+        "Content-Disposition": `attachment; filename="${document.filename}"`,
       },
     });
   } catch (e) {
@@ -51,7 +51,8 @@ export async function PUT(
   try {
     spinOrigin(req);
     const { slug } = await ctx.params;
-    if (!Object.hasOwn(files, slug))
+    const document = consultantDocuments.find((entry) => entry.slug === slug);
+    if (!document)
       throw new ConsultantError("CONSULTANT_NOT_FOUND", 404);
     const length = Number(req.headers.get("content-length"));
     if (
@@ -82,7 +83,7 @@ export async function PUT(
       throw new ConsultantError("CONSULTANT_UNAVAILABLE", 503);
     const result = await storage
       .from(bucket)
-      .upload(files[slug], bytes, {
+      .upload(document.storageName, bytes, {
         contentType: "application/pdf",
         cacheControl: "0",
         upsert: true,

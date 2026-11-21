@@ -24,24 +24,29 @@ it("requires the signed admin-materials scope and does not accept an unrelated i
   expect(storage.sign).not.toHaveBeenCalled();
 });
 
-it("returns all document editions and 29 tutorials without making private files public", async () => {
+it("returns only the approved edition of each document and all 29 tutorials", async () => {
   const response = await POST(request(payload));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   const { data } = await response.json();
-  expect(data.documents).toHaveLength(4);
+  expect(data.documents.map(({ slug, filename }: { slug: string; filename: string }) => [slug, filename])).toEqual([
+    ["company-profile", "BinaHub-company-profile-v3.pdf"],
+    ["product-knowledge", "BinaHub-product-knowledge-v3.pdf"],
+  ]);
   expect(data.videos).toHaveLength(29);
   expect(data.documents.every((document: Record<string, unknown>) => !document.url && !document.storageName)).toBe(true);
   expect(storage.sign).not.toHaveBeenCalled();
 });
 
 it("only signs a known document for two minutes, never an arbitrary storage path", async () => {
-  const rejected = await POST(request({ ...payload, action: "document", slug: "../private-file" }));
-  expect(rejected.status).toBe(404);
+  for (const slug of ["company-profile-v1", "product-knowledge-v1", "../private-file"]) {
+    const rejected = await POST(request({ ...payload, action: "document", slug }));
+    expect(rejected.status).toBe(404);
+  }
   expect(storage.sign).not.toHaveBeenCalled();
   storage.sign.mockResolvedValue({ data: { signedUrl: "https://example.supabase.co/storage/v1/object/sign/consultant-materials/approved.pdf?token=synthetic" }, error: null });
   const response = await POST(request({ ...payload, action: "document", slug: "product-knowledge" }));
   expect(response.status).toBe(200);
   expect((await response.json()).data.expiresInSeconds).toBe(120);
-  expect(storage.sign).toHaveBeenCalledWith("product-knowledge-binahub.pdf", 120);
+  expect(storage.sign).toHaveBeenCalledWith("product-knowledge-binahub-v3.pdf", 120);
 });

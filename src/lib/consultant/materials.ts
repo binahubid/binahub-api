@@ -2,10 +2,20 @@ import tutorials from "./tutorials.json";
 import { createServerSupabase } from "@/lib/supabase";
 
 export const consultantDocuments = [
-  { slug: "company-profile-v1", title: "Company Profile BinaHub — Versi 1", description: "Profil perusahaan, pendekatan, tiga pilar, dan ekosistem BinaHub.", filename: "BinaHub-company-profile-v1.pdf", storageName: "company-profile-binahub-v1.pdf" },
-  { slug: "company-profile", title: "Company Profile BinaHub — Versi 2", description: "Edisi futuristik dari profil perusahaan dan ekosistem BinaHub.", filename: "BinaHub-company-profile-v2.pdf", storageName: "company-profile-binahub.pdf" },
-  { slug: "product-knowledge-v1", title: "Product Knowledge BinaHub — Versi 1", description: "Panduan produk dan 32 program Signature Solutions.", filename: "BinaHub-product-knowledge-v1.pdf", storageName: "product-knowledge-binahub-v1.pdf" },
-  { slug: "product-knowledge", title: "Product Knowledge BinaHub — Versi 2", description: "Edisi futuristik dari panduan produk dan 32 program Signature Solutions.", filename: "BinaHub-product-knowledge-v2.pdf", storageName: "product-knowledge-binahub.pdf" },
+  {
+    slug: "company-profile",
+    title: "Company Profile BinaHub",
+    description: "Profil perusahaan, pendekatan 4A, tiga pilar, dan ekosistem BinaHub.",
+    filename: "BinaHub-company-profile-v3.pdf",
+    storageName: "company-profile-binahub-v3.pdf",
+  },
+  {
+    slug: "product-knowledge",
+    title: "Product Knowledge BinaHub",
+    description: "Panduan layanan BinaHub dan 32 program Signature Solutions.",
+    filename: "BinaHub-product-knowledge-v3.pdf",
+    storageName: "product-knowledge-binahub-v3.pdf",
+  },
 ] as const;
 
 export const consultantTutorials = tutorials;
