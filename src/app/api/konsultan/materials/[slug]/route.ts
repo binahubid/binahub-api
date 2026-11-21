@@ -2,18 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-auth";
 import { spinOrigin } from "@/lib/spin/http";
+import { consultantDocuments } from "@/lib/consultant/materials";
 import {
   consultantFailure,
   consultantHeaders,
   requireConsultant,
   ConsultantError,
 } from "@/lib/consultant/http";
-const files: Record<string, string> = {
-  "company-profile-v1": "company-profile-binahub-v1.pdf",
-  "company-profile": "company-profile-binahub.pdf",
-  "product-knowledge-v1": "product-knowledge-binahub-v1.pdf",
-  "product-knowledge": "product-knowledge-binahub.pdf",
-};
+const files: Record<string, string> = Object.fromEntries(consultantDocuments.map((document) => [document.slug, document.storageName]));
 const bucket = "consultant-materials";
 export const runtime = "nodejs";
 export async function GET(

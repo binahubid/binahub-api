@@ -1,0 +1,292 @@
+[
+  {
+    "id": "F01",
+    "series": "fitur",
+    "title": "Membuka portal dan memahami hak akses",
+    "description": "Menerima peran konsultan dan membedakan akses baca dengan akses mengelola.",
+    "duration": "2:05",
+    "drive": {
+      "fileId": "1JVAx2dLeVq_PHnySmD2TnipfjkPcIaaa"
+    }
+  },
+  {
+    "id": "F02",
+    "series": "fitur",
+    "title": "Membaca prioritas di Beranda",
+    "description": "Mengetahui arti ringkasan, cakupan data, dan pintu menuju pekerjaan.",
+    "duration": "1:40",
+    "drive": {
+      "fileId": "1r8aMzgQpxUP2f59lYJxuw_k3RJ0K-hqb"
+    }
+  },
+  {
+    "id": "F03",
+    "series": "fitur",
+    "title": "Menemukan klien dan penugasan yang tepat",
+    "description": "Menggunakan pencarian, penyaring, halaman hasil, dan label akses.",
+    "duration": "1:50",
+    "drive": {
+      "fileId": "1hPhi1-1zxQuA7ZqNHEeovivuaYiE_V68"
+    }
+  },
+  {
+    "id": "F04",
+    "series": "fitur",
+    "title": "Menentukan penanganan dari asal dan tahap klien",
+    "description": "Membedakan sumber kontak, kemajuan percakapan, dan tindakan berikutnya.",
+    "duration": "2:11",
+    "drive": {
+      "fileId": "1Ol_kh6yWNWvOcfLjGqmWgE0Bux0dCBWp"
+    }
+  },
+  {
+    "id": "F05",
+    "series": "fitur",
+    "title": "Mengelola tahap dan menyiapkan meeting",
+    "description": "Mencatat tahap yang benar, membuka meeting, dan meminta pengganti bila berhalangan.",
+    "duration": "1:59",
+    "drive": {
+      "fileId": "1kMvpjTY7jfdZmXrZGLKP2xL0f9zgNKQB"
+    }
+  },
+  {
+    "id": "F06",
+    "series": "fitur",
+    "title": "Memulai checklist dan menghubungkan jawaban klien",
+    "description": "Memakai pengisian yang tepat dan memahami cara membaca checklist.",
+    "duration": "2:16",
+    "drive": {
+      "fileId": "15heBl04l5bZkUzLIZW2e2Oyg_UE8_3ii"
+    }
+  },
+  {
+    "id": "F07",
+    "series": "fitur",
+    "title": "Memahami siapa yang perlu dikembangkan",
+    "description": "Mengisi konteks organisasi, tujuan awal, dan sasaran peserta.",
+    "duration": "1:47",
+    "drive": {
+      "fileId": "1vPNT84cZhH-6pWWXdzm5gDW3Gx2r-oY_"
+    }
+  },
+  {
+    "id": "F08",
+    "series": "fitur",
+    "title": "Menggali masalah melalui contoh pekerjaan",
+    "description": "Membedakan tantangan, gejala, dampak yang sudah terasa, dan upaya sebelumnya.",
+    "duration": "1:39",
+    "drive": {
+      "fileId": "12kiit7XRfYzLylnkn8Esgv3LlkC7MIEX"
+    }
+  },
+  {
+    "id": "F09",
+    "series": "fitur",
+    "title": "Menentukan dampak dan tingkat prioritas",
+    "description": "Memahami konsekuensi, luas masalah, frekuensi, dan prioritas klien.",
+    "duration": "1:25",
+    "drive": {
+      "fileId": "1Qssm12ga_J121-mj682dqxfyGtd0Ws-2"
+    }
+  },
+  {
+    "id": "F10",
+    "series": "fitur",
+    "title": "Menyepakati perubahan yang ingin dicapai",
+    "description": "Mengubah permintaan umum menjadi sasaran dan tanda kemajuan yang dapat dipahami.",
+    "duration": "1:41",
+    "drive": {
+      "fileId": "1t4l-ZCClpwlAEPvJP_4jfOl885xAprHF"
+    }
+  },
+  {
+    "id": "F11",
+    "series": "fitur",
+    "title": "Menggali pendekatan dan kesiapan pelaksanaan",
+    "description": "Melengkapi preferensi program, keputusan, dan kebutuhan pelaksanaan.",
+    "duration": "2:24",
+    "drive": {
+      "fileId": "1b5Or_E504rochM03zx_MW3une1hFIZky"
+    }
+  },
+  {
+    "id": "F12",
+    "series": "fitur",
+    "title": "Mencatat klarifikasi dan menyelesaikan checklist",
+    "description": "Mempertahankan jawaban awal, menyimpan perubahan, dan menangani isian yang belum lengkap.",
+    "duration": "2:09",
+    "drive": {
+      "fileId": "1tjs3po1o70t96lX3t4Um4JLo_rRnr2O1"
+    }
+  },
+  {
+    "id": "F13",
+    "series": "fitur",
+    "title": "Menyusun draf proposal dari kebutuhan klien",
+    "description": "Memilih program dan melengkapi rincian usulan berdasarkan checklist.",
+    "duration": "1:39",
+    "drive": {
+      "fileId": "1e60C5vuj3H78YcoX6-4i3xP4L5SsuTYa"
+    }
+  },
+  {
+    "id": "F14",
+    "series": "fitur",
+    "title": "Memeriksa PDF dan menjaga revisi tetap sesuai",
+    "description": "Membaca riwayat proposal, memeriksa isi PDF, dan menangani perubahan kebutuhan.",
+    "duration": "1:46",
+    "drive": {
+      "fileId": "19AMkr8LNHLv6_J0pErDR54rQz5U0MMqK"
+    }
+  },
+  {
+    "id": "F15",
+    "series": "fitur",
+    "title": "Membuat tugas yang jelas dan menandainya selesai",
+    "description": "Mencatat pekerjaan berikutnya dengan tenggat yang dapat dipantau.",
+    "duration": "1:18",
+    "drive": {
+      "fileId": "1Y_IJzlyXopWXC4QdrkRP4CGlc6OYlCx4"
+    }
+  },
+  {
+    "id": "F16",
+    "series": "fitur",
+    "title": "Menyiapkan email dan meninjau pengiriman",
+    "description": "Memilih jenis email, penerima, lampiran, pesan, dan konfirmasi yang benar.",
+    "duration": "2:04",
+    "drive": {
+      "fileId": "1J1cNIOhTFHzhwQTScsSeGEccqmEYw4Ih"
+    }
+  },
+  {
+    "id": "F17",
+    "series": "fitur",
+    "title": "Menjadwalkan email dan memahami statusnya",
+    "description": "Menentukan waktu kirim serta membedakan enam status pengiriman.",
+    "duration": "1:56",
+    "drive": {
+      "fileId": "1QnELpkZRE5DoMscmmzR9K1w8wYF2wyUn"
+    }
+  },
+  {
+    "id": "F18",
+    "series": "fitur",
+    "title": "Mencatat balasan dan membaca riwayat aktivitas",
+    "description": "Menjaga tim memahami respons klien dan menghentikan tindak lanjut yang sudah tidak relevan.",
+    "duration": "1:41",
+    "drive": {
+      "fileId": "1803QlrNaMieDNh-30I8qkhxK9au-wo3S"
+    }
+  },
+  {
+    "id": "F19",
+    "series": "fitur",
+    "title": "Menyerahkan program yang telah disepakati",
+    "description": "Mencatat kesepakatan dan mengonfirmasi serah terima untuk pelaksanaan.",
+    "duration": "1:37",
+    "drive": {
+      "fileId": "1_H8Qjnq3-597vfzMAegESzOp-CMxZwZ5"
+    }
+  },
+  {
+    "id": "F20",
+    "series": "fitur",
+    "title": "Meninjau agenda dan membuka pekerjaan terkait",
+    "description": "Menyaring agenda tim dan melanjutkan pekerjaan dari peluang yang benar.",
+    "duration": "1:22",
+    "drive": {
+      "fileId": "1AZyx4HTbc5ZoqKmTW6jqjEBl_7aWIhAY"
+    }
+  },
+  {
+    "id": "F21",
+    "series": "fitur",
+    "title": "Membaca dan menggunakan materi konsultasi",
+    "description": "Memilih dokumen, membaca di portal, berpindah halaman, memperbesar, dan mengunduh.",
+    "duration": "1:36",
+    "drive": {
+      "fileId": "14zAlKfUbRr27dPiSJvKzlTBSODsvX5UQ"
+    }
+  },
+  {
+    "id": "S01",
+    "series": "sop",
+    "title": "Menerima undangan dan mulai bekerja",
+    "description": "Menuntaskan persetujuan peran lalu masuk dengan akun yang benar.",
+    "duration": "1:33",
+    "drive": {
+      "fileId": "1bZKkANMIdmbBskbW3NrCb_iUc6ZbGAKc"
+    }
+  },
+  {
+    "id": "S02",
+    "series": "sop",
+    "title": "Membaca penugasan sebelum menghubungi klien",
+    "description": "Memastikan pemilik pekerjaan, asal klien, tahap, dan tindakan yang diperlukan.",
+    "duration": "1:30",
+    "drive": {
+      "fileId": "1JYDPBZDvQXOhbphMWjMXvPNPRuYt8uUs"
+    }
+  },
+  {
+    "id": "S03",
+    "series": "sop",
+    "title": "Menyiapkan bahan sebelum konsultasi",
+    "description": "Membawa konteks dan bahan pembahasan yang sesuai ke pertemuan klien.",
+    "duration": "1:31",
+    "drive": {
+      "fileId": "1QE6mmXp0pXxp8zCJHHxKsv6BkT8iOOfR"
+    }
+  },
+  {
+    "id": "S04",
+    "series": "sop",
+    "title": "Memandu percakapan dan menyimpan hasilnya",
+    "description": "Menghasilkan checklist yang lengkap dan mencerminkan kesepakatan meeting.",
+    "duration": "2:01",
+    "drive": {
+      "fileId": "1kaF7jb1yblbEWlC9_dtnCt_nYQFY3HIl"
+    }
+  },
+  {
+    "id": "S05",
+    "series": "sop",
+    "title": "Membuat usulan dan memeriksa dokumennya",
+    "description": "Menghasilkan draf yang sesuai hasil meeting sebelum disampaikan kepada klien.",
+    "duration": "1:37",
+    "drive": {
+      "fileId": "1ZfHLNV8kyFXyFWvHHrb9thPbOvqdGs6-"
+    }
+  },
+  {
+    "id": "S06",
+    "series": "sop",
+    "title": "Mengirim usulan atas nama konsultan",
+    "description": "Meninjau penerima, pengirim, lampiran, pesan, dan konfirmasi pengiriman.",
+    "duration": "1:53",
+    "drive": {
+      "fileId": "1Q6eYyJwrHUTH1Gpyy-3JGNDqW63n7F6T"
+    }
+  },
+  {
+    "id": "S07",
+    "series": "sop",
+    "title": "Menangani respons dan menjadwalkan langkah berikutnya",
+    "description": "Mencatat respons klien, memperbarui tugas, dan merencanakan tindak lanjut yang relevan.",
+    "duration": "1:42",
+    "drive": {
+      "fileId": "1PnWMT7DI2BFhiGGOsqQdrD1oVmMo45Hi"
+    }
+  },
+  {
+    "id": "S08",
+    "series": "sop",
+    "title": "Menyerahkan kesepakatan untuk pelaksanaan",
+    "description": "Menyelesaikan tanggung jawab konsultasi dengan catatan serah terima yang lengkap.",
+    "duration": "1:27",
+    "drive": {
+      "fileId": "1pWVYUQ1wyf53-mNdyIr5UQk3BmAzWdae"
+    }
+  }
+]
