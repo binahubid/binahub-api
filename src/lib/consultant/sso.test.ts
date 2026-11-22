@@ -1,5 +1,5 @@
 import {beforeEach,describe,expect,it,vi} from "vitest";
-const mock=vi.hoisted(()=>({db:vi.fn(),assert:vi.fn(),link:vi.fn(),insert:vi.fn(),consume:vi.fn()}));
+const mock=vi.hoisted(()=>({db:vi.fn(),assert:vi.fn(),link:vi.fn(),insert:vi.fn(),consume:vi.fn(),getUser:vi.fn(),listUsers:vi.fn()}));
 vi.mock("server-only",()=>({}));
 vi.mock("@/lib/supabase",()=>({createServerSupabase:mock.db}));
 vi.mock("./membership",()=>({assertActiveConsultantMembership:mock.assert}));
@@ -11,8 +11,10 @@ beforeEach(()=>{
   mock.consume.mockResolvedValue({data:[{email:"alice@example.com",next_path:"/konsultan"}],error:null});
   mock.link.mockResolvedValue({data:{properties:{hashed_token:"temporary-magic-link"}},error:null});
   mock.insert.mockResolvedValue({error:null});
+  mock.getUser.mockResolvedValue({data:{user:{id,email:"alice@example.com"}},error:null});
+  mock.listUsers.mockResolvedValue({data:{users:[{id,email:"alice@example.com"}]},error:null});
   mock.db.mockReturnValue({
-    auth:{admin:{listUsers:async()=>({data:{users:[{id,email:"alice@example.com"}]},error:null}),generateLink:mock.link}},
+    auth:{admin:{getUserById:mock.getUser,listUsers:mock.listUsers,generateLink:mock.link}},
     rpc:mock.consume,
     from:(table:string)=>{const q={
       select:()=>q,eq:()=>q,update:()=>q,upsert:async()=>({error:null}),insert:mock.insert,
@@ -25,6 +27,8 @@ describe("AMS consultant access ticket",()=>{
   it("creates a short-lived, hashed one-use ticket only after membership verification",async()=>{
     const result=await createAmsAccessTicket({id:associate,email:"alice@example.com",fullName:"Alice",status:"active"},"/konsultan");
     expect(mock.assert).toHaveBeenCalledWith(id);
+    expect(mock.getUser).toHaveBeenCalledWith(id);
+    expect(mock.listUsers).not.toHaveBeenCalled();
     const ticket=new URL(result.url).searchParams.get("ticket");
     expect(ticket).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(mock.insert).toHaveBeenCalledWith(expect.objectContaining({

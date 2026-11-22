@@ -195,7 +195,14 @@ export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurred
     throw new Error("Email associate berubah. Hubungi admin untuk meninjau hubungan akun AMS dan APP.");
   }
 
-  let user = await findAuthUserByEmail(normalizedEmail);
+  const linked = existingLink ? await db.auth.admin.getUserById(existingLink.profile_id) : null;
+  if (linked?.error && linked.error.status !== 404 && linked.error.code !== "user_not_found") {
+    throw new Error("Gagal memeriksa akun associate di APP.");
+  }
+  const linkedUser = linked?.data.user;
+  let user = linkedUser?.email?.toLowerCase() === normalizedEmail
+    ? linkedUser
+    : await findAuthUserByEmail(normalizedEmail);
   if (!user) {
     const { data, error } = await db.auth.admin.createUser({
       email: normalizedEmail,
