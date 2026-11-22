@@ -24,7 +24,7 @@ it("requires the signed admin-materials scope and does not accept an unrelated i
   expect(storage.sign).not.toHaveBeenCalled();
 });
 
-it("returns only the approved edition of each document and all 29 tutorials", async () => {
+it("returns the approved documents and all 66 video versions in the existing episode catalog", async () => {
   const response = await POST(request(payload));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
@@ -34,6 +34,16 @@ it("returns only the approved edition of each document and all 29 tutorials", as
     ["product-knowledge", "BinaHub-product-knowledge-v3.pdf"],
   ]);
   expect(data.videos).toHaveLength(29);
+  expect(data.videos.filter((video: { versions: { en?: unknown } }) => video.versions.en)).toHaveLength(29);
+  const mobile = data.videos.filter((video: { versions: { mobile?: unknown } }) => video.versions.mobile);
+  expect(mobile.map((video: { id: string }) => video.id)).toEqual(
+    Array.from({ length: 8 }, (_, index) => "S0" + (index + 1)),
+  );
+  const fileIds = data.videos.flatMap((video: {
+    drive: { fileId: string };
+    versions: Record<string, { drive: { fileId: string } }>;
+  }) => [video.drive.fileId, ...Object.values(video.versions).map(({ drive }) => drive.fileId)]);
+  expect(new Set(fileIds).size).toBe(66);
   expect(data.documents.every((document: Record<string, unknown>) => !document.url && !document.storageName)).toBe(true);
   expect(storage.sign).not.toHaveBeenCalled();
 });
