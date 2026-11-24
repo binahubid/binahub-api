@@ -7,11 +7,13 @@ import {
 } from "@/lib/consultant/http";
 import { consultantQuery } from "@/lib/consultant/schemas";
 import { SPIN_CATALOG } from "@/lib/spin/catalog";
+import { withConsultantOrigins } from "@/lib/consultant/origin";
+import type { ConsultantLead } from "@/lib/consultant/schemas";
 export async function GET(req: NextRequest) {
   try {
     const actor = await requireConsultant(req),
       q = consultantQuery.parse(Object.fromEntries(req.nextUrl.searchParams));
-    const result = await consultantRPC<Record<string, unknown>>(
+    const result = await consultantRPC<Record<string, unknown> & { records: ConsultantLead[] }>(
       "consultant_portal_read",
       {
         p_actor: actor.id,
@@ -23,6 +25,7 @@ export async function GET(req: NextRequest) {
     );
     return consultantJson({
       ...result,
+      records: await withConsultantOrigins(result.records),
       catalog: SPIN_CATALOG.modules.map(
         ({ code, name, dailyRateIdr, capacity, pricingModel }) => ({
           code,

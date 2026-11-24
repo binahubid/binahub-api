@@ -131,6 +131,11 @@ export const messageInput = z
   .strict()
   .refine((v) => v.kind !== "proposal" || v.proposalId !== null);
 
+export type ConsultantOrigin = {
+  kind: "recommendation" | "assessment_team" | "assessment_individual" | "inquiry" | "consultation" | "outbound" | "unknown";
+  label: string;
+  status: "recorded" | "unrecorded" | "unavailable";
+};
 export type ConsultantLead = {
   id: string;
   name: string;
@@ -148,6 +153,7 @@ export type ConsultantLead = {
   checklistStatus: string;
   handoff: object | null;
   updatedAt: string;
+  origin?: ConsultantOrigin;
 };
 export type ConsultantWorkspace = {
   lead_id: string;

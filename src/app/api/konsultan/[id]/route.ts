@@ -7,6 +7,7 @@ import {
   requireConsultant,
 } from "@/lib/consultant/http";
 import { readConsultation, saveConsultation } from "@/lib/consultant/service";
+import { withConsultantOrigins } from "@/lib/consultant/origin";
 type Context = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: Context) {
   try {
@@ -18,7 +19,9 @@ export async function GET(req: NextRequest, ctx: Context) {
       .min(0)
       .max(10000)
       .parse(req.nextUrl.searchParams.get("page") || 0);
-    return consultantJson(await readConsultation(actor.id, id, page));
+    const detail = await readConsultation(actor.id, id, page);
+    const [record] = await withConsultantOrigins([detail.record]);
+    return consultantJson({ ...detail, record });
   } catch (e) {
     return consultantFailure(e);
   }
