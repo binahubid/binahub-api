@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { consultantFailure, consultantJson, requireConsultant } from "@/lib/consultant/http";
-import { consultantTutorials } from "@/lib/consultant/materials";
+import { tutorialDisplayCatalog } from "@/lib/consultant/materials";
 
 export async function GET(request: NextRequest) {
   try {
     await requireConsultant(request);
-    return consultantJson(consultantTutorials);
+    return consultantJson(tutorialDisplayCatalog);
   } catch (error) {
     return consultantFailure(error);
   }
