@@ -39,11 +39,7 @@ it("returns the approved documents and all 66 video versions in the existing epi
   expect(mobile.map((video: { id: string }) => video.id)).toEqual(
     Array.from({ length: 8 }, (_, index) => "S0" + (index + 1)),
   );
-  const fileIds = data.videos.flatMap((video: {
-    drive: { fileId: string };
-    versions: Record<string, { drive: { fileId: string } }>;
-  }) => [video.drive.fileId, ...Object.values(video.versions).map(({ drive }) => drive.fileId)]);
-  expect(new Set(fileIds).size).toBe(66);
+  expect(JSON.stringify(data.videos)).not.toMatch(/"(?:drive|fileId|resourceKey)":/);
   expect(data.documents.every((document: Record<string, unknown>) => !document.url && !document.storageName)).toBe(true);
   expect(storage.sign).not.toHaveBeenCalled();
 });
@@ -58,5 +54,5 @@ it("only signs a known document for two minutes, never an arbitrary storage path
   const response = await POST(request({ ...payload, action: "document", slug: "product-knowledge" }));
   expect(response.status).toBe(200);
   expect((await response.json()).data.expiresInSeconds).toBe(120);
-  expect(storage.sign).toHaveBeenCalledWith("product-knowledge-binahub-v3.pdf", 120);
+  expect(storage.sign).toHaveBeenCalledWith("product-knowledge-binahub-v3-20261125.pdf", 120);
 });
