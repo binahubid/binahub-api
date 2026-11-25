@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     );
     return consultantJson({
       ...result,
+      ...(q.owner === "mine" ? { session: actor } : {}),
       records: await withConsultantOrigins(result.records),
       catalog: SPIN_CATALOG.modules.map(
         ({ code, name, dailyRateIdr, capacity, pricingModel }) => ({

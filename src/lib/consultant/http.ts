@@ -52,12 +52,12 @@ export async function requireConsultant(req: NextRequest) {
   const auth = await getUserFromBearer(req);
   if ("error" in auth)
     throw new ConsultantError("CONSULTANT_SIGN_IN", auth.status);
-  const role = await getAuthoritativeUserRole(auth.user);
+  const [role, admin] = await Promise.all([
+    getAuthoritativeUserRole(auth.user),
+    consultantRPC<boolean>("consultant_actor", { p_actor: auth.user.id }),
+  ]);
   if (role !== "admin" && role !== "consultant" && role !== "facilitator")
     throw new ConsultantError("CONSULTANT_FORBIDDEN", 403);
-  const admin = await consultantRPC<boolean>("consultant_actor", {
-    p_actor: auth.user.id,
-  });
   if (!admin) await assertActiveConsultantMembership(auth.user.id);
   return {
     id: auth.user.id,

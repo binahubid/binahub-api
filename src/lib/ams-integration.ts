@@ -179,12 +179,17 @@ export async function listAmsAssignablePrograms(requesterEmail: string) {
   return { actorProfileId, actorMode, programs };
 }
 
-export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurredAt = new Date().toISOString(), purpose: "program" | "consultant" = "program") {
+export async function ensureAmsIdentity(
+  identity: AmsAssociateIdentity,
+  occurredAt = new Date().toISOString(),
+  purpose: "program" | "consultant" = "program",
+  keepUnchangedLink = false,
+) {
   const db = createServerSupabase();
   const normalizedEmail = identity.email.trim().toLowerCase();
   const { data: existingLink } = await db
     .from("ams_identity_links")
-    .select("profile_id, email, last_event_at")
+    .select("profile_id, email, full_name, associate_status, last_event_at")
     .eq("ams_associate_id", identity.id)
     .maybeSingle();
 
@@ -219,10 +224,16 @@ export async function ensureAmsIdentity(identity: AmsAssociateIdentity, occurred
 
   const { data: profile, error: profileError } = await db
     .from("profiles")
-    .select("id, role")
+    .select("id, role, full_name")
     .eq("id", user.id)
     .maybeSingle();
   if (profileError) throw new Error("Gagal memeriksa profil APP.");
+
+  if (keepUnchangedLink && existingLink?.profile_id === linkedUser?.id && linkedUser?.id === user.id
+    && existingLink?.full_name === identity.fullName && existingLink?.associate_status === identity.status
+    && profile?.full_name === identity.fullName && ["consultant", "facilitator", "admin"].includes(profile.role)) {
+    return { profileId: user.id, stale: false };
+  }
 
   if (!profile) {
     const { error } = await db.from("profiles").insert({
@@ -350,7 +361,7 @@ export async function createAmsAccessTicket(identity: AmsAssociateIdentity, next
   const safeNextPath = nextPath?.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/fasilitator/tbos";
   if (identity.status !== "active") throw new Error("Akses associate tidak aktif.");
   const consultant = safeNextPath === "/konsultan" || safeNextPath.startsWith("/konsultan/");
-  const { profileId } = await ensureAmsIdentity(identity, undefined, consultant ? "consultant" : "program");
+  const { profileId } = await ensureAmsIdentity(identity, undefined, consultant ? "consultant" : "program", consultant);
   if (consultant) {
     const { assertActiveConsultantMembership } = await import("./consultant/membership");
     await assertActiveConsultantMembership(profileId);
@@ -369,10 +380,13 @@ export async function createAmsAccessTicket(identity: AmsAssociateIdentity, next
   if (error) throw new Error("Gagal membuat tautan masuk APP.");
 
   const appUrl = resolvePublicAppUrl();
-  return { url: `${appUrl}/auth/ams?ticket=${encodeURIComponent(token)}`, expiresAt };
+  return { url: `${appUrl}/auth/ams?ticket=${encodeURIComponent(token)}${consultant ? "&portal=konsultan" : ""}`, expiresAt };
 }
 
-export async function claimAmsAccessSession(ticket: string) {
+export async function claimAmsAccessSession(
+  ticket: string,
+  readCurrentUser?: () => Promise<{ id: string; email?: string } | null>,
+) {
   const db = createServerSupabase();
   const tokenHash = createHash("sha256").update(ticket).digest("hex");
   const { data: claimed, error: claimError } = await db.rpc("claim_ams_login_ticket", {
@@ -380,11 +394,17 @@ export async function claimAmsAccessSession(ticket: string) {
   });
   const login = Array.isArray(claimed) ? claimed[0] : null;
   if (claimError || !login?.email) return null;
-  if (login.next_path === "/konsultan" || login.next_path?.startsWith("/konsultan/")) {
+  const nextPath = typeof login.next_path === "string" ? login.next_path : "/fasilitator/tbos";
+  if (nextPath === "/konsultan" || nextPath.startsWith("/konsultan/")) {
+    const currentUser = readCurrentUser?.().catch(() => null);
     const { data: identity } = await db.from("ams_identity_links").select("profile_id").eq("email", login.email).maybeSingle();
     if (!identity) return null;
     const { assertActiveConsultantMembership } = await import("./consultant/membership");
     await assertActiveConsultantMembership(identity.profile_id);
+    const user = await currentUser;
+    if (user?.id === identity.profile_id && user?.email?.trim().toLowerCase() === login.email) {
+      return { reuseSession: true as const, nextPath };
+    }
   }
 
   const { data: link, error: linkError } = await db.auth.admin.generateLink({
@@ -397,6 +417,6 @@ export async function claimAmsAccessSession(ticket: string) {
 
   return {
     tokenHash: link.properties.hashed_token,
-    nextPath: typeof login.next_path === "string" ? login.next_path : "/fasilitator/tbos",
+    nextPath,
   };
 }
