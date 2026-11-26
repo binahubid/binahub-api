@@ -24,7 +24,7 @@ it("requires the signed admin-materials scope and does not accept an unrelated i
   expect(storage.sign).not.toHaveBeenCalled();
 });
 
-it("returns the approved documents and all 66 video versions in the existing episode catalog", async () => {
+it("returns the approved documents and all 68 tutorial and case-study videos", async () => {
   const response = await POST(request(payload));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
@@ -33,8 +33,13 @@ it("returns the approved documents and all 66 video versions in the existing epi
     ["company-profile", "BinaHub-company-profile-v3.pdf"],
     ["product-knowledge", "BinaHub-product-knowledge-v3.pdf"],
   ]);
-  expect(data.videos).toHaveLength(29);
-  expect(data.videos.filter((video: { versions: { en?: unknown } }) => video.versions.en)).toHaveLength(29);
+  expect(data.videos).toHaveLength(30);
+  expect(data.videos.filter((video: { versions: { en?: unknown } }) => video.versions.en)).toHaveLength(30);
+  expect(data.videos.find((video: { id: string }) => video.id === "KASUS")).toMatchObject({
+    series: "studi-kasus",
+    duration: "11:11",
+    versions: { en: { duration: "10:20" } },
+  });
   const mobile = data.videos.filter((video: { versions: { mobile?: unknown } }) => video.versions.mobile);
   expect(mobile.map((video: { id: string }) => video.id)).toEqual(
     Array.from({ length: 8 }, (_, index) => "S0" + (index + 1)),
