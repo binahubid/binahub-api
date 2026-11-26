@@ -74,4 +74,26 @@ describe("buildPublicCatalog", () => {
     expect(result[0].name).toBe("Team Transformation");
     expect(result[0].modules[0]).toMatchObject({ name: "Team Synergy", description: "Menyelaraskan cara kerja tim", learningObjectives: ["Membangun kolaborasi"] });
   });
+  it("prefers the approved public copy without overriding proposal data", () => {
+    const [category] = buildPublicCatalog([{
+      id: "p1", product_key: "signature-self", slug: "self", name: "Transformasi Diri", objective: null,
+      short_description: null, public_description: null, cover_image_url: null, featured: false, display_order: 1,
+    }], [{
+      id: "m1", product_id: "p1", module_code: "SS-10", slug: "ss-10", name: "Legacy offering",
+      description: null, standard_scope: "Internal scope", deliverables: "Internal deliverable", out_of_scope: null,
+      duration_label: "Internal duration", featured: false, display_order: 10, catalog_version: "signature-2026-ceo-v1",
+      metadata: {
+        localized: { en: { name: "Legacy title" } },
+        publicCatalog: {
+          id: { name: "Coaching Skills for Leaders", serviceBrand: "BinaLab", contentOutline: ["Latihan coaching"], outputs: ["Rencana tindak lanjut"] },
+        },
+        commercial: { basePrice: 25000000 },
+      },
+    }], "id");
+    expect(category.modules[0]).toMatchObject({
+      name: "Coaching Skills for Leaders", serviceBrand: "BinaLab",
+      standardScope: "Latihan coaching", deliverables: "Rencana tindak lanjut",
+    });
+    expect(JSON.stringify(category)).not.toMatch(/Internal scope|Internal deliverable|25000000/);
+  });
 });

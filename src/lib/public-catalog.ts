@@ -42,8 +42,9 @@ export function buildPublicCatalog(
   const localizedModule = (module: PublicCatalogModuleRow) => {
     const metadata = module.metadata && typeof module.metadata === "object" && !Array.isArray(module.metadata)
       ? module.metadata as Record<string, unknown> : {};
-    const localized = metadata.localized && typeof metadata.localized === "object" && !Array.isArray(metadata.localized)
-      ? metadata.localized as Record<string, unknown> : {};
+    const source = metadata.publicCatalog ?? metadata.localized;
+    const localized = source && typeof source === "object" && !Array.isArray(source)
+      ? source as Record<string, unknown> : {};
     const copy = localized[locale] && typeof localized[locale] === "object" && !Array.isArray(localized[locale])
       ? localized[locale] as Record<string, unknown> : {};
     const details = (key: string) => Array.isArray(copy[key])
@@ -52,7 +53,7 @@ export function buildPublicCatalog(
     const field = (key: string) => typeof copy[key] === "string" ? copy[key] as string : null;
     return {
       // CEO solution titles remain English in both locales; localize body only.
-      name: (localized.en && typeof localized.en === "object" && !Array.isArray(localized.en)
+      name: field("name") && metadata.publicCatalog ? field("name") : (localized.en && typeof localized.en === "object" && !Array.isArray(localized.en)
         && typeof (localized.en as Record<string, unknown>).name === "string"
         ? (localized.en as Record<string, string>).name : null) || module.name,
       description: field("summary") || module.description,
@@ -92,8 +93,8 @@ export function buildPublicCatalog(
           code: catalogModule.module_code,
           slug: catalogModule.slug,
           ...content,
-          standardScope: catalogModule.standard_scope,
-          deliverables: catalogModule.deliverables,
+          standardScope: content.contentOutline.join("\n") || catalogModule.standard_scope,
+          deliverables: content.outputs.join("\n") || catalogModule.deliverables,
           outOfScope: catalogModule.out_of_scope,
           durationLabel: catalogModule.duration_label,
           featured: catalogModule.featured,
