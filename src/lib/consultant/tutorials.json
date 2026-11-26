@@ -3,16 +3,16 @@
     "id": "F01",
     "series": "fitur",
     "title": "Membuka portal dan memahami hak akses",
-    "description": "Menerima peran konsultan dan membedakan akses baca dengan akses mengelola.",
-    "duration": "2:05",
+    "description": "Buka undangan dari AMS, baca NDA dan ACA, lalu kenali cakupan akses Anda di Portal Konsultan.",
+    "duration": "2:02",
     "drive": {
       "fileId": "1JVAx2dLeVq_PHnySmD2TnipfjkPcIaaa"
     },
     "versions": {
       "en": {
         "title": "Open the portal and understand your access",
-        "description": "Accept the consultant role and understand who can view or edit work.",
-        "duration": "1:29",
+        "description": "Open your AMS invitation, review the NDA and ACA, and understand your access in the Consultant Portal.",
+        "duration": "1:42",
         "drive": {
           "fileId": "1JRwH5LibNqSs4VgmfHSjFJZr2-YokFvW"
         }
@@ -403,16 +403,16 @@
     "id": "F21",
     "series": "fitur",
     "title": "Membaca dan menggunakan materi konsultasi",
-    "description": "Memilih dokumen, membaca di portal, berpindah halaman, memperbesar, dan mengunduh.",
-    "duration": "1:36",
+    "description": "Buka indeks program di Product Knowledge, bandingkan rincian program, dan putar video langsung di portal.",
+    "duration": "0:56",
     "drive": {
       "fileId": "14zAlKfUbRr27dPiSJvKzlTBSODsvX5UQ"
     },
     "versions": {
       "en": {
         "title": "Read materials in the portal",
-        "description": "Find a document, read it in the portal, and download it when needed.",
-        "duration": "1:02",
+        "description": "Use the Product Knowledge index to compare programs and play tutorials inside the portal.",
+        "duration": "0:47",
         "drive": {
           "fileId": "1QvOTuVagkM7ndmc1iZL9Xj1lPbvoovmW"
         }
@@ -423,7 +423,7 @@
     "id": "S01",
     "series": "sop",
     "title": "Menerima undangan dan mulai bekerja",
-    "description": "Menuntaskan persetujuan peran lalu masuk dengan akun yang benar.",
+    "description": "Tinjau NDA dan ACA di AMS, setujui undangan, lalu buka Portal Konsultan.",
     "duration": "1:33",
     "drive": {
       "fileId": "1bZKkANMIdmbBskbW3NrCb_iUc6ZbGAKc"
@@ -431,8 +431,8 @@
     "versions": {
       "en": {
         "title": "Accept your invitation and open the portal",
-        "description": "Complete the agreement and use the account that received the invitation.",
-        "duration": "1:16",
+        "description": "Review the NDA and ACA in AMS, accept the invitation, then open the Consultant Portal.",
+        "duration": "1:14",
         "drive": {
           "fileId": "1h87napOhvoWoK2RCPPW37W6BabEN42vV"
         }
@@ -441,7 +441,8 @@
         "duration": "1:33",
         "drive": {
           "fileId": "1pK_jfIqlJAdgB94HDdKNmYK284zmOi1A"
-        }
+        },
+        "description": "Tinjau NDA dan ACA di AMS, setujui undangan, lalu buka Portal Konsultan."
       }
     }
   },
@@ -475,25 +476,26 @@
     "id": "S03",
     "series": "sop",
     "title": "Menyiapkan bahan sebelum konsultasi",
-    "description": "Membawa konteks dan bahan pembahasan yang sesuai ke pertemuan klien.",
-    "duration": "1:31",
+    "description": "Gunakan Company Profile dan indeks Product Knowledge untuk menyiapkan bahan sebelum konsultasi.",
+    "duration": "1:38",
     "drive": {
       "fileId": "1QE6mmXp0pXxp8zCJHHxKsv6BkT8iOOfR"
     },
     "versions": {
       "en": {
         "title": "Prepare for the consultation",
-        "description": "Bring the relevant context and materials to the client meeting.",
-        "duration": "1:22",
+        "description": "Use the Company Profile and Product Knowledge index to prepare for a consultation.",
+        "duration": "1:34",
         "drive": {
           "fileId": "1R9MvQIqztb5FuUIEvVcyuWWl-sTy5Zp_"
         }
       },
       "mobile": {
-        "duration": "1:31",
+        "duration": "1:38",
         "drive": {
           "fileId": "1X2_lMsGcZrDAzJF7QMIpQTUIBG7kpDeQ"
-        }
+        },
+        "description": "Gunakan Company Profile dan indeks Product Knowledge untuk menyiapkan bahan sebelum konsultasi."
       }
     }
   },
