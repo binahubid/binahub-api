@@ -39,7 +39,7 @@ vi.mock("@/lib/email-service", () => ({
 }));
 
 import { buildConsultantProposal } from "./proposal";
-import { consultantProposalPDF } from "./pdf";
+import { consultantProposalCode, consultantProposalFilename, consultantProposalPDF } from "./pdf";
 import { readConsultantRecommendation, recommendationCard, suggestConsultantPrograms } from "./recommendation";
 import { requiresProposalPriceRefresh } from "./pricing";
 import { getConsultantEmailIdentity, processConsultantMessage, queueConsultantMessage } from "./messages";
@@ -318,14 +318,37 @@ describe("Consultant proposal and email workflow", () => {
     });
   });
 
+  it("includes confirmed additional costs in the proposal total", () => {
+    const { detail, input } = sample();
+    const { snapshot } = buildConsultantProposal(detail, {
+      ...input,
+      programCodes: [daily.code],
+      additionalComponents: [{ name: "Sewa ruang pelatihan", amountIdr: 3_500_000 }],
+    }, member.display_name);
+    expect(snapshot).toMatchObject({ total: 53_500_000, pricedSubtotal: 53_500_000 });
+  });
+
   it("renders a PDF for a proposal with several programs and unpriced items", async () => {
     const { detail, input } = sample();
     const { snapshot } = buildConsultantProposal(
       detail,
-      { ...input, programCodes: [daily.code, nondaily.code] },
+      { ...input, programCodes: [daily.code, nondaily.code], additionalComponents: [
+        { name: "Sewa ruang pelatihan", amountIdr: 3500000 },
+        { name: "Akomodasi fasilitator", amountIdr: null },
+      ] },
       member.display_name,
     );
-    const bytes = await consultantProposalPDF(snapshot, 1);
+    expect(snapshot).toMatchObject({ total: null, pricedSubtotal: 53_500_000 });
+    expect(snapshot.additionalComponents).toEqual([
+      { name: "Sewa ruang pelatihan", amountIdr: 3500000 },
+      { name: "Akomodasi fasilitator", amountIdr: null },
+    ]);
+    const proposalId = "c2a49fb8-5f55-45a8-b8c7-826f99f9aed2";
+    const code = consultantProposalCode(snapshot.issuedAt, proposalId);
+    expect(code).toMatch(/^BH\/\d{6}\/[A-F0-9]{10}$/);
+    expect(consultantProposalFilename(snapshot.issuedAt, proposalId)).toContain(code.replaceAll("/", "-"));
+    expect(consultantProposalCode(snapshot.issuedAt, "81cb7fa4-34b0-4483-b7cd-e86907e59d4a")).not.toBe(code);
+    const bytes = await consultantProposalPDF(snapshot, proposalId);
     expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
     expect(bytes.length).toBeGreaterThan(10000);
     if (process.env.CONSULTANT_PDF_FIXTURE === "true") {
@@ -444,7 +467,7 @@ describe("Consultant proposal and email workflow", () => {
         replyTo: member.email,
         attachments: [
           expect.objectContaining({
-            filename: "BinaHub-Proposal-r1.pdf",
+            filename: expect.stringMatching(/^Proposal-BinaHub-BH-\d{6}-[A-F0-9]{10}\.pdf$/),
             content: expect.any(Buffer),
           }),
         ],

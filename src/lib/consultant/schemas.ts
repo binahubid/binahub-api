@@ -115,6 +115,10 @@ export const proposalInput = z
     location: z.string().trim().max(300),
     scopeNote: note,
     nextStep: note.max(500).optional(),
+    additionalComponents: z.array(z.object({
+      name: z.string().trim().min(1).max(140),
+      amountIdr: z.number().int().min(0).max(1_000_000_000_000).nullable(),
+    }).strict()).max(6).optional(),
   })
   .strict();
 export const messageInput = z

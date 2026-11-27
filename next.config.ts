@@ -12,12 +12,13 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   outputFileTracingIncludes: {
     ...Object.fromEntries([
-    '/api/assessment', '/api/assessment/worker', '/api/admin/assessments',
+    '/api/assessment', '/api/admin/assessments',
     '/api/admin/proposals/preview', '/api/proposal/view', '/api/tbos/export',
     '/api/admin/program-questionnaires/export', '/api/peta/*',
     '/api/discovery/spin/*', '/api/admin/discovery/*',
-    '/api/konsultan/*',
     ].map(route => [route, pdfAssets])),
+    '/api/konsultan/*': [...pdfAssets, './public/brand/consultant-proposal-cover.jpg'],
+    '/api/assessment/worker': [...pdfAssets, './public/brand/consultant-proposal-cover.jpg'],
     '/api/konsultan/materials/*': [
       './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
       './node_modules/@napi-rs/canvas-linux-x64-gnu/*.node',

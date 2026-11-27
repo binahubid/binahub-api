@@ -8,7 +8,7 @@ import {
   outreachSenderHeader,
 } from "@/lib/email-service";
 import { consultantRPC, ConsultantError } from "./http";
-import { consultantProposalPDF } from "./pdf";
+import { consultantProposalFilename, consultantProposalPDF } from "./pdf";
 import type { ProposalSnapshot } from "./proposal";
 import { requiresProposalPriceRefresh } from "./pricing";
 import { messageInput, type ConsultantDetail } from "./schemas";
@@ -156,7 +156,7 @@ export async function processConsultantMessage(
       m.proposal_id
         ? db
             .from("consultant_proposals")
-            .select("snapshot,revision")
+            .select("snapshot")
             .eq("id", m.proposal_id)
             .eq("lead_id", m.lead_id)
             .single()
@@ -175,16 +175,12 @@ export async function processConsultantMessage(
       status = "cancelled";
       throw new Error("CONTEXT_CHANGED");
     }
-    const attachments = proposal.data
-      ? [
-          {
-            filename: `BinaHub-Proposal-r${proposal.data.revision}.pdf`,
-            content: await consultantProposalPDF(
-              proposal.data.snapshot as ProposalSnapshot,
-              proposal.data.revision,
-            ),
-          },
-        ]
+    const snapshot = proposal.data?.snapshot as ProposalSnapshot | undefined;
+    const attachments = m.proposal_id && snapshot
+      ? [{
+        filename: consultantProposalFilename(snapshot.issuedAt, m.proposal_id),
+        content: await consultantProposalPDF(snapshot, m.proposal_id),
+      }]
       : undefined;
     if (!consultantEmailReady()) {
       status = "cancelled";

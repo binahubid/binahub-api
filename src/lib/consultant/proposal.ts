@@ -24,6 +24,7 @@ export type ProposalSnapshot = {
   intendedSchedule?: string;
   nextStep?: string;
   pricedSubtotal?: number | null;
+  additionalComponents?: { name: string; amountIdr: number | null }[];
   programs: {
     code: string;
     name: string;
@@ -66,9 +67,11 @@ export function buildConsultantProposal(
       ...estimateConsultantProgram(p, input.participants, input.days),
     };
   });
-  const pricedPrograms = programs.filter(p => p.total !== null);
-  const pricedSubtotal = pricedPrograms.length
-    ? pricedPrograms.reduce((total, program) => total + (program.total ?? 0), 0) : null;
+  const components = input.additionalComponents ?? [];
+  const amounts = [...programs.map(program => program.total), ...components.map(item => item.amountIdr)];
+  const pricedAmounts = amounts.filter(amount => amount !== null);
+  const pricedSubtotal = pricedAmounts.length
+    ? pricedAmounts.reduce((subtotal, amount) => subtotal + amount, 0) : null;
   const snapshot: ProposalSnapshot = {
     documentKind: "formal",
     company: detail.record.company,
@@ -86,9 +89,10 @@ export function buildConsultantProposal(
     nextStep: input.nextStep || "Mohon konfirmasi ruang lingkup dan pilihan jadwal agar kami dapat menyiapkan kesepakatan pelaksanaan.",
     programs,
     pricedSubtotal,
-    total: pricedPrograms.length === programs.length ? pricedSubtotal : null,
+    ...(components.length > 0 ? { additionalComponents: components } : {}),
+    total: pricedAmounts.length === amounts.length ? pricedSubtotal : null,
     priceNote:
-      "Estimasi mengacu pada tarif harian atau paket di katalog. Format indoor atau outdoor memakai tarif program yang sama. Pajak, perjalanan, akomodasi, dan fasilitas dikonfirmasi terpisah sesuai kebutuhan.",
+      "Estimasi memakai tarif katalog yang berlaku untuk format indoor dan outdoor. Pajak dan biaya di luar rincian ini dikonfirmasi sesuai kebutuhan.",
   };
   const hash = createHash("sha256")
     .update(
