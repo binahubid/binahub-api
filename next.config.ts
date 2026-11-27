@@ -7,6 +7,12 @@ const pdfAssets = [
   './public/fonts/Inter-Bold.ttf',
 ];
 
+const consultantPdfAssets = [
+  ...pdfAssets,
+  './public/fonts/PlusJakartaSans-*.ttf',
+  './public/brand/consultant-proposal-cover.jpg',
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
@@ -17,8 +23,8 @@ const nextConfig: NextConfig = {
     '/api/admin/program-questionnaires/export', '/api/peta/*',
     '/api/discovery/spin/*', '/api/admin/discovery/*',
     ].map(route => [route, pdfAssets])),
-    '/api/konsultan/*': [...pdfAssets, './public/brand/consultant-proposal-cover.jpg'],
-    '/api/assessment/worker': [...pdfAssets, './public/brand/consultant-proposal-cover.jpg'],
+    '/api/konsultan/*': consultantPdfAssets,
+    '/api/assessment/worker': consultantPdfAssets,
     '/api/konsultan/materials/*': [
       './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
       './node_modules/@napi-rs/canvas-linux-x64-gnu/*.node',

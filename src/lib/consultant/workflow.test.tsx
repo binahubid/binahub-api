@@ -351,6 +351,16 @@ describe("Consultant proposal and email workflow", () => {
     const bytes = await consultantProposalPDF(snapshot, proposalId);
     expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
     expect(bytes.length).toBeGreaterThan(10000);
+    const records = bytes.toString("latin1");
+    const pageSizes = [...records.matchAll(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/g)];
+    expect(pageSizes).toHaveLength(5);
+    for (const [, width, height] of pageSizes) {
+      expect(Number(width)).toBeCloseTo(595.28, 2);
+      expect(Number(height)).toBeCloseTo(841.89, 2);
+    }
+    for (const weight of ["Regular", "SemiBold", "Bold"]) {
+      expect(records).toContain(`+PlusJakartaSans-${weight}`);
+    }
     if (process.env.CONSULTANT_PDF_FIXTURE === "true") {
       mkdirSync("tmp/pdfs", { recursive: true });
       writeFileSync("tmp/pdfs/consultant-proposal-synthetic.pdf", bytes);
