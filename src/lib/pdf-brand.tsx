@@ -28,6 +28,15 @@ export const pdfStyles = StyleSheet.create({
   footerLabel: { fontSize: 8, color: pdfColors.muted, flex: 1, paddingRight: 16 },
   footerPage: { width: 74, height: 12, fontSize: 8, color: pdfColors.muted, textAlign: 'right' },
 });
+export const pdfOverviewStyles = StyleSheet.create({
+  path: { flexDirection: 'row', marginBottom: 17 },
+  cell: { width: '33.333%', backgroundColor: '#f1f5fb', padding: 12, borderRightWidth: 1, borderRightColor: '#ffffff' },
+  cellAccent: { backgroundColor: '#e5eefc' },
+  label: { fontFamily: pdfFont, fontWeight: 600, fontSize: 9.5, color: pdfColors.navy, marginBottom: 6 },
+  row: { flexDirection: 'row', gap: 18 },
+  main: { width: '61%' },
+  aside: { width: '35%', backgroundColor: '#f1f5fb', padding: 12, borderRadius: 7 },
+});
 export function PDFBrand() { return <PDFImage src={logo} style={pdfStyles.brand} />; }
 export function PDFHeader({ title, meta }: { title: string; meta?: string }) {
   return <View fixed><PDFBrand /><View style={pdfStyles.header}><Text style={pdfStyles.title}>{title}</Text>{meta && <Text style={pdfStyles.meta}>{meta}</Text>}</View></View>;

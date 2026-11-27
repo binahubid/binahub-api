@@ -5,7 +5,7 @@ import { SPIN_DEFINITION } from "@/lib/spin/intake";
 import { SPIN_CATALOG } from "@/lib/spin/catalog";
 import type { ConsultantDetail } from "./schemas";
 
-const db = vi.hoisted(() => ({ rpc: vi.fn(), row: vi.fn(), send: vi.fn() }));
+const db = vi.hoisted(() => ({ rpc: vi.fn(), row: vi.fn(), send: vi.fn(), eq: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/consultant/membership", () => ({
   assertActiveConsultantMembership: vi.fn().mockResolvedValue(undefined),
@@ -17,9 +17,14 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       select: () => {
         const chain = {
-          eq: () => chain,
+          eq: (field: string, value: unknown) => { db.eq(table, field, value); return chain; },
+          not: () => chain,
+          order: () => chain,
+          limit: () => chain,
           single: () => db.row(table),
-          maybeSingle: () => db.row(table),
+          maybeSingle: () => Object.assign(Promise.resolve(db.row(table)), {
+            overrideTypes: () => Promise.resolve(db.row(table)),
+          }),
         };
         return chain;
       },
@@ -33,6 +38,8 @@ vi.mock("@/lib/email-service", () => ({
 
 import { buildConsultantProposal } from "./proposal";
 import { consultantProposalPDF } from "./pdf";
+import { readConsultantRecommendation, recommendationCard, suggestConsultantPrograms } from "./recommendation";
+import { requiresProposalPriceRefresh } from "./pricing";
 import { processConsultantMessage, queueConsultantMessage } from "./messages";
 import { OutreachSuppressedError } from "@/lib/email-service";
 
@@ -54,7 +61,7 @@ const member = {
 const date = "2026-11-11T07:00:00.000Z";
 const daily = SPIN_CATALOG.modules.find((m) => m.dailyRateIdr !== null)!;
 const nondaily = SPIN_CATALOG.modules.find(
-  (m) => m.dailyRateIdr === null && m.code !== "SS-27",
+  (m) => m.dailyRateIdr === null && m.pricingModel !== "Paket Standar" && m.code !== "SS-27",
 )!;
 
 function sample() {
@@ -152,7 +159,7 @@ describe("Consultant proposal and email workflow", () => {
         { ...input, participants: 31 },
         member.display_name,
       ).snapshot.total,
-    ).toBeNull();
+    ).toBe(daily.dailyRateIdr! * 2 * 2);
     expect(
       buildConsultantProposal(detail, input, member.display_name).hash,
     ).toBe(outdoor.hash);
@@ -164,6 +171,75 @@ describe("Consultant proposal and email workflow", () => {
         member.display_name,
       ),
     ).toThrow("CONSULTANT_NOT_ASSIGNED");
+  });
+
+  it.each([
+    [30, 1, 25000000, "Essential"],
+    [31, 1, 50000000, "Signature"],
+    [50, 1, 50000000, "Signature"],
+    [50, 2, 100000000, "Signature"],
+    [80, 1, 50000000, "Signature"],
+    [81, 1, 75000000, "Enterprise"],
+    [150, 1, 75000000, "Enterprise"],
+    [151, 1, 75450000, "Enterprise"],
+    [170, 2, 168000000, "Enterprise"],
+    [10, 0.5, 25000000, "Essential"],
+  ])("prices Team Building for %i people and %i days as Rp%i", (participants, days, total, tier) => {
+    const { detail, input } = sample();
+    const { snapshot } = buildConsultantProposal(detail, { ...input, participants, days, programCodes: ["SS-11"] }, member.display_name);
+    expect(snapshot.total).toBe(total);
+    expect(snapshot.programs[0].priceBasis).toContain(tier);
+  });
+
+  it("keeps a known subtotal when one program needs a custom quote", () => {
+    const { detail, input } = sample();
+    const { snapshot } = buildConsultantProposal(detail, {
+      ...input, days: 1, participants: 50, programCodes: ["SS-11", nondaily.code],
+    }, member.display_name);
+    expect(snapshot).toMatchObject({ total: null, pricedSubtotal: 50000000, documentKind: "formal" });
+  });
+
+  it("flags a legacy draft when an estimate can now be calculated", () => {
+    const { detail, input } = sample();
+    const { snapshot } = buildConsultantProposal(detail, { ...input, programCodes: ["SS-11"] }, member.display_name);
+    expect(requiresProposalPriceRefresh(snapshot)).toBe(false);
+    expect(requiresProposalPriceRefresh({
+      ...snapshot, documentKind: undefined, programs: [{ code: "SS-11", total: null }], total: null,
+    })).toBe(true);
+  });
+
+  it("reuses a sent recommendation from the same lead without redelivering it", async () => {
+    const { detail } = sample();
+    const id = "00000000-0000-4000-8000-000000000009";
+    detail.workspace!.source_id = id;
+    const bytes = Buffer.from("%PDF-1.7 initial").toString("base64");
+    db.row.mockImplementation(async (table) => ({
+      error: null,
+      data: table === "spin_submissions" ? {
+        id, submitted_at: date, status: "ready", question_version: SPIN_DEFINITION.version, answers: detail.workspace!.answers,
+        report: {
+          version: "spin-report-v3-v1", reference: id, issuedAt: date, company: person.company,
+          summary: { situation: "", problem: "", impact: "", outcome: "" }, snapshot: [], investments: [],
+          confirmations: [], nextStep: "", bookingUrl: null, taxNote: "", disclaimer: "",
+          solutions: [{ code: "SS-11", name: "Team Building", components: [], outputs: [], evidence: [{ need: "Kolaborasi tim", objective: "Mengoordinasikan kontribusi tim" }] }],
+        },
+      } : { status: "sent", sent_at: date, pdf_base64: bytes },
+    }));
+    const initial = await readConsultantRecommendation(detail, true);
+    expect(initial?.pdf).toBe(bytes);
+    expect(recommendationCard(detail, initial!)).toMatchObject({
+      sentAt: date, delivery: "sent", programs: [{ code: "SS-11", name: "Team Building" }],
+    });
+    expect(db.eq).toHaveBeenCalledWith("spin_submissions", "lead_id", lead);
+    expect(db.eq).toHaveBeenCalledWith("spin_submissions", "contact->>email", person.email);
+    expect(db.eq).toHaveBeenCalledWith("spin_submissions", "id", id);
+    expect(db.eq).toHaveBeenCalledWith("spin_mail_jobs", "submission_id", id);
+    expect(await suggestConsultantPrograms(detail, 2)).toMatchObject({
+      source: "initial", status: "suggested", programs: [{ code: "SS-11" }],
+    });
+    await expect(suggestConsultantPrograms({ ...detail, record: { ...detail.record, canEdit: false } }, 2))
+      .rejects.toThrow("CONSULTANT_NOT_ASSIGNED");
+    expect(db.send).not.toHaveBeenCalled();
   });
 
   it("renders a PDF for a proposal with several programs and unpriced items", async () => {

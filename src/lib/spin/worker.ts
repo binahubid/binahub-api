@@ -3,6 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { Resend } from 'resend';
 import { createServerSupabase } from '@/lib/supabase';
 import { resolvePublicAppUrl } from '@/lib/public-app-url';
+import { renderApprovedOutreachHtml } from '@/lib/email-template-renderer';
 import { spinRPC } from './http';
 import { SPIN_DEFINITION, SpinError, spinHash, spinConfirmedNeeds, validateSpinAnswers } from './intake';
 import { prepareSpinRecommendation } from './service';
@@ -18,7 +19,7 @@ export function spinLinkKey(job:string) {
 }
 const escape=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export function spinEmail(name:string,url:string) {
- return '<div style="background:#f7f8fa;padding:32px 16px;font-family:Arial,sans-serif;color:#0b2c6b"><div style="max-width:560px;margin:auto;background:white;padding:32px;border-radius:12px"><p style="font-size:21px;font-weight:bold">BinaHub</p><h1 style="font-size:24px">Rekomendasi pengembangan Anda telah tersedia</h1><p style="line-height:1.7">Yth. '+escape(name)+', terima kasih telah berbagi kebutuhan organisasi Anda. Laporan terlampir memuat ringkasan kebutuhan, rekomendasi awal, dan langkah berikutnya.</p><p><a style="display:inline-block;padding:14px 20px;background:#0b2c6b;border-radius:8px;color:white;text-decoration:none" href="'+escape(url)+'">Lihat rekomendasi Anda</a></p><p style="font-size:13px;line-height:1.7">Tautan pribadi berlaku 48 jam dan sekali pakai. Setelah dibuka, sesi tersedia 30 menit. Jangan teruskan tautan; gunakan PDF untuk pembahasan internal. Anda dapat meminta tautan baru dari halaman laporan.</p><p>Salam profesional,<br>Tim BinaHub</p><p style="font-size:12px">Bantuan: admin@binahub.id</p></div></div>';
+ return renderApprovedOutreachHtml('<h1 style="font-size:24px">Rekomendasi pengembangan Anda telah tersedia</h1><p style="line-height:1.7">Yth. '+escape(name)+', terima kasih telah berbagi kebutuhan organisasi Anda. Laporan terlampir memuat ringkasan kebutuhan, rekomendasi awal, dan langkah berikutnya.</p><p><a style="display:inline-block;padding:14px 20px;background:#0b2c6b;border-radius:8px;color:white;text-decoration:none" href="'+escape(url)+'">Lihat rekomendasi Anda</a></p><p style="font-size:13px;line-height:1.7">Tautan pribadi berlaku 48 jam dan sekali pakai. Setelah dibuka, sesi tersedia 30 menit. Jangan teruskan tautan; gunakan PDF untuk pembahasan internal. Anda dapat meminta tautan baru dari halaman laporan.</p><p>Salam profesional,<br>Tim BinaHub</p><p style="font-size:12px">Bantuan: admin@binahub.id</p>', 'recommendation');
 }
 type Work={id:string;lease:string;answers:SpinAnswers;summary:{situation:string;problem:string;impact:string;outcome:string};confirmation:{status:'confirmed'|'edited'|'supplemented'};contact:{name:string;email:string;company:string};submitted_at:string};
 type Mail={id:string;submission_id:string;lease:string;recipient:string;from_address:string;app_origin:string;name:string;report:unknown;link_hash:string|null};

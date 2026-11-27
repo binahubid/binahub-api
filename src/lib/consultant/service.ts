@@ -4,6 +4,7 @@ import { validateMeetingWrite } from "@/lib/spin/meeting";
 import { spinSanitize } from "@/lib/spin/form";
 import { ConsultantError, consultantRPC } from "./http";
 import { consultantAction, type ConsultantDetail } from "./schemas";
+import { canUseClientAnswers, readConsultantRecommendation } from "./recommendation";
 
 export async function readConsultation(actor: string, lead: string, page = 0) {
   const detail = await consultantRPC<ConsultantDetail>(
@@ -20,6 +21,7 @@ export async function readConsultation(actor: string, lead: string, page = 0) {
     ...workspace?.answers,
   });
   const durations: Record<string, number> = {
+    half: 0.5,
     one: 1,
     two: 2,
     three: 3,
@@ -29,7 +31,7 @@ export async function readConsultation(actor: string, lead: string, page = 0) {
   const venue =
     answers.deliveryMode === "online"
       ? "online"
-      : answers.venue === "mixed"
+      : answers.deliveryMode === "hybrid" || answers.venue === "mixed"
         ? "hybrid"
         : answers.venue === "indoor" || answers.venue === "outdoor"
           ? answers.venue
@@ -78,6 +80,26 @@ export async function saveConsultation(
   const detail = await readConsultation(actor, lead);
   if (!detail.record.canEdit)
     throw new ConsultantError("CONSULTANT_NOT_ASSIGNED", 403);
+  if (value.action === "client_answers") {
+    const initial = await readConsultantRecommendation(detail);
+    if (!initial || initial.source.id !== value.sourceId
+      || !canUseClientAnswers(detail, initial)) {
+      throw new ConsultantError("CONSULTANT_CLIENT_ANSWERS_REQUIRED", 409);
+    }
+    let version = value.version;
+    if (!detail.workspace?.source_id) {
+      await consultantRPC("consultant_save_work", {
+        p_actor: actor, p_lead: lead, p_version: version,
+        p_action: "source", p_data: { sourceId: initial.source.id },
+      });
+      version++;
+    }
+    await consultantRPC("consultant_save_work", {
+      p_actor: actor, p_lead: lead, p_version: version,
+      p_action: "meeting", p_data: { answers: {}, notes: "", status: "completed" },
+    });
+    return readConsultation(actor, lead);
+  }
   let data: Record<string, unknown> = value;
   if (value.action === "meeting") {
     const checked = validateMeetingWrite(

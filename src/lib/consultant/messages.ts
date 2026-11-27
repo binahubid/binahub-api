@@ -9,6 +9,7 @@ import {
 import { consultantRPC, ConsultantError } from "./http";
 import { consultantProposalPDF } from "./pdf";
 import type { ProposalSnapshot } from "./proposal";
+import { requiresProposalPriceRefresh } from "./pricing";
 import { messageInput, type ConsultantDetail } from "./schemas";
 import { assertActiveConsultantMembership, ConsultantMembershipError } from "./membership";
 
@@ -20,6 +21,7 @@ const envelopeSchema = z
     senderId: z.uuid(),
     senderName: z.string().min(1).max(200),
     replyTo: z.email(),
+    locale: z.enum(["id", "en"]).optional(),
     subject: z.string().min(1).max(180),
     body: z.string().min(1).max(10000),
   })
@@ -58,6 +60,9 @@ export async function queueConsultantMessage(
   const v = messageInput.parse(raw);
   if (!detail.record.canEdit)
     throw new ConsultantError("CONSULTANT_NOT_ASSIGNED", 403);
+  const proposal = detail.proposals.find(p => p.id === v.proposalId);
+  if (proposal?.status === "draft" && requiresProposalPriceRefresh(proposal.snapshot))
+    throw new ConsultantError("CONSULTANT_PROPOSAL_PRICE_REFRESH", 409);
   if (!consultantEmailReady())
     throw new ConsultantError("CONSULTANT_EMAIL_SETUP", 409);
   const { data: member, error } = await createServerSupabase()
@@ -75,6 +80,7 @@ export async function queueConsultantMessage(
     senderId: member.user_id,
     senderName: member.display_name,
     replyTo: member.email,
+    locale: v.locale,
     subject: v.subject,
     body: v.body,
   });
@@ -167,7 +173,15 @@ export async function processConsultantMessage(
       if (error instanceof ConsultantMembershipError && error.code === "CONSULTANT_FORBIDDEN") status = "cancelled";
       throw new Error("MEMBERSHIP_UNAVAILABLE");
     }
-    const html = `<p>Yth. Bapak/Ibu ${escape(envelope.name)},</p><div>${escape(envelope.body).replace(/\n/g, "<br>")}</div><p>Salam hangat,<br><strong>${escape(envelope.senderName)}</strong><br>Konsultan BinaHub<br>People. Learning. Elevated.</p>`;
+    const en = envelope.locale === "en";
+    const title = attachments
+      ? (en ? "Program partnership proposal" : "Usulan kerja sama program pengembangan")
+      : (en ? "Consultation follow-up" : "Tindak lanjut konsultasi");
+    const content = envelope.body.split(/\n\s*\n/).map(paragraph =>
+      `<p style="line-height:1.7">${escape(paragraph).replace(/\n/g, "<br>")}</p>`).join("");
+    const html = envelope.locale
+      ? `<h1 style="font-size:24px">${title}</h1><p>${en ? "Dear" : "Yth."} ${escape(envelope.name)},</p>${content}<p>${en ? "Best regards" : "Hormat kami"},<br><strong>${escape(envelope.senderName)}</strong><br>${en ? "BinaHub Consultant" : "Konsultan BinaHub"}</p>`
+      : `<p>Yth. Bapak/Ibu ${escape(envelope.name)},</p><div>${escape(envelope.body).replace(/\n/g, "<br>")}</div><p>Salam hangat,<br><strong>${escape(envelope.senderName)}</strong><br>Konsultan BinaHub<br>People. Learning. Elevated.</p>`;
     sending = true;
     const result = await sendOutreachEmail(
       envelope.to,
@@ -181,6 +195,7 @@ export async function processConsultantMessage(
         senderName: `${envelope.senderName} | BinaHub`,
         replyTo: envelope.replyTo,
         attachments,
+        ...(envelope.locale ? { layout: "recommendation" as const } : {}),
       },
     );
     provider = result.data?.id || null;

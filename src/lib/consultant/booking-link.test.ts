@@ -14,10 +14,13 @@ vi.mock("@/lib/consultant/http", () => ({
   consultantFailure: () => Response.json({}, { status: 401 }),
 }));
 vi.mock("@/lib/consultant/service", () => ({
-  readConsultation: () => ({ record: fixture.record, workspace: {} }),
+  readConsultation: () => ({ record: fixture.record, workspace: {}, proposals: [] }),
 }));
 vi.mock("@/lib/consultant/origin", () => ({
   withConsultantOrigins: (records: unknown[]) => records,
+}));
+vi.mock("@/lib/consultant/recommendation", () => ({
+  readConsultantRecommendation: async () => null,
 }));
 import { GET } from "@/app/api/konsultan/[id]/route";
 

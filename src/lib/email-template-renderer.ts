@@ -1,9 +1,15 @@
-export function renderApprovedOutreachHtml(htmlContent: string) {
+export type EmailLayout = "outreach" | "recommendation";
+
+export function renderApprovedOutreachHtml(htmlContent: string, layout: EmailLayout = "outreach") {
   const sanitized = htmlContent
     .replace(/<(script|style|iframe|object|embed|form|input|button|meta|link|base|svg|math|video|audio)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
     .replace(/<(script|style|iframe|object|embed|form|input|button|meta|link|base|svg|math|video|audio)\b[^>]*\/?\s*>/gi, '')
     .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(href|src)\s*=\s*(["'])\s*(?:javascript|vbscript|data):[\s\S]*?\2/gi, '');
+
+  if (layout === "recommendation") {
+    return `<div style="background:#f7f8fa;padding:32px 16px;font-family:Arial,sans-serif;color:#0b2c6b"><div style="max-width:560px;margin:auto;background:white;padding:32px;border-radius:12px"><p style="font-size:21px;font-weight:bold">BinaHub</p>${sanitized}</div></div>`;
+  }
 
   return `<!DOCTYPE html>
 <html>

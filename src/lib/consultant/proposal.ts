@@ -3,10 +3,13 @@ import { createHash } from "node:crypto";
 import { SPIN_CATALOG } from "@/lib/spin/catalog";
 import { SPIN_DEFINITION, validateSpinAnswers } from "@/lib/spin/intake";
 import { spinSummary } from "@/lib/spin/form";
+import { catalogContents } from "@/lib/spin/report";
+import { estimateConsultantProgram } from "./pricing";
 import { ConsultantError, consultantRPC } from "./http";
 import { proposalInput, type ConsultantDetail } from "./schemas";
 
 export type ProposalSnapshot = {
+  documentKind?: "formal";
   company: string;
   name: string;
   email: string;
@@ -18,6 +21,9 @@ export type ProposalSnapshot = {
   venue: string;
   location: string;
   scopeNote: string;
+  intendedSchedule?: string;
+  nextStep?: string;
+  pricedSubtotal?: number | null;
   programs: {
     code: string;
     name: string;
@@ -25,6 +31,9 @@ export type ProposalSnapshot = {
     dailyRate: number | null;
     total: number | null;
     capacity: string;
+    priceBasis?: string;
+    components?: string[];
+    outputs?: string[];
   }[];
   total: number | null;
   priceNote: string;
@@ -48,18 +57,20 @@ export function buildConsultantProposal(
     const p = SPIN_CATALOG.modules.find((p) => p.code === code);
     if (!p || (p.code === "SS-27" && answers.spiritualOptIn !== "yes"))
       throw new ConsultantError("CONSULTANT_PROGRAM_UNAVAILABLE", 400);
-    // Catalog day rates cover up to 30 people. Larger groups require a reviewed quote.
-    const rate = input.participants <= 30 ? p.dailyRateIdr : null;
     return {
       code: p.code,
       name: p.name,
       objectives: p.objectives.map((o) => o.text),
-      dailyRate: rate,
-      total: rate === null ? null : rate * input.days,
       capacity: p.capacity,
+      ...catalogContents(p.sourceText),
+      ...estimateConsultantProgram(p, input.participants, input.days),
     };
   });
+  const pricedPrograms = programs.filter(p => p.total !== null);
+  const pricedSubtotal = pricedPrograms.length
+    ? pricedPrograms.reduce((total, program) => total + (program.total ?? 0), 0) : null;
   const snapshot: ProposalSnapshot = {
+    documentKind: "formal",
     company: detail.record.company,
     name: detail.record.name,
     email: detail.record.email,
@@ -71,12 +82,13 @@ export function buildConsultantProposal(
     venue: input.venue,
     location: input.location,
     scopeNote: input.scopeNote,
+    intendedSchedule: typeof answers.dates === "string" ? answers.dates : "",
+    nextStep: input.nextStep || "Mohon konfirmasi ruang lingkup dan pilihan jadwal agar kami dapat menyiapkan kesepakatan pelaksanaan.",
     programs,
-    total: programs.some((p) => p.total === null)
-      ? null
-      : programs.reduce((s, p) => s + p.total!, 0),
+    pricedSubtotal,
+    total: pricedPrograms.length === programs.length ? pricedSubtotal : null,
     priceNote:
-      "Estimasi tarif program = tarif harian × jumlah hari. Indoor/outdoor tidak menambah tarif program. Kebutuhan tambahan dan komponen yang belum ditetapkan ditampilkan sebagai (—), bukan Rp0. Ruang lingkup, pajak, perjalanan, akomodasi, dan fasilitas pelaksanaan perlu dikonfirmasi sebelum kesepakatan.",
+      "Estimasi mengacu pada tarif harian atau paket di katalog. Format indoor atau outdoor memakai tarif program yang sama. Pajak, perjalanan, akomodasi, dan fasilitas dikonfirmasi terpisah sesuai kebutuhan.",
   };
   const hash = createHash("sha256")
     .update(

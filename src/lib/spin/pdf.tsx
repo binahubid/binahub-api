@@ -2,17 +2,17 @@ import React from 'react';
 import { Document,Page,Text,View,StyleSheet,renderToBuffer } from '@react-pdf/renderer';
 import { type SpinReport,SpinReportSchema } from './report';
 import { spinSummaryPoints } from './summary-points';
-import { PDFHeader, PDFFooter, pdfStyles, pdfFont } from '../pdf-brand';
+import { PDFHeader, PDFFooter, pdfStyles, pdfFont, pdfOverviewStyles as overview } from '../pdf-brand';
 
 const s=StyleSheet.create({
  page:{...pdfStyles.page},
  head:{backgroundColor:'#0b2c6b',padding:20,borderRadius:9,marginBottom:18},brand:{fontSize:13,fontFamily:pdfFont,fontWeight:600,color:'#ffffff',marginBottom:12},
  title:{fontSize:23,fontFamily:pdfFont,fontWeight:600,color:'#ffffff',marginBottom:10},company:{fontSize:11,color:'#e0e9fb'},meta:{fontSize:8.5,color:'#cfddf7',marginTop:10},
  h:{...pdfStyles.h},sub:{...pdfStyles.sub},
- path:{flexDirection:'row',marginBottom:17},pathCell:{width:'33.333%',backgroundColor:'#f1f5fb',padding:12,borderRightWidth:1,borderRightColor:'#ffffff'},pathEnd:{backgroundColor:'#e5eefc'},
- label:{fontFamily:pdfFont,fontWeight:600,fontSize:9.5,color:'#0b2c6b',marginBottom:6},status:{padding:13,backgroundColor:'#f1f5fb',borderRadius:7,marginBottom:20},
+ path:overview.path,pathCell:overview.cell,pathEnd:overview.cellAccent,
+ label:overview.label,status:{padding:13,backgroundColor:'#f1f5fb',borderRadius:7,marginBottom:20},
  note:{...pdfStyles.note,marginTop:6},section:{marginTop:20},programHead:{paddingBottom:12,borderBottomWidth:1,borderBottomColor:'#dce4ef',marginBottom:16},programTitle:{fontSize:20,fontFamily:pdfFont,fontWeight:600,color:'#0b2c6b'},
- row:{flexDirection:'row',gap:18},main:{width:'61%'},aside:{width:'35%',backgroundColor:'#f1f5fb',padding:12,borderRadius:7},
+ row:overview.row,main:overview.main,aside:overview.aside,
  evidence:{marginBottom:10,fontSize:9.5},objective:{fontSize:8.5,color:'#526479',marginTop:5},tags:{fontSize:9,color:'#0b2c6b',marginTop:5},
  price:{fontSize:14,fontFamily:pdfFont,fontWeight:600,color:'#0b2c6b',marginBottom:10},line:{marginBottom:7},rule:{borderBottomWidth:1,borderBottomColor:'#dce4ef',paddingBottom:8,marginBottom:9},
  footer:{position:'absolute',bottom:22,left:36,right:36,fontSize:8.5,color:'#526479',flexDirection:'row',justifyContent:'space-between'},

@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   requests: [] as URL[],
   unavailable: false,
   signedIn: true,
-  detail: null as null | { record: { id: string; company: string; canEdit: boolean }; workspace: null },
+  detail: null as null | { record: { id: string; company: string; canEdit: boolean; email: string }; workspace: null; proposals: [] },
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth-role", () => ({
@@ -32,6 +32,7 @@ vi.mock("@/lib/supabase", async () => {
       const data = url.pathname.endsWith("/consultant_actor") ? false
         : url.pathname.endsWith("/consultant_portal_read") ? { records: state.records, total: state.records.length }
         : detail ? state.detail || { message: "CONSULTANT_NOT_FOUND" }
+        : url.pathname.endsWith("/spin_submissions") ? []
         : state.unavailable ? { message: "Temporarily unavailable" } : state.sources;
       return new Response(JSON.stringify(data), {
         status: (detail && !state.detail) || (state.unavailable && url.pathname.endsWith("/leads")) ? 400 : 200,
@@ -98,7 +99,7 @@ describe("Consultant client context", () => {
     const ctx = { params: Promise.resolve({ id }) };
     state.signedIn = true;
     state.unavailable = false;
-    state.detail = { record: { id, company: "Client A", canEdit: false }, workspace: null };
+    state.detail = { record: { id, company: "Client A", canEdit: false, email: "client@example.invalid" }, workspace: null, proposals: [] };
     state.sources = [{ id, source: "contact_form" }];
     state.requests = [];
     const response = await getDetail(req, ctx);
@@ -110,6 +111,6 @@ describe("Consultant client context", () => {
     state.detail = null;
     state.requests = [];
     expect((await getDetail(req, ctx)).status).toBe(404);
-    expect(state.requests.some(url => url.pathname.endsWith("/leads"))).toBe(false);
+    expect(state.requests.some(url => /\/(leads|spin_submissions)$/.test(url.pathname))).toBe(false);
   });
 });

@@ -8,6 +8,8 @@ import {
 } from "@/lib/consultant/http";
 import { readConsultation, saveConsultation } from "@/lib/consultant/service";
 import { withConsultantOrigins } from "@/lib/consultant/origin";
+import { readConsultantRecommendation, recommendationCard } from "@/lib/consultant/recommendation";
+import { requiresProposalPriceRefresh } from "@/lib/consultant/pricing";
 type Context = { params: Promise<{ id: string }> };
 
 function configuredCalBookingUrl() {
@@ -34,10 +36,23 @@ export async function GET(req: NextRequest, ctx: Context) {
       .max(10000)
       .parse(req.nextUrl.searchParams.get("page") || 0);
     const detail = await readConsultation(actor.id, id, page);
-    const [record] = await withConsultantOrigins([detail.record]);
+    const [[record], recommendation] = await Promise.all([
+      withConsultantOrigins([detail.record]),
+      readConsultantRecommendation(detail).catch(() => undefined),
+    ]);
     const bookingUrl = detail.workspace && record.canEdit && record.assigneeId && record.email
       && !record.handoff && !["won", "lost"].includes(record.stage) ? configuredCalBookingUrl() : undefined;
-    return consultantJson({ ...detail, record, bookingUrl });
+    return consultantJson({
+      ...detail,
+      record,
+      bookingUrl,
+      proposals: detail.proposals.map(p => ({
+        ...p,
+        priceRefresh: p.status === "draft" && requiresProposalPriceRefresh(p.snapshot),
+      })),
+      initialRecommendation: recommendation ? recommendationCard(detail, recommendation) : null,
+      recommendationUnavailable: recommendation === undefined,
+    });
   } catch (e) {
     return consultantFailure(e);
   }

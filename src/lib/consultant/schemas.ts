@@ -23,6 +23,9 @@ export const consultantAction = z.discriminatedUnion("action", [
     .object({ action: z.literal("source"), version, sourceId: z.uuid() })
     .strict(),
   z
+    .object({ action: z.literal("client_answers"), version, sourceId: z.uuid() })
+    .strict(),
+  z
     .object({
       action: z.literal("task"),
       version,
@@ -106,11 +109,12 @@ export const proposalInput = z
       .min(1)
     .max(31)
       .refine((v) => new Set(v).size === v.length),
-    days: z.number().int().positive().max(365),
+    days: z.number().min(0.5).max(365).multipleOf(0.5),
     participants: z.number().int().positive().max(100000),
     venue: z.enum(["indoor", "outdoor", "hybrid", "online"]),
     location: z.string().trim().max(300),
     scopeNote: note,
+    nextStep: note.max(500).optional(),
   })
   .strict();
 export const messageInput = z
@@ -127,6 +131,7 @@ export const messageInput = z
       .refine((s) => !/[\r\n]/.test(s)),
     body: z.string().trim().min(1).max(10000),
     scheduledAt: z.iso.datetime({ offset: true }),
+    locale: z.enum(["id", "en"]).optional(),
   })
   .strict()
   .refine((v) => v.kind !== "proposal" || v.proposalId !== null);

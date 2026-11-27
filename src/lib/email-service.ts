@@ -6,7 +6,7 @@ import { createProposalToken, createProposalViewToken } from '@/lib/secure-token
 import { resolvePublicAppUrl } from '@/lib/public-app-url';
 import { createServerSupabase } from '@/lib/supabase';
 import { createUnsubscribeToken, normalizeRecipientEmail } from '@/lib/unsubscribe-token';
-import { renderApprovedOutreachHtml } from '@/lib/email-template-renderer';
+import { renderApprovedOutreachHtml, type EmailLayout } from '@/lib/email-template-renderer';
 import { clientProposalCopy } from '@/lib/proposal-copy';
 import { assessmentAreaCopy } from './assessment-area-copy';
 
@@ -437,7 +437,7 @@ export async function sendOutreachEmail(
   subject: string,
   htmlContent: string,
   company?: string,
-  options?: { idempotencyKey: string; category?: string; senderName?: string; replyTo?: string; attachments?: { filename: string; content: Buffer }[] }
+  options?: { idempotencyKey: string; category?: string; senderName?: string; replyTo?: string; attachments?: { filename: string; content: Buffer }[]; layout?: EmailLayout }
 ) {
   const normalizedTo = normalizeRecipientEmail(to);
   const db = createServerSupabase();
@@ -461,6 +461,7 @@ export async function sendOutreachEmail(
     htmlContent
       .replaceAll('{{name}}', escapeHtml(name))
       .replaceAll('{{company}}', escapeHtml(company || 'Perusahaan Anda')),
+    options?.layout,
   );
   const response = await resend.emails.send({
     from: `${options?.senderName ? safeHeader(options.senderName).replace(/[<>"\\,]/g, '') : COMPANY_NAME} <${FROM}>`,

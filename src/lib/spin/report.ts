@@ -29,7 +29,7 @@ function catalogSection(text:string,start:string,end:string) {
  if(!positions.length)return [];
  return content.slice(0,Math.min(...positions)).trim().split('\n').map(v=>v.replace(/^•\s*/, '').trim()).filter(Boolean);
 }
-function catalogContents(text:string) {
+export function catalogContents(text:string) {
  const components=catalogSection(text,'OVERVIEW / KONTEN','KOMPETENSI YANG DIKEMBANGKAN');
  const outputs=catalogSection(text,'OUTPUT / DELIVERABLES','Cocok Untuk:');
  const compact=/Output:\s*([\s\S]*?)\s*Format:/.exec(text);

@@ -112,6 +112,8 @@ export function consultantFailure(error: unknown) {
     CONSULTANT_ADMIN_REQUIRED: "Tindakan ini memerlukan admin.",
     CONSULTANT_MANAGE_IN_AMS: "Kelola keanggotaan dan persetujuan konsultan melalui AMS.",
     CONSULTANT_NOT_FOUND: "Pekerjaan tidak ditemukan.",
+    CONSULTANT_RECOMMENDATION_UNAVAILABLE: "Rekomendasi awal belum dapat diperiksa. Coba lagi beberapa saat.",
+    CONSULTANT_CLIENT_ANSWERS_REQUIRED: "Tinjau jawaban klien di checklist sebelum menyiapkan proposal.",
     CONSULTANT_CONFLICT:
       "Pekerjaan telah berubah. Muat versi terbaru sebelum melanjutkan.",
     CONSULTANT_SOURCE_LOCKED:
@@ -122,6 +124,7 @@ export function consultantFailure(error: unknown) {
       "Lengkapi dan selesaikan kebutuhan sebelum menyusun proposal.",
     CONSULTANT_STALE_PROPOSAL:
       "Kebutuhan telah berubah. Buat revisi proposal sebelum mengirim.",
+    CONSULTANT_PROPOSAL_PRICE_REFRESH: "Buat draf baru agar estimasi mengikuti tarif katalog.",
     CONSULTANT_PROPOSAL_REQUIRED:
       "Siapkan proposal yang sesuai sebelum melanjutkan.",
     CONSULTANT_PROGRAM_UNAVAILABLE:
