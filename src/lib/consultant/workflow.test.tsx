@@ -5,8 +5,9 @@ import { SPIN_DEFINITION } from "@/lib/spin/intake";
 import { SPIN_CATALOG } from "@/lib/spin/catalog";
 import type { ConsultantDetail } from "./schemas";
 
-const db = vi.hoisted(() => ({ rpc: vi.fn(), row: vi.fn(), send: vi.fn(), eq: vi.fn() }));
+const db = vi.hoisted(() => ({ rpc: vi.fn(), row: vi.fn(), send: vi.fn(), eq: vi.fn(), ai: vi.fn() }));
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/ai-provider", () => ({ callRoutedAI: db.ai }));
 vi.mock("@/lib/consultant/membership", () => ({
   assertActiveConsultantMembership: vi.fn().mockResolvedValue(undefined),
   ConsultantMembershipError: class extends Error {},
@@ -66,10 +67,15 @@ const nondaily = SPIN_CATALOG.modules.find(
   (m) => m.dailyRateIdr === null && m.pricingModel !== "Paket Standar" && m.code !== "SS-27",
 )!;
 
-function sample() {
+function sample(overrides: SpinAnswers = {}) {
   const answers: SpinAnswers = {};
   for (const f of SPIN_DEFINITION.fields) {
-    if (!f.required || !spinVisible(f, answers)) continue;
+    if (!spinVisible(f, answers)) continue;
+    if (overrides[f.key] !== undefined) {
+      answers[f.key] = overrides[f.key];
+      continue;
+    }
+    if (!f.required) continue;
     if (f.type === "text")
       answers[f.key] =
         "Tim perlu menyepakati cara kerja lintas fungsi dan mengurangi pekerjaan yang berulang.";
@@ -242,10 +248,11 @@ describe("Consultant proposal and email workflow", () => {
     const id = "00000000-0000-4000-8000-000000000009";
     detail.workspace!.source_id = id;
     const bytes = Buffer.from("%PDF-1.7 initial").toString("base64");
+    const originalAnswers = { ...detail.workspace!.answers };
     db.row.mockImplementation(async (table) => ({
       error: null,
       data: table === "spin_submissions" ? {
-        id, submitted_at: date, status: "ready", question_version: SPIN_DEFINITION.version, answers: detail.workspace!.answers,
+        id, submitted_at: date, status: "ready", question_version: SPIN_DEFINITION.version, answers: originalAnswers,
         report: {
           version: "spin-report-v3-v1", reference: id, issuedAt: date, company: person.company,
           summary: { situation: "", problem: "", impact: "", outcome: "" }, snapshot: [], investments: [],
@@ -263,12 +270,52 @@ describe("Consultant proposal and email workflow", () => {
     expect(db.eq).toHaveBeenCalledWith("spin_submissions", "contact->>email", person.email);
     expect(db.eq).toHaveBeenCalledWith("spin_submissions", "id", id);
     expect(db.eq).toHaveBeenCalledWith("spin_mail_jobs", "submission_id", id);
+    detail.workspace!.answers.participantCount = 50;
+    detail.workspace!.answers.duration = "two";
+    db.row.mockClear();
     expect(await suggestConsultantPrograms(detail, 2)).toMatchObject({
       source: "initial", status: "suggested", programs: [{ code: "SS-11" }],
     });
+    expect(db.row).not.toHaveBeenCalledWith("spin_mail_jobs");
+    expect(db.ai).not.toHaveBeenCalled();
     await expect(suggestConsultantPrograms({ ...detail, record: { ...detail.record, canEdit: false } }, 2))
       .rejects.toThrow("CONSULTANT_NOT_ASSIGNED");
     expect(db.send).not.toHaveBeenCalled();
+  });
+
+  it("offers a catalog option to review when matching and the initial source are unavailable", async () => {
+    const { detail } = sample({
+      problemCluster: "C2", symptoms: ["S3"], venue: "indoor",
+      desiredOutcome: "Anggota tim berani menyampaikan perbedaan dan membahasnya secara terbuka.",
+    });
+    db.row.mockResolvedValue({ data: null, error: { code: "unavailable" } });
+    db.ai.mockRejectedValue(new Error("Provider unavailable"));
+    await expect(suggestConsultantPrograms(detail, 2)).resolves.toMatchObject({
+      source: "catalog", status: "review", programs: [{ code: "SS-12", reason: expect.stringContaining("kepercayaan") }],
+    });
+    expect(db.ai).toHaveBeenCalledOnce();
+    expect(db.row).not.toHaveBeenCalledWith("spin_mail_jobs");
+    expect(db.send).not.toHaveBeenCalled();
+  });
+
+  it("keeps a verified empty result when the AI finds no suitable program", async () => {
+    const { detail } = sample();
+    db.row.mockResolvedValue({ data: null, error: null });
+    db.ai.mockResolvedValue({ content: '{"matches":[]}' });
+    await expect(suggestConsultantPrograms(detail, 2)).resolves.toEqual({
+      source: "checklist", status: "none", programs: [],
+    });
+    expect(db.ai).toHaveBeenCalledOnce();
+  });
+
+  it("does not guess a catalog option when the checklist has no specific symptom", async () => {
+    const { detail } = sample();
+    detail.workspace!.answers.symptoms = ["unknown"];
+    db.row.mockResolvedValue({ data: null, error: null });
+    db.ai.mockRejectedValue(new Error("Provider unavailable"));
+    await expect(suggestConsultantPrograms(detail, 2)).resolves.toEqual({
+      source: "checklist", status: "unavailable", programs: [],
+    });
   });
 
   it("renders a PDF for a proposal with several programs and unpriced items", async () => {
