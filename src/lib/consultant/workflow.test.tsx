@@ -175,7 +175,12 @@ describe("Consultant proposal and email workflow", () => {
 
   it.each([
     [30, 1, 25000000, "Essential"],
-    [31, 1, 50000000, "Signature"],
+    [31, 1, 25450000, "Essential"],
+    [32, 1, 25900000, "Essential"],
+    [32, 2, 51800000, "Essential"],
+    [40, 1, 29500000, "Essential"],
+    [40, 2, 59000000, "Essential"],
+    [41, 1, 50000000, "Signature"],
     [50, 1, 50000000, "Signature"],
     [50, 2, 100000000, "Signature"],
     [80, 1, 50000000, "Signature"],
@@ -199,10 +204,17 @@ describe("Consultant proposal and email workflow", () => {
     expect(snapshot).toMatchObject({ total: null, pricedSubtotal: 50000000, documentKind: "formal" });
   });
 
-  it("flags a legacy draft when an estimate can now be calculated", () => {
+  it("flags a draft when its stored Team Building estimate differs from the approved rule", () => {
     const { detail, input } = sample();
-    const { snapshot } = buildConsultantProposal(detail, { ...input, programCodes: ["SS-11"] }, member.display_name);
+    const { snapshot } = buildConsultantProposal(detail, {
+      ...input, participants: 32, days: 1, programCodes: ["SS-11"],
+    }, member.display_name);
+    expect(snapshot.programs[0].priceBasis).toContain("2 peserta × Rp450.000");
+    expect(snapshot.programs[0].capacity).toContain("Signature: 41–80");
     expect(requiresProposalPriceRefresh(snapshot)).toBe(false);
+    expect(requiresProposalPriceRefresh({
+      ...snapshot, programs: [{ code: "SS-11", total: 50000000 }], total: 50000000,
+    })).toBe(true);
     expect(requiresProposalPriceRefresh({
       ...snapshot, documentKind: undefined, programs: [{ code: "SS-11", total: null }], total: null,
     })).toBe(true);

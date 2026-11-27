@@ -8,6 +8,7 @@ import {
 import { consultantQuery } from "@/lib/consultant/schemas";
 import { SPIN_CATALOG } from "@/lib/spin/catalog";
 import { withConsultantOrigins } from "@/lib/consultant/origin";
+import { consultantProgramCapacity } from "@/lib/consultant/pricing";
 import type { ConsultantLead } from "@/lib/consultant/schemas";
 export async function GET(req: NextRequest) {
   try {
@@ -27,15 +28,13 @@ export async function GET(req: NextRequest) {
       ...result,
       ...(q.owner === "mine" ? { session: actor } : {}),
       records: await withConsultantOrigins(result.records),
-      catalog: SPIN_CATALOG.modules.map(
-        ({ code, name, dailyRateIdr, capacity, pricingModel }) => ({
-          code,
-          name,
-          dailyRateIdr,
-          capacity,
-          pricingModel,
-        }),
-      ),
+      catalog: SPIN_CATALOG.modules.map(program => ({
+        code: program.code,
+        name: program.name,
+        dailyRateIdr: program.dailyRateIdr,
+        capacity: consultantProgramCapacity(program),
+        pricingModel: program.pricingModel,
+      })),
     });
   } catch (e) {
     return consultantFailure(e);

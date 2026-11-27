@@ -1,13 +1,28 @@
 import { SPIN_CATALOG, type SpinCatalogModule } from "@/lib/spin/catalog";
 import type { ProposalSnapshot } from "./proposal";
 
+const teamBuildingCapacity = { essentialIncluded: 30, essentialMax: 40, signatureMax: 80, enterpriseIncluded: 150 };
+
+function usesTeamBuildingPackages(program: SpinCatalogModule) {
+  return program.code === "SS-11" && program.pricingModel === "Paket Standar";
+}
+
+export function consultantProgramCapacity(program: SpinCatalogModule) {
+  if (!usesTeamBuildingPackages(program)) return program.capacity;
+  const { essentialIncluded, essentialMax, signatureMax, enterpriseIncluded } = teamBuildingCapacity;
+  return `Essential: ${essentialIncluded} peserta termasuk, tambahan hingga ${essentialMax}. Signature: ${essentialMax + 1}–${signatureMax}. Enterprise: ${signatureMax + 1}–${enterpriseIncluded}.`;
+}
+
 export function requiresProposalPriceRefresh(snapshot: unknown) {
   const value = snapshot as Partial<ProposalSnapshot> | null;
-  if (!value || value.documentKind === "formal" || !value.days || !value.participants || !Array.isArray(value.programs)) return false;
+  if (!value?.days || !value.participants || !Array.isArray(value.programs)) return false;
+  const { participants, days } = value;
   return value.programs.some(line => {
-    if (line.total !== null) return false;
-    const program = SPIN_CATALOG.modules.find(p => p.code === line.code);
-    return program && estimateConsultantProgram(program, value.participants!, value.days!).total !== null;
+    if (line.total !== null && line.code !== "SS-11") return false;
+    const program = SPIN_CATALOG.modules.find(item => item.code === line.code);
+    if (!program) return false;
+    const { total } = estimateConsultantProgram(program, participants, days);
+    return total !== null && total !== line.total;
   });
 }
 
@@ -15,15 +30,19 @@ export const proposalMoney = (amount: number) => "Rp" + amount.toLocaleString("i
 
 /** Estimate from the approved catalog. Venue and unpriced extras are excluded. */
 export function estimateConsultantProgram(program: SpinCatalogModule, participants: number, days: number) {
-  if (program.code === "SS-11" && program.pricingModel === "Paket Standar") {
-    // The catalog lists Essential, Signature, Enterprise, then the surcharge above 150.
+  if (usesTeamBuildingPackages(program)) {
+    // The same per-person surcharge applies to the approved Essential extension and Enterprise overflow.
     const [essential, signature, enterprise, extra] = [...program.priceEvidence.matchAll(/Rp([\d.]+)/g)]
       .map(([, amount]) => Number(amount.replace(/\./g, "")));
     if ([essential, signature, enterprise, extra].every(amount => Number.isSafeInteger(amount) && amount > 0)
       && [0.5, 1, 2].includes(days)) {
-      const tier = participants <= 30 ? "Essential" : participants <= 80 ? "Signature" : "Enterprise";
-      const base = participants <= 30 ? essential : participants <= 80 ? signature : enterprise;
-      const additional = Math.max(0, participants - 150);
+      const { essentialIncluded, essentialMax, signatureMax, enterpriseIncluded } = teamBuildingCapacity;
+      const useEssential = participants <= essentialMax;
+      const useSignature = !useEssential && participants <= signatureMax;
+      const tier = useEssential ? "Essential" : useSignature ? "Signature" : "Enterprise";
+      const base = useEssential ? essential : useSignature ? signature : enterprise;
+      const included = useEssential ? essentialIncluded : useSignature ? signatureMax : enterpriseIncluded;
+      const additional = Math.max(0, participants - included);
       const rate = base + additional * extra;
       const packageLabel = additional
         ? `Paket ${tier} ${proposalMoney(base)} + ${additional} peserta × ${proposalMoney(extra)}`

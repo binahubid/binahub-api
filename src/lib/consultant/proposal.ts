@@ -4,7 +4,7 @@ import { SPIN_CATALOG } from "@/lib/spin/catalog";
 import { SPIN_DEFINITION, validateSpinAnswers } from "@/lib/spin/intake";
 import { spinSummary } from "@/lib/spin/form";
 import { catalogContents } from "@/lib/spin/report";
-import { estimateConsultantProgram } from "./pricing";
+import { consultantProgramCapacity, estimateConsultantProgram } from "./pricing";
 import { ConsultantError, consultantRPC } from "./http";
 import { proposalInput, type ConsultantDetail } from "./schemas";
 
@@ -61,7 +61,7 @@ export function buildConsultantProposal(
       code: p.code,
       name: p.name,
       objectives: p.objectives.map((o) => o.text),
-      capacity: p.capacity,
+      capacity: consultantProgramCapacity(p),
       ...catalogContents(p.sourceText),
       ...estimateConsultantProgram(p, input.participants, input.days),
     };
