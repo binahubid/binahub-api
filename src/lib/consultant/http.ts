@@ -145,6 +145,7 @@ export function consultantFailure(error: unknown) {
       "Pengiriman email bisnis belum siap. Hubungi admin untuk memeriksa koneksinya.",
     CONSULTANT_MATERIAL_UNAVAILABLE:
       "Dokumen ini belum diunggah. Hubungi admin BinaHub.",
+    CONSULTANT_MATERIAL_PAGE_NOT_FOUND: "Halaman dokumen tidak ditemukan.",
     CONSULTANT_MATERIAL_READ_ONLY:
       "Dokumen ini tersedia untuk dibaca di portal.",
     CONSULTANT_INVALID_PDF:

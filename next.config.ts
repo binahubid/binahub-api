@@ -9,7 +9,7 @@ const pdfAssets = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   outputFileTracingIncludes: {
     ...Object.fromEntries([
     '/api/assessment', '/api/assessment/worker', '/api/admin/assessments',
@@ -18,7 +18,10 @@ const nextConfig: NextConfig = {
     '/api/discovery/spin/*', '/api/admin/discovery/*',
     '/api/konsultan/*',
     ].map(route => [route, pdfAssets])),
-    '/api/konsultan/materials/*': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+    '/api/konsultan/materials/*': [
+      './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+      './node_modules/@napi-rs/canvas-linux-x64-gnu/*.node',
+    ],
   },
   turbopack: {
     root: __dirname,

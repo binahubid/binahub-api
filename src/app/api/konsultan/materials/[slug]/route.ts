@@ -18,8 +18,14 @@ export async function GET(
   try {
     const actor = await requireConsultant(req);
     const { slug } = await ctx.params;
-    const reading = req.nextUrl.searchParams.get("view") === "reader";
-    if (slug === "product-knowledge" && !reading && !actor.isAdmin) {
+    const view = req.nextUrl.searchParams.get("view");
+    const reading = view === "reader";
+    const preview = view === "preview" && slug === "product-knowledge";
+    const pageNumber = Number(req.nextUrl.searchParams.get("page") ?? 1);
+    if (preview && (!Number.isSafeInteger(pageNumber) || pageNumber < 1)) {
+      throw new ConsultantError("CONSULTANT_MATERIAL_PAGE_NOT_FOUND", 404);
+    }
+    if (slug === "product-knowledge" && !reading && !preview && !actor.isAdmin) {
       throw new ConsultantError("CONSULTANT_MATERIAL_READ_ONLY", 403);
     }
     const document = consultantDocuments.find((entry) => entry.slug === slug);
@@ -30,6 +36,12 @@ export async function GET(
       .download(document.storageName);
     if (error || !data)
       throw new ConsultantError("CONSULTANT_MATERIAL_UNAVAILABLE", 404);
+    if (preview) {
+      const { consultantPreviewPage } = await import("@/lib/consultant/material-reading");
+      const page = await consultantPreviewPage(new Uint8Array(await data.arrayBuffer()), pageNumber);
+      if (!page) throw new ConsultantError("CONSULTANT_MATERIAL_PAGE_NOT_FOUND", 404);
+      return NextResponse.json(page, { headers: consultantHeaders });
+    }
     if (reading && slug === "product-knowledge") {
       const { consultantReadingPages } = await import("@/lib/consultant/material-reading");
       const pages = await consultantReadingPages(new Uint8Array(await data.arrayBuffer()));

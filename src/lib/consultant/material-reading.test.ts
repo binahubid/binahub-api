@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { Document, Page, Text, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Link, Page, Text, renderToBuffer } from "@react-pdf/renderer";
 import { NextRequest } from "next/server";
 import { beforeEach, expect, it, vi } from "vitest";
 
@@ -48,6 +48,7 @@ it("keeps the source file off the consultant route and checks login before readi
 
   state.signedIn = false;
   expect((await read("product-knowledge", "?view=reader")).status).toBe(401);
+  expect((await read("product-knowledge", "?view=preview")).status).toBe(401);
   expect(state.download).not.toHaveBeenCalled();
 });
 
@@ -75,4 +76,33 @@ it("serves the private reader as structured text and keeps the company PDF downl
   expect(company.status).toBe(200);
   expect(company.headers.get("Content-Type")).toBe("application/pdf");
   expect(company.headers.get("Content-Disposition")).toContain("attachment");
+});
+
+it("renders the source design as a private page preview with working internal links", async () => {
+  const pdf = await renderToBuffer(createElement(Document, null,
+    createElement(Page, { size: "A4", style: { padding: 40 }, bookmark: "Indeks program" },
+      createElement(Link, { src: "#program", style: { fontSize: 12 } }, "Buka program"),
+    ),
+    createElement(Page, { size: "A4", id: "program", bookmark: "Program kolaborasi" },
+      createElement(Text, null, "Program kolaborasi"),
+    ),
+  ));
+  state.download.mockResolvedValue({ data: new Blob([new Uint8Array(pdf)], { type: "application/pdf" }) });
+
+  const response = await read("product-knowledge", "?view=preview");
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  const preview = await response.json();
+  expect(preview).toMatchObject({
+    total: 2, chapters: [{ number: 1, title: "Indeks program" }, { number: 2, title: "Program kolaborasi" }],
+    page: { number: 1, text: "Buka program", links: [expect.objectContaining({ page: 2 })] },
+  });
+  expect(preview.page.width).toBeGreaterThan(1000);
+  expect(preview.page.height).toBeLessThanOrEqual(2200);
+  const body = Buffer.from(preview.page.image.split(",")[1], "base64");
+  expect(body.subarray(0, 4).toString()).toBe("RIFF");
+  expect(body.subarray(8, 12).toString()).toBe("WEBP");
+  expect((await read("product-knowledge", "?view=preview&page=2")).status).toBe(200);
+  expect((await read("product-knowledge", "?view=preview&page=3")).status).toBe(404);
+  expect((await read("product-knowledge", "?view=preview&page=0")).status).toBe(404);
 });
