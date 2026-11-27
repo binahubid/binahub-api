@@ -7,10 +7,22 @@ import {
   requireConsultant,
 } from "@/lib/consultant/http";
 import { readConsultation } from "@/lib/consultant/service";
-import { queueConsultantMessage } from "@/lib/consultant/messages";
+import { getConsultantEmailIdentity, queueConsultantMessage } from "@/lib/consultant/messages";
+
+type Context = { params: Promise<{ id: string }> };
+
+export async function GET(req: NextRequest, ctx: Context) {
+  try {
+    const actor = await requireConsultant(req);
+    const id = z.uuid().parse((await ctx.params).id);
+    return consultantJson(await getConsultantEmailIdentity(await readConsultation(actor.id, id)));
+  } catch (e) {
+    return consultantFailure(e);
+  }
+}
 export async function POST(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
+  ctx: Context,
 ) {
   try {
     const a = await requireConsultant(req),

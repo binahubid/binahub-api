@@ -431,6 +431,11 @@ export async function sendAssessmentEmail(
   }
 }
 
+export function outreachSenderHeader(senderName?: string) {
+  const name = senderName ? safeHeader(senderName).replace(/[<>"\\,]/g, '') : COMPANY_NAME;
+  return `${name} <${FROM}>`;
+}
+
 export async function sendOutreachEmail(
   to: string,
   name: string,
@@ -464,7 +469,7 @@ export async function sendOutreachEmail(
     options?.layout,
   );
   const response = await resend.emails.send({
-    from: `${options?.senderName ? safeHeader(options.senderName).replace(/[<>"\\,]/g, '') : COMPANY_NAME} <${FROM}>`,
+    from: outreachSenderHeader(options?.senderName),
     to: normalizedTo,
     replyTo: options?.replyTo || REPLY_TO,
     subject: safeHeader(subject),

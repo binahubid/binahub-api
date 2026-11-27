@@ -5,6 +5,7 @@ import { createServerSupabase } from "@/lib/supabase";
 import {
   sendOutreachEmail,
   OutreachSuppressedError,
+  outreachSenderHeader,
 } from "@/lib/email-service";
 import { consultantRPC, ConsultantError } from "./http";
 import { consultantProposalPDF } from "./pdf";
@@ -51,6 +52,36 @@ export function consultantEmailReady() {
     Boolean(process.env.NEXT_PUBLIC_BINAHUB_API_URL)
   );
 }
+const consultantSenderName = (name: string) => `${name} | BinaHub`;
+
+async function readConsultantSender(detail: ConsultantDetail) {
+  if (!detail.record.assigneeId)
+    throw new ConsultantError("CONSULTANT_INVALID_MEMBER", 409);
+  if (!consultantEmailReady())
+    throw new ConsultantError("CONSULTANT_EMAIL_SETUP", 409);
+  const { data: member, error } = await createServerSupabase()
+    .from("consultant_members")
+    .select("user_id,display_name,email,active")
+    .eq("user_id", detail.record.assigneeId)
+    .maybeSingle();
+  if (error || !member?.active)
+    throw new ConsultantError("CONSULTANT_INVALID_MEMBER", 409);
+  return member;
+}
+
+export async function getConsultantEmailIdentity(detail: ConsultantDetail) {
+  if (!detail.record.canEdit)
+    throw new ConsultantError("CONSULTANT_NOT_ASSIGNED", 403);
+  if (detail.record.handoff || ["won", "lost"].includes(detail.record.stage))
+    throw new ConsultantError("CONSULTANT_CLOSED", 409);
+  const member = await readConsultantSender(detail);
+  return {
+    from: outreachSenderHeader(consultantSenderName(member.display_name)),
+    to: detail.record.email,
+    replyTo: envelopeSchema.shape.replyTo.parse(member.email),
+  };
+}
+
 export async function queueConsultantMessage(
   actor: string,
   lead: string,
@@ -63,15 +94,7 @@ export async function queueConsultantMessage(
   const proposal = detail.proposals.find(p => p.id === v.proposalId);
   if (proposal?.status === "draft" && requiresProposalPriceRefresh(proposal.snapshot))
     throw new ConsultantError("CONSULTANT_PROPOSAL_PRICE_REFRESH", 409);
-  if (!consultantEmailReady())
-    throw new ConsultantError("CONSULTANT_EMAIL_SETUP", 409);
-  const { data: member, error } = await createServerSupabase()
-    .from("consultant_members")
-    .select("user_id,display_name,email,active")
-    .eq("user_id", detail.record.assigneeId)
-    .maybeSingle();
-  if (error || !member?.active)
-    throw new ConsultantError("CONSULTANT_INVALID_MEMBER", 409);
+  const member = await readConsultantSender(detail);
   await assertActiveConsultantMembership(member.user_id);
   const envelope = envelopeSchema.parse({
     to: detail.record.email,
@@ -192,7 +215,7 @@ export async function processConsultantMessage(
       {
         idempotencyKey: `consultant/${m.id}`,
         category: "consultant_reviewed",
-        senderName: `${envelope.senderName} | BinaHub`,
+        senderName: consultantSenderName(envelope.senderName),
         replyTo: envelope.replyTo,
         attachments,
         ...(envelope.locale ? { layout: "recommendation" as const } : {}),

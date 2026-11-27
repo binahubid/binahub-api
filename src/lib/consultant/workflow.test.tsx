@@ -33,6 +33,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@/lib/email-service", () => ({
   sendOutreachEmail: db.send,
+  outreachSenderHeader: (name: string) => `${name} <${process.env.EMAIL_FROM}>`,
   OutreachSuppressedError: class extends Error {},
 }));
 
@@ -40,8 +41,9 @@ import { buildConsultantProposal } from "./proposal";
 import { consultantProposalPDF } from "./pdf";
 import { readConsultantRecommendation, recommendationCard, suggestConsultantPrograms } from "./recommendation";
 import { requiresProposalPriceRefresh } from "./pricing";
-import { processConsultantMessage, queueConsultantMessage } from "./messages";
+import { getConsultantEmailIdentity, processConsultantMessage, queueConsultantMessage } from "./messages";
 import { OutreachSuppressedError } from "@/lib/email-service";
+import { readConsultation } from "./service";
 
 const userId = "00000000-0000-4000-8000-000000000001";
 const lead = "00000000-0000-4000-8000-000000000002";
@@ -135,6 +137,21 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Consultant proposal and email workflow", () => {
+  it("prefills duration and headcount from the latest checklist answers", async () => {
+    const { detail } = sample();
+    detail.workspace!.original_answers = { countStatus: "known", participantCount: 30, duration: "one" };
+    detail.workspace!.answers = { approaches: ["A1"], participantCount: 32, duration: "two" };
+    db.rpc.mockResolvedValue({ data: detail, error: null });
+    const current = await readConsultation(userId, lead);
+    expect(current.proposalDefaults).toMatchObject({ participants: 32, days: 2 });
+
+    detail.workspace!.answers.countStatus = "unknown";
+    detail.workspace!.answers.duration = "unknown";
+    const unknown = await readConsultation(userId, lead);
+    expect(unknown.proposalDefaults.participants).toBeUndefined();
+    expect(unknown.proposalDefaults.days).toBeUndefined();
+  });
+
   it("uses the daily catalog rate × days, keeps indoor/outdoor equal, and retains unknown prices", () => {
     const { detail, input } = sample();
     const outdoor = buildConsultantProposal(detail, input, member.display_name);
@@ -268,6 +285,20 @@ describe("Consultant proposal and email workflow", () => {
       mkdirSync("tmp/pdfs", { recursive: true });
       writeFileSync("tmp/pdfs/consultant-proposal-synthetic.pdf", bytes);
     }
+  });
+
+  it("previews from, recipient, and reply-to for assigned work only", async () => {
+    const { detail } = sample();
+    db.row.mockResolvedValue({ data: member, error: null });
+    await expect(getConsultantEmailIdentity({ ...detail, record: { ...detail.record, canEdit: false } }))
+      .rejects.toThrow("CONSULTANT_NOT_ASSIGNED");
+    expect(db.row).not.toHaveBeenCalled();
+    await expect(getConsultantEmailIdentity(detail)).resolves.toEqual({
+      from: `${member.display_name} | BinaHub <email@example.invalid>`,
+      to: person.email,
+      replyTo: member.email,
+    });
+    expect(db.send).not.toHaveBeenCalled();
   });
 
   it("binds email identity and destination to the current work and cannot send directly from the route", async () => {
