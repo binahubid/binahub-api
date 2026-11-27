@@ -33,7 +33,7 @@ beforeEach(()=>{
   deps.from.mockImplementation((table:string)=>({select(){return this;},eq(){return this;},limit:async()=>({data:[],error:null}),maybeSingle:async()=>({data:
     table==='pe_instrument_versions'?{manifest:bundle,bundle_sha256:hashPEInstrument(bundle)}:{id:PE_POLICY_ID,instrument_version:'1.0.0-draft.1',release_status:'development_pilot',content_review:'ceo_reviewed',
       free_codes:[...PE_FREE_CODES],consent_version:'pe-development-consent-v1',privacy_version:'pe-personal-privacy-v1'},error:null})}));
-  deps.rpc.mockImplementation(async(name:string)=>({data:name==='pe_pilot_ready'?true:name==='pe_guest_attempt'||name==='pe_start_guest'?envelope:
+  deps.rpc.mockImplementation(async(name:string)=>({data:name==='pe_pilot_ready'?true:['pe_guest_attempt','pe_start_guest','pe_start_guest_with_whatsapp'].includes(name)?envelope:
     name==='pe_write_participant'||name==='pe_read_participant'?final:name==='pe_owner_review_access'?{shared:true,evaluationConsent:false,clarity:null,usefulness:null}:true,error:null}));
 });
 describe('guest HTTP private boundaries',()=>{
@@ -52,6 +52,16 @@ describe('guest HTTP private boundaries',()=>{
     const res=await POST(req('POST',input));expect(res.status).toBe(201);expect(JSON.stringify(await res.json())).not.toMatch(/ownerId|example.invalid|draftKey/);
     expect(deps.rpc.mock.calls.find(([name])=>name==='pe_start_guest')?.[1].p_hash).not.toBe(key);
     expect((await POST(req('POST',{...input,ownerId:owner}))).status).toBe(400);
+  });
+  it('validates optional WhatsApp, normalizes local numbers, and keeps it off public responses',async()=>{
+    const input={id,context,draftKey:key,name:'Synthetic name',email:'synthetic@example.invalid',
+      consentVersion:'pe-development-consent-v1',privacyVersion:'pe-personal-privacy-v1'};
+    expect((await POST(req('POST',{...input,whatsapp:'invalid'}))).status).toBe(400);
+    expect(deps.rpc).not.toHaveBeenCalled();
+    const response=await POST(req('POST',{...input,whatsapp:'0812 3456-7890'}));
+    expect(response.status).toBe(201);
+    expect(JSON.stringify(await response.json())).not.toMatch(/6281234567890|whatsapp/i);
+    expect(deps.rpc).toHaveBeenCalledWith('pe_start_guest_with_whatsapp',expect.objectContaining({p_whatsapp:'+6281234567890'}));
   });
   it('acknowledges saved scoring without waiting for AI and queues the report in the background',async()=>{
     const res=await PATCH(req('PATCH',{revision:0,responses,submissionKey:'synthetic_submit_001'}),params);expect(res.status).toBe(202);

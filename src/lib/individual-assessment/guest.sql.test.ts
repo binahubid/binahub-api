@@ -30,7 +30,7 @@ beforeAll(async()=>{
   for(const item of catalog.solutions)await db.query('insert into catalog_modules(module_code) values($1)',[item.moduleCode]);
   await db.exec(readFileSync('supabase/migrations/0063_competency_dictionary.sql','utf8'));
   await db.exec(preparePEDeployment(instrument,readFileSync('supabase/migrations/0064_personal_effectiveness_foundation.sql','utf8')));
-  for(const file of ['0065_personal_effectiveness_delivery.sql','0066_personal_effectiveness_review_pilot.sql','0067_personal_effectiveness_guest_reports.sql'])await db.exec(readFileSync('supabase/migrations/'+file,'utf8'));
+  for(const file of ['0065_personal_effectiveness_delivery.sql','0066_personal_effectiveness_review_pilot.sql','0067_personal_effectiveness_guest_reports.sql','0097_self_diagnostic_whatsapp.sql'])await db.exec(readFileSync('supabase/migrations/'+file,'utf8'));
 },30_000);
 afterAll(()=>db.close());
 describe('guest diagnosis, frozen reports, and durable email',()=>{
@@ -39,6 +39,24 @@ describe('guest diagnosis, frozen reports, and durable email',()=>{
     const replay=await call('pe_start_guest',[guest.id,guest.draftHash,'Synthetic name','person@example.invalid',JSON.stringify(context),
       'pe-development-consent-v1','pe-personal-privacy-v1','pe-consultant-review-v1','email']);
     expect(replay).toMatchObject({ownerId:guest.ownerId,attempt:guest.attempt});
+  });
+  it('stores WhatsApp privately, retries safely, and rejects a changed number',async()=>{
+    const guest=await start();
+    const args=[guest.id,guest.draftHash,'Synthetic name','person@example.invalid',JSON.stringify(context),
+      'pe-development-consent-v1','pe-personal-privacy-v1','pe-consultant-review-v1','email'];
+    await db.exec('set role service_role');
+    try {
+      const result=await call('pe_start_guest_with_whatsapp',[...args,'+6281234567890']);
+      expect(JSON.stringify(result)).not.toContain('6281234567890');
+      await expect(call('pe_start_guest_with_whatsapp',[...args,'+6281234567890'])).resolves.toEqual(result);
+      await expect(call('pe_start_guest_with_whatsapp',[...args,'+6281234567891'])).rejects.toThrow('PE_START_CONFLICT');
+    } finally { await db.exec('reset role'); }
+    expect((await db.query('select whatsapp from pe_guest_contacts where attempt_id=$1',[guest.id])).rows[0])
+      .toEqual({whatsapp:'+6281234567890'});
+    await db.exec('set role authenticated');
+    try {
+      await expect(call('pe_start_guest_with_whatsapp',[...args,'+6281234567890'])).rejects.toThrow(/permission denied/);
+    } finally { await db.exec('reset role'); }
   });
   it('denies guessed IDs/hashes and never exposes a submitted result to a draft capability',async()=>{
     const guest=await submit();

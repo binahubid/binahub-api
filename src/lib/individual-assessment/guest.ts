@@ -11,7 +11,14 @@ import {buildPEPublicWording} from './wording';
 
 export const PE_GUEST_COOKIE = 'pe_result_session';
 export const PEGuestKeySchema = z.string().regex(/^[a-f0-9]{64}$/);
+const whatsappSchema = z.string().trim().max(30).regex(/^\+?[0-9 ()-]*$/).transform(value => {
+  if (!value) return undefined;
+  const compact = value.replace(/[ ()-]/g, '');
+  return compact.startsWith('0') ? '+62' + compact.slice(1) : compact.startsWith('+') ? compact : '+' + compact;
+}).refine(value => value === undefined || /^\+[1-9]\d{7,14}$/.test(value));
+
 export const PEGuestStartSchema = PEStartSchema.extend({
+  whatsapp: whatsappSchema.optional(),
   name: z.string().trim().min(1).max(100), email: z.email().trim().toLowerCase().max(254), draftKey: PEGuestKeySchema,
   attribution: z.object(Object.fromEntries(['utmSource','utmMedium','utmCampaign','utmContent','utmTerm','gclid','fbclid','msclkid'].map(key=>[key,z.string().trim().max(500).optional()]))).strict()
     .transform(values=>Object.fromEntries(Object.entries(values).filter(([,value])=>value&&!/@|[\r\n]|https?:\/\/|bearer\s|(?:access_token|api_key|secret)=/i.test(value)))).default({}),

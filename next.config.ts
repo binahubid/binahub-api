@@ -9,13 +9,17 @@ const pdfAssets = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  outputFileTracingIncludes: Object.fromEntries([
+  serverExternalPackages: ["pdfjs-dist"],
+  outputFileTracingIncludes: {
+    ...Object.fromEntries([
     '/api/assessment', '/api/assessment/worker', '/api/admin/assessments',
     '/api/admin/proposals/preview', '/api/proposal/view', '/api/tbos/export',
     '/api/admin/program-questionnaires/export', '/api/peta/*',
     '/api/discovery/spin/*', '/api/admin/discovery/*',
     '/api/konsultan/*',
-  ].map(route => [route, pdfAssets])),
+    ].map(route => [route, pdfAssets])),
+    '/api/konsultan/materials/*': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+  },
   turbopack: {
     root: __dirname,
   },

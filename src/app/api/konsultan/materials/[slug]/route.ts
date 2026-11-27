@@ -16,8 +16,12 @@ export async function GET(
   ctx: { params: Promise<{ slug: string }> },
 ) {
   try {
-    await requireConsultant(req);
+    const actor = await requireConsultant(req);
     const { slug } = await ctx.params;
+    const reading = req.nextUrl.searchParams.get("view") === "reader";
+    if (slug === "product-knowledge" && !reading && !actor.isAdmin) {
+      throw new ConsultantError("CONSULTANT_MATERIAL_READ_ONLY", 403);
+    }
     const document = consultantDocuments.find((entry) => entry.slug === slug);
     if (!document)
       throw new ConsultantError("CONSULTANT_NOT_FOUND", 404);
@@ -26,6 +30,11 @@ export async function GET(
       .download(document.storageName);
     if (error || !data)
       throw new ConsultantError("CONSULTANT_MATERIAL_UNAVAILABLE", 404);
+    if (reading && slug === "product-knowledge") {
+      const { consultantReadingPages } = await import("@/lib/consultant/material-reading");
+      const pages = await consultantReadingPages(new Uint8Array(await data.arrayBuffer()));
+      return NextResponse.json({ pages }, { headers: consultantHeaders });
+    }
     return new NextResponse(data, {
       headers: {
         ...consultantHeaders,

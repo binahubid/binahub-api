@@ -69,7 +69,7 @@ export async function loadPEAdminCase(db:SupabaseClient,id:string) {
       answer: q.type==='behavioral_self_report'?safe.selfReportScale.find(s=>s.value===answer)?.label||String(answer):
         ('options' in q?q.options.find(o=>o.id===answer)?.text:'')||String(answer)};
   });
-  let participant:{name:string|null;email:string|null}={name:null,email:null};
+  let participant: {name:string|null;email:string|null;whatsapp?:string|null} = {name:null,email:null};
   // Optional account profile, only AFTER DB confirms the owner's explicit review permission.
   try {
     const {data,error}=await db.auth.admin.getUserById(raw.ownerId);
@@ -77,8 +77,12 @@ export async function loadPEAdminCase(db:SupabaseClient,id:string) {
       email:data.user.email||null};
   }catch{/* Context, answers and result remain available without the profile service. */}
   if(!participant.email){
-    const guest=await db.from('pe_guest_contacts').select('name,email').eq('attempt_id',raw.attempt.id).maybeSingle();
-    if(guest.data)participant={name:guest.data.name,email:guest.data.email};
+    const guest=await db.from('pe_guest_contacts').select('name,email,whatsapp').eq('attempt_id',raw.attempt.id).maybeSingle();
+    if (guest.data) participant = { name: guest.data.name, email: guest.data.email, whatsapp: guest.data.whatsapp };
+    else if (guest.error?.code === '42703') {
+      const legacy = await db.from('pe_guest_contacts').select('name,email').eq('attempt_id',raw.attempt.id).maybeSingle();
+      if (legacy.data) participant = legacy.data;
+    }
   }
   let delivery:{status:string;sentAt:string|null}|null=null;
   try{
