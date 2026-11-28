@@ -24,13 +24,21 @@ describe('CEO-approved SPIN base pricing', () => {
   it.each([1, 20, 30])('uses the same catalog base within capacity: %i participants', participantCount => {
     expect(quoteSpinCatalogBase(syntheticSpinNeeds({ participantCount }), scope).publicInvestment.baseAmountIdr).toBe(25_000_000);
   });
-  it.each([31, 60, 151, null])('does not extrapolate unknown/excess participants: %s', participantCount => {
+  it.each([[31, 26_000_000], [35, 30_000_000], [60, 55_000_000]])('prices training for %s participants', (participantCount, total) => {
+    expect(quoteSpinCatalogBase(syntheticSpinNeeds({ participantCount }), scope).publicInvestment.baseAmountIdr).toBe(total);
+  });
+  it('uses Team Building’s new rate across both days', () => {
+    expect(quoteSpinCatalogBase(syntheticSpinNeeds({ participantCount: 35 }), {
+      ...scope, solutionCodes: ['SS-11'], days: 2,
+    }).publicInvestment.baseAmountIdr).toBe(57_000_000);
+  });
+  it.each([151, null])('withholds pricing for a broad or unknown participant scope: %s', participantCount => {
     expect(quoteSpinCatalogBase(syntheticSpinNeeds({ participantCount }), scope).publicInvestment.baseAmountIdr).toBeNull();
   });
   it.each([0.5, 2, 10, null])('does not invent a rate for SS-29 duration %s days', days => {
     expect(quoteSpinCatalogBase(syntheticSpinNeeds(), { ...scope, days }).publicInvestment.baseAmountIdr).toBeNull();
   });
-  it.each(['SS-11', 'SS-18', 'SS-27'])('does not treat package/custom %s as a daily workshop', code => {
+  it.each(['SS-18', 'SS-21', 'SS-23', 'SS-27', 'SS-32'])('leaves custom %s unpriced in the recommendation', code => {
     const result = quoteSpinCatalogBase(syntheticSpinNeeds({ spiritualOptIn: 'yes' }), { ...scope, solutionCodes: [code] });
     expect(result.publicInvestment.baseAmountIdr).toBeNull();
     expect(result.internalCommercial.consultationReasons).toContain('NON_DAILY_PRICING');
@@ -54,7 +62,7 @@ describe('CEO-approved SPIN base pricing', () => {
   });
   it('rejects price/discount/tax tampering, unknown codes and invalid numeric values', () => {
     for (const input of [{ ...scope, basePrice: 1 }, { ...scope, taxPercent: 0 }, { ...scope, discount: 100 },
-      { ...scope, solutionCodes: ['SS-32'] }, { ...scope, days: 0 }, { ...scope, batches: 0 },
+      { ...scope, solutionCodes: ['SS-33'] }, { ...scope, days: 0 }, { ...scope, batches: 0 },
       { ...scope, solutionCodes: ['SS-29', 'SS-29'] }]) expect(() => quoteSpinCatalogBase(syntheticSpinNeeds(), input)).toThrow();
   });
   it('never leaks raw review codes, internal metadata or invented totals into the public investment', () => {

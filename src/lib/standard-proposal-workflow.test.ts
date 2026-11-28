@@ -102,6 +102,50 @@ describe("automatic standard proposal workflow", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])("automatically sends a recommendation when manual pricing is selected (mixed: %s)", async mixed => {
+    const custom = {
+      ...standard, id: "module-18", module_code: "SS-18", name: "Culture Activation",
+      base_price: 0, pricing_unit: "custom",
+      metadata: {
+        commercialModel: "custom_scope", requiresHumanCommercialReview: true,
+        localized: { id: { learningObjectives: ["Menerjemahkan nilai menjadi perilaku kerja."] } },
+      },
+    };
+    state.modules = mixed ? [standard, custom] : [custom];
+    mocks.select.mockResolvedValue({
+      moduleCodes: mixed ? ["SS-12", "SS-18"] : ["SS-18"],
+      reasoning: "Kebutuhan pengembangan budaya.",
+    });
+    expect(await createAndSendAutomaticPreliminary("assessment-1")).toMatchObject({ outcome: "sent" });
+    const proposal = mocks.send.mock.calls[0][3];
+    expect(proposal).toMatchObject({
+      documentKind: "preliminary",
+      consultationUrl: expect.any(String),
+      selectedSolutions: expect.arrayContaining([
+        expect.objectContaining({ code: "SS-18", estimateIdr: null, benefits: ["Menerjemahkan nilai menjadi perilaku kerja."] }),
+      ]),
+    });
+    if (mixed) expect(proposal.selectedSolutions[0]).toMatchObject({ code: "SS-12", estimateIdr: 25_000_000, estimateDays: 1 });
+    expect(proposal).not.toHaveProperty("commercialSnapshot");
+    expect(proposal).not.toHaveProperty("packages");
+    expect(state.row.proposal_draft_data).not.toHaveProperty("basePriceTotal");
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
+
+  it("uses the new Team Building price for the published legacy package", async () => {
+    state.modules = [{
+      ...standard, id: "module-11", module_code: "SS-11", name: "Team Building",
+      pricing_unit: "package", base_price: 0,
+      metadata: { commercialModel: "tiered_package", requiresHumanCommercialReview: true, publicCatalogRevision: "signature-2026-ss32" },
+    }];
+    mocks.select.mockResolvedValue({ moduleCodes: ["SS-11"], reasoning: "Kebutuhan penguatan tim." });
+    expect(await createAndSendAutomaticPreliminary("assessment-1")).toMatchObject({ outcome: "sent" });
+    expect(mocks.send.mock.calls[0][3]).toMatchObject({
+      commercialSnapshot: { totalBeforeTax: 25_000_000 },
+      selectedSolutions: [expect.objectContaining({ code: "SS-11", estimateIdr: 25_000_000 })],
+    });
+  });
+
   it("records DB failure instead of leaving an invisible processing state", async () => {
     state.catalogError = true;
     await expect(createAndSendAutomaticPreliminary("assessment-1")).rejects.toThrow("catalog offline");

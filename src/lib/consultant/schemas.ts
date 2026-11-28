@@ -107,8 +107,12 @@ export const proposalInput = z
     programCodes: z
       .array(z.string().regex(/^SS-\d{2}$/))
       .min(1)
-    .max(31)
+      .max(32)
       .refine((v) => new Set(v).size === v.length),
+    manualPrices: z.array(z.object({
+      code: z.string().regex(/^SS-\d{2}$/),
+      amountIdr: z.number().int().positive().max(1_000_000_000_000),
+    }).strict()).max(32).refine(items => new Set(items.map(item => item.code)).size === items.length).optional(),
     days: z.number().min(0.5).max(365).multipleOf(0.5),
     participants: z.number().int().positive().max(100000),
     venue: z.enum(["indoor", "outdoor", "hybrid", "online"]),

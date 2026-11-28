@@ -5,7 +5,9 @@ import { evaluateAssessmentProposalEligibility, type ProposalEligibility } from 
 import { formatIdr } from "@/lib/proposal-policy";
 import { automaticPreliminaryCommercialEligibility } from "@/lib/preliminary-commercial-policy";
 import { createServerSupabase } from "@/lib/supabase";
-import { isAutoSendableStandardModule } from "@/lib/standard-catalog-policy";
+import { isAutoSendableStandardModule, isPublishedSignatureModule } from "@/lib/standard-catalog-policy";
+import { SPIN_CATALOG, type SpinCatalogModule } from "@/lib/spin/catalog";
+import { INCLUDED_SIGNATURE_PARTICIPANTS, SIGNATURE_PRICING_VERSION, signatureDailyPricing } from "@/lib/signature-pricing";
 import { selectCatalogFallback } from "@/lib/standard-catalog-selection";
 import { recordRuntimeError } from "@/lib/runtime-observability";
 import { safeTelemetryText } from "@/lib/telemetry-privacy";
@@ -82,11 +84,50 @@ function lines(value: string | null | undefined) {
 }
 
 function localizedList(module: CatalogModuleRow, locale: "id" | "en", field: "contentOutline" | "outputs", fallback: string | null | undefined) {
-  const localized = objectValue(objectValue(module.metadata).localized);
-  const copy = objectValue(localized[locale]);
+  const copy = localizedModule(module, locale);
   return Array.isArray(copy[field])
     ? copy[field].filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
     : lines(fallback);
+}
+
+function localizedModule(module: CatalogModuleRow, locale: "id" | "en") {
+  const metadata = objectValue(module.metadata);
+  return {
+    ...objectValue(objectValue(metadata.localized)[locale]),
+    ...objectValue(objectValue(metadata.publicCatalog)[locale]),
+  };
+}
+
+function benefitsFor(module: CatalogModuleRow & { product: SpinCatalogModule }, locale: "id" | "en") {
+  const objectives = localizedModule(module, locale).learningObjectives;
+  const benefits = Array.isArray(objectives)
+    ? objectives.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : [];
+  return (benefits.length ? benefits : module.product.objectives.map(item => item.text)).slice(0, 4);
+}
+
+function proposalCatalogRate(module: CatalogModuleRow, product: SpinCatalogModule) {
+  const pricing = signatureDailyPricing(product);
+  if (!pricing) return null;
+  if (isAutoSendableStandardModule(module)) {
+    return pricing.dailyRateIdr;
+  }
+  // V6 published copy identifies these programs even where legacy DB prices are still packages or zero.
+  const updated = module.metadata?.publicCatalogRevision === "signature-2026-ss32";
+  if (updated && ["SS-10", "SS-11", "SS-28", "SS-29", "SS-30", "SS-31"].includes(product.code)) {
+    return pricing.dailyRateIdr;
+  }
+  return undefined;
+}
+
+function proposalDiscussionLink() {
+  const configured = process.env.CALCOM_BOOKING_URL || process.env.NEXT_PUBLIC_CALCOM_BOOKING_URL;
+  try {
+    const url = new URL(configured || "");
+    if (["https://cal.com", "https://app.cal.com"].includes(url.origin)
+        && !url.username && !url.password && url.pathname !== "/") return url.toString();
+  } catch { /* Use the public contact address when booking is unavailable. */ }
+  return "mailto:admin@binahub.id?subject=Diskusi%20program%20BinaHub";
 }
 
 async function markManualReview(
@@ -199,30 +240,38 @@ export async function createAndSendAutomaticPreliminary(
       return await deliverStandardProposal(db, assessment, previousDraft.proposal as ProposalResult, previousDraft, assessment.proposal_catalog_version, eligibility);
     }
 
+    const form = objectValue(assessment.form_data);
+    const locale: "id" | "en" = form.locale === "en" ? "en" : "id";
     const { data: moduleRows, error: moduleError } = await db.from("catalog_modules")
       .select("id, module_code, name, standard_scope, deliverables, duration_label, pricing_unit, base_price, minimum_quantity, catalog_version, metadata")
       .eq("active", true)
       .eq("readiness_status", "ready")
       .eq("is_mock", false)
+      .eq("public_visible", true)
       .order("base_price", { ascending: true });
     if (moduleError) throw new Error(moduleError.message);
 
     const recommendations = arrayValue(assessment.recommendations);
     const officialModules = ((moduleRows || []) as unknown as CatalogModuleRow[])
-      .filter(isAutoSendableStandardModule);
+      .filter(isPublishedSignatureModule)
+      .flatMap(module => {
+        const product = SPIN_CATALOG.modules.find(item => item.code === module.module_code);
+        if (!product || (product.code === "SS-27" && form.spiritualOptIn !== "yes")) return [];
+        const dailyRate = proposalCatalogRate(module, product);
+        if (dailyRate === undefined) return [];
+        return [{ ...module, product, dailyRate }];
+      });
     if (officialModules.length === 0) {
       const catalogEligibility = {
         eligible: false,
-        missing: ["modul Signature Solutions berharga tetap yang siap ditawarkan"],
-        summary: "Belum ada modul standar resmi yang aman untuk pengiriman otomatis.",
+        missing: ["modul Signature Solutions siap direkomendasikan"],
+        summary: "Belum ada modul resmi yang siap direkomendasikan.",
       } satisfies ProposalEligibility;
       await markManualReview(db, assessmentId, catalogEligibility);
       return { outcome: "manual_review", eligibility: catalogEligibility };
     }
 
-    const form = objectValue(assessment.form_data);
-    const locale: "id" | "en" = form.locale === "en" ? "en" : "id";
-    let selectedModules: CatalogModuleRow[];
+    let selectedModules: typeof officialModules;
     let selectionReason: string;
     let selectionMethod: "ai" | "assessment_catalog_match" = "ai";
     const selectionInput = {
@@ -232,13 +281,16 @@ export async function createAndSendAutomaticPreliminary(
       category: assessment.category || "", scores: objectValue(assessment.scores) as Record<string, number>,
       recommendations: recommendations as Array<{ title?: string; diagnosis?: string; description?: string; service?: string; priority?: string }>,
       candidates: officialModules.map((module) => {
-        const copy = objectValue(objectValue(objectValue(module.metadata).localized)[locale]);
-        return { code: module.module_code, name: String(copy.name || module.name), summary: String(copy.summary || ""), scope: localizedList(module, locale, "contentOutline", module.standard_scope).join("; "), objectives: Array.isArray(copy.learningObjectives) ? copy.learningObjectives.filter((value): value is string => typeof value === "string").slice(0, 4) : [], duration: module.duration_label || "", serviceBrand: String(copy.serviceBrand || "") };
+        const copy = localizedModule(module, locale);
+        return { code: module.module_code, name: String(copy.name || module.name), summary: String(copy.summary || ""), scope: localizedList(module, locale, "contentOutline", module.standard_scope).join("; "), objectives: benefitsFor(module, locale).slice(0, 4), duration: String(copy.duration || module.duration_label || ""), serviceBrand: String(copy.serviceBrand || "") };
       }),
     };
     try {
       const selection = await selectStandardCatalogModules(selectionInput);
-      if (selection.moduleCodes.some((code) => !officialModules.some((module) => module.module_code === code))) throw new Error("Pemilihan modul di luar katalog resmi.");
+      if (!selection.moduleCodes.length || new Set(selection.moduleCodes).size !== selection.moduleCodes.length
+          || selection.moduleCodes.some(code => !officialModules.some(module => module.module_code === code))) {
+        throw new Error("Pemilihan modul di luar katalog resmi.");
+      }
       selectedModules = selection.moduleCodes.map((code) => officialModules.find((module) => module.module_code === code)!);
       selectionReason = selection.reasoning;
     } catch (selectionError) {
@@ -246,7 +298,7 @@ export async function createAndSendAutomaticPreliminary(
       await recordRuntimeError({ code: "STANDARD_PROPOSAL_SELECTION_FAILED", message: detail, route: "/api/proposal/request" });
       const fallback = selectCatalogFallback(selectionInput);
       if (!fallback) {
-        const reviewEligibility = { eligible: false, missing: ["Belum ada kecocokan modul standar yang cukup kuat dengan kebutuhan assessment."], summary: "Tinjau kebutuhan dan pemilihan modul sebelum menawarkan program." } satisfies ProposalEligibility;
+        const reviewEligibility = { eligible: false, missing: ["Belum ada kecocokan modul yang cukup kuat dengan kebutuhan assessment."], summary: "Tinjau kebutuhan dan pemilihan modul sebelum menawarkan program." } satisfies ProposalEligibility;
         await markManualReview(db, assessmentId, reviewEligibility);
         return { outcome: "manual_review", eligibility: reviewEligibility };
       }
@@ -255,11 +307,21 @@ export async function createAndSendAutomaticPreliminary(
       selectionMethod = "assessment_catalog_match";
     }
 
-    const commercialEligibility = automaticPreliminaryCommercialEligibility(selectedModules.map((module) => ({
-      basePrice: Number(module.base_price || 0),
-      quantity: quantityFor(module),
-    })));
-    if (!commercialEligibility.eligible) {
+    const pricedModules = selectedModules.flatMap(module => {
+      if (module.dailyRate === null) return [];
+      const quantity = Math.max(quantityFor(module), module.product.allowedDays[0] ?? 1);
+      return [{
+        code: module.module_code,
+        name: String(localizedModule(module, locale).name || module.name),
+        standardScope: module.standard_scope,
+        pricingUnit: "day",
+        basePrice: module.dailyRate,
+        quantity,
+        lineTotal: module.dailyRate * quantity,
+      }];
+    });
+    const commercialEligibility = automaticPreliminaryCommercialEligibility(pricedModules);
+    if (pricedModules.length && !commercialEligibility.eligible) {
       const reviewEligibility = {
         eligible: false,
         missing: [commercialEligibility.reason],
@@ -269,31 +331,29 @@ export async function createAndSendAutomaticPreliminary(
       return { outcome: "manual_review", eligibility: reviewEligibility };
     }
 
-    const modules = selectedModules.map((module) => {
-      const quantity = quantityFor(module);
-      const basePrice = Number(module.base_price || 0);
+    const total = pricedModules.reduce((sum, module) => sum + module.lineTotal, 0);
+    const catalogVersion = Array.from(new Set(selectedModules.map((module) => module.catalog_version))).join("+");
+    const needsDiscussion = selectedModules.length > pricedModules.length;
+    const selectedSolutions = selectedModules.map(module => {
+      const copy = localizedModule(module, locale);
+      const englishCopy = localizedModule(module, "en");
+      const priced = pricedModules.find(item => item.code === module.module_code);
       return {
-        name: module.name,
-        standardScope: module.standard_scope,
-        pricingUnit: module.pricing_unit,
-        quantity,
-        basePrice,
-        lineTotal: basePrice * quantity,
-        duration: module.duration_label || "",
-        deliverables: localizedList(module, locale, "outputs", module.deliverables),
+        code: module.module_code,
+        name: String(copy.name || module.name),
+        nameEn: String(englishCopy.name || module.name),
+        focus: String(copy.summary || module.standard_scope || ""),
+        focusEn: String(englishCopy.summary || copy.summary || module.standard_scope || ""),
+        ...(needsDiscussion ? { benefits: benefitsFor(module, locale) } : {}),
+        estimateIdr: priced?.lineTotal ?? null,
+        estimateDays: priced?.quantity,
       };
     });
-    const total = modules.reduce((sum, module) => sum + module.lineTotal, 0);
-    const catalogVersion = Array.from(new Set(selectedModules.map((module) => module.catalog_version))).join("+");
-    const localizedObjectives = selectedModules.flatMap((module) => {
-      const localized = objectValue(objectValue(module.metadata).localized);
-      const copy = objectValue(localized[locale]);
-      return Array.isArray(copy.learningObjectives)
-        ? copy.learningObjectives.filter((value): value is string => typeof value === "string")
-        : [];
-    });
+    const scope = selectedModules.flatMap(module => localizedList(module, locale, "contentOutline", module.standard_scope));
+    const deliverables = selectedModules.flatMap(module => localizedList(module, locale, "outputs", module.deliverables));
+    const rulesVersion = `${SIGNATURE_PRICING_VERSION}:${catalogVersion}`;
 
-    const generated = await generateAssessmentProposal({
+    const generated = needsDiscussion ? null : await generateAssessmentProposal({
       aiBudget: { maxTokens: 2048, perAttemptTimeoutMs: 10_000, totalTimeoutMs: 25_000 },
       locale,
       name: String(form.name || "Bapak/Ibu"),
@@ -309,41 +369,42 @@ export async function createAndSendAutomaticPreliminary(
       aiAnalysis: assessment.ai_analysis || "",
       recommendations: recommendations as Array<{ title?: string; diagnosis?: string; description?: string; service?: string; priority?: string }>,
       commercialContext: {
-        items: modules.map((module) => ({
-          name: module.name,
-          standardScope: module.standardScope,
-          pricingUnit: module.pricingUnit,
-          quantity: module.quantity,
+        items: pricedModules.map(({ name, standardScope, pricingUnit, quantity }) => ({
+          name, standardScope, pricingUnit, quantity,
         })),
         totalBeforeTax: total,
         currency: "IDR",
         isSimulation: false,
       },
     });
-    const proposal: ProposalResult = {
+    const proposal: ProposalResult = !generated ? {
+      documentKind: "preliminary",
+      proposedProgram: locale === "en" ? "Recommended development programs" : "Rekomendasi program pengembangan",
+      opening: locale === "en"
+        ? "These programs address priorities identified in your diagnostic. Review the benefits and discuss a scope that fits your team."
+        : "Program berikut menjawab prioritas yang terlihat dari hasil diagnosis Anda. Lihat manfaatnya dan diskusikan cakupan yang sesuai untuk tim Anda.",
+      scope,
+      deliverables,
+      selectedSolutions,
+      consultationUrl: proposalDiscussionLink(),
+      nextStep: locale === "en"
+        ? "Discuss your priorities, participant needs and desired outcomes with BinaHub."
+        : "Bahas prioritas, kebutuhan peserta, dan hasil yang ingin dicapai bersama BinaHub.",
+      isSimulation: false,
+      rulesVersion,
+    } : {
       ...generated,
       documentKind: "commercial",
       proposalType: "standard",
-      scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)),
-      deliverables: modules.flatMap((module) => module.deliverables),
+      scope,
+      deliverables,
       timeline: locale === "en"
-        ? `Planned delivery: ${modules.map((module) => `${module.name}: ${module.quantity} day(s)`).join("; ")}. Program duration: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Longer delivery requires a revised quote.`
-        : `Rencana pelaksanaan: ${modules.map((module) => `${module.name}: ${module.quantity} hari`).join("; ")}. Durasi program: ${selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; ")}. Pelaksanaan lebih lama memerlukan penawaran ulang.`,
-      learningObjectives: localizedObjectives,
-      selectedSolutions: selectedModules.map((module) => {
-        const localized = objectValue(objectValue(module.metadata).localized);
-        const copy = objectValue(localized[locale]);
-        const englishCopy = objectValue(localized.en);
-        return {
-          code: module.module_code,
-          name: typeof copy.name === "string" ? copy.name : module.name,
-          nameEn: typeof englishCopy.name === "string" ? englishCopy.name : module.name,
-          focus: typeof copy.summary === "string" ? copy.summary : module.standard_scope || "",
-          focusEn: typeof englishCopy.summary === "string" ? englishCopy.summary : module.standard_scope || "",
-        };
-      }),
+        ? `Planned delivery: ${pricedModules.map(module => `${module.name}: ${module.quantity} day(s)`).join("; ")}.`
+        : `Rencana pelaksanaan: ${pricedModules.map(module => `${module.name}: ${module.quantity} hari`).join("; ")}.`,
+      learningObjectives: selectedModules.flatMap(module => benefitsFor(module, locale)),
+      selectedSolutions,
       commercialSnapshot: {
-        items: modules.map((module) => ({ name: module.name, quantity: module.quantity, pricingUnit: module.pricingUnit, basePrice: module.basePrice, lineTotal: module.lineTotal })),
+        items: pricedModules.map(({ name, quantity, pricingUnit, basePrice, lineTotal }) => ({ name, quantity, pricingUnit, basePrice, lineTotal })),
         subtotal: total,
         discountPercent: 0,
         discountAmount: 0,
@@ -352,20 +413,23 @@ export async function createAndSendAutomaticPreliminary(
         validityDays: 14,
       },
       investmentNote: locale === "en"
-        ? `Program investment: ${formatIdr(total)} for ${modules.map((module) => `${module.name} (${module.quantity} delivery day(s))`).join(" + ")}. Taxes and changes to participants, location, duration, or scope are confirmed separately.`
-        : `Investasi program: ${formatIdr(total)} untuk ${modules.map((module) => `${module.name} (${module.quantity} hari pelaksanaan)`).join(" + ")}. Pajak serta perubahan jumlah peserta, lokasi, durasi, atau cakupan dikonfirmasi terpisah.`,
-      packages: generated.packages?.map((item) => ({ ...item, price: formatIdr(total), duration: selectedModules.map((module) => `${module.name}: ${module.duration_label}`).join("; "), scope: selectedModules.flatMap((module) => localizedList(module, locale, "contentOutline", module.standard_scope)), deliverables: modules.flatMap((module) => module.deliverables) })),
+        ? `Estimated investment: ${formatIdr(total)} for ${pricedModules.map(module => `${module.name} (${module.quantity} delivery day(s))`).join(" + ")} with up to ${INCLUDED_SIGNATURE_PARTICIPANTS} participants per program. Additional participants and changes in delivery scope affect the estimate.`
+        : `Estimasi investasi: ${formatIdr(total)} untuk ${pricedModules.map(module => `${module.name} (${module.quantity} hari pelaksanaan)`).join(" + ")} dengan maksimal ${INCLUDED_SIGNATURE_PARTICIPANTS} peserta per program. Tambahan peserta dan perubahan lingkup pelaksanaan memengaruhi estimasi.`,
+      packages: generated.packages?.map(item => ({
+        ...item, price: formatIdr(total), scope, deliverables,
+        duration: selectedModules.map(module => `${module.name}: ${module.duration_label}`).join("; "),
+      })),
       isSimulation: false,
-      rulesVersion: `automatic-standard-v2:${catalogVersion}`,
+      rulesVersion,
     };
     const draft = {
       proposal,
       automatic: true,
-      kind: "standard",
+      kind: needsDiscussion ? "recommendation" : "standard",
       selectedModuleIds: selectedModules.map((module) => module.id),
       selectionReason,
       selectionMethod,
-      basePriceTotal: total,
+      ...(needsDiscussion ? {} : { basePriceTotal: total }),
       generatedAt: new Date().toISOString(),
       eligibility,
     };

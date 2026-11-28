@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
     learningObjectives: proposal.learningObjectives,
     deliverables: proposal.deliverables,
     selectedSolutions: proposal.selectedSolutions,
+    consultationUrl: proposal.consultationUrl,
     commercialSnapshot: proposal.commercialSnapshot && {
       items: commercialItems.map(({ name, quantity, pricingUnit }) => ({ name, quantity, pricingUnit })),
       totalBeforeTax: proposal.proposalType === "custom" ? proposal.commercialSnapshot.totalBeforeTax : undefined,

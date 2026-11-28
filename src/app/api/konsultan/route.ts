@@ -9,6 +9,7 @@ import { consultantQuery } from "@/lib/consultant/schemas";
 import { SPIN_CATALOG } from "@/lib/spin/catalog";
 import { withConsultantOrigins } from "@/lib/consultant/origin";
 import { consultantProgramCapacity } from "@/lib/consultant/pricing";
+import { signatureDailyPricing } from "@/lib/signature-pricing";
 import type { ConsultantLead } from "@/lib/consultant/schemas";
 export async function GET(req: NextRequest) {
   try {
@@ -28,13 +29,19 @@ export async function GET(req: NextRequest) {
       ...result,
       ...(q.owner === "mine" ? { session: actor } : {}),
       records: await withConsultantOrigins(result.records),
-      catalog: SPIN_CATALOG.modules.map(program => ({
-        code: program.code,
-        name: program.name,
-        dailyRateIdr: program.dailyRateIdr,
-        capacity: consultantProgramCapacity(program),
-        pricingModel: program.pricingModel,
-      })),
+      catalog: SPIN_CATALOG.modules.map(program => {
+        const pricing = signatureDailyPricing(program);
+        return {
+          code: program.code,
+          name: program.name,
+          dailyRateIdr: pricing?.dailyRateIdr ?? null,
+          additionalParticipantRateIdr: pricing?.additionalParticipantRateIdr,
+          includedParticipants: pricing?.includedParticipants,
+          halfDayMinimum: pricing?.halfDayMinimum,
+          capacity: consultantProgramCapacity(program),
+          pricingModel: program.code === "SS-11" ? "Tarif Harian Standar" : program.pricingModel,
+        };
+      }),
     });
   } catch (e) {
     return consultantFailure(e);

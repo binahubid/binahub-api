@@ -11,11 +11,11 @@ const moduleSchema = z.object({
 }).strict();
 
 const catalogSchema = z.object({
-  schemaVersion: z.literal(1), catalogVersion: z.literal('6.0-SS32'), scopeVersion: z.literal('spin-ss01-31-v1'),
+  schemaVersion: z.literal(1), catalogVersion: z.literal('6.0-SS32'), scopeVersion: z.literal('spin-ss01-32-v2'),
   sourceFile: z.literal('BinaHub_Signature_Solutions_Catalog_V6_SS32.docx'),
   sourceSha256: z.literal('10b439e277cc823cdb0b8dd10cc2892830e821607c75488df0e7a82eb1c1cc99'),
-  scopeCodes: z.array(z.string()).length(31), excludedCodes: z.tuple([z.literal('SS-32')]),
-  modules: z.array(moduleSchema).length(31),
+  scopeCodes: z.array(z.string()).length(32), excludedCodes: z.tuple([]),
+  modules: z.array(moduleSchema).length(32),
 }).strict();
 
 export type SpinCatalogModule = z.infer<typeof moduleSchema>;
@@ -30,7 +30,7 @@ function freeze<T>(value: T): T {
 
 export function validateSpinCatalog(value: unknown) {
   const catalog = catalogSchema.parse(value);
-  const expected = Array.from({ length: 31 }, (_, i) => `SS-${String(i + 1).padStart(2, '0')}`);
+  const expected = Array.from({ length: 32 }, (_, i) => `SS-${String(i + 1).padStart(2, '0')}`);
   if (catalog.scopeCodes.some((code, i) => code !== expected[i])
     || catalog.modules.some((module, i) => module.code !== expected[i])) throw new Error('SPIN_CATALOG_SCOPE_INVALID');
   for (const product of catalog.modules) {
@@ -57,7 +57,7 @@ export function spinCatalogCandidates(spiritualOptIn: 'yes' | 'no' | 'unknown') 
   return SPIN_CATALOG.modules.filter(module => module.code !== 'SS-27' || spiritualOptIn === 'yes');
 }
 
-/** Deliberately excludes prices, source internals, and all SS-32 content. */
+/** Only the evidence and objectives needed to match programs go to the selector. */
 export function spinMatchingCards(spiritualOptIn: 'yes' | 'no' | 'unknown') {
   return spinCatalogCandidates(spiritualOptIn).map(({ code, name, objectives, audience,sourceText }) => ({
     code, name, objectives: objectives.map(item => ({ ...item })), audience,
@@ -70,6 +70,8 @@ export function spinMatchingCards(spiritualOptIn: 'yes' | 'no' | 'unknown') {
  * list rather than asserting which column a competency originally belonged to.
  */
 export function spinCatalogCompetencies(text:string):string[] {
+ const core=/^Core:\s*(.+?)\s*\|\s*Secondary:\s*(.+)$/im.exec(text);
+ if(core)return [core[1],...core[2].replace(/\.$/,'').split(';')].map(value=>value.trim()).filter(Boolean);
  const compact=/Kompetensi inti:\s*([\s\S]*?)\s*Output:/i.exec(text);
  if(compact)return [...new Set(compact[1].replace(/Kompetensi pendukung:/gi,';').split(/[;\n]/)
   .map(value=>value.trim().replace(/\.$/,'')).filter(Boolean))];

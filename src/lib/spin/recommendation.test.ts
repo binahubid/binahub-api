@@ -19,7 +19,7 @@ describe('SPIN evidence matching boundaries', () => {
       publicReportDraft: { recommendations: [] }, internalConsultant: { consultationReasons: ['NO_VERIFIED_CANDIDATE'], automaticDeliveryAllowed: false },
     });
   });
-  it.each(['SS-00', 'SS-32', 'SS-99', 'SS-27'])('rejects unapproved candidate %s', code => {
+  it.each(['SS-00', 'SS-33', 'SS-99', 'SS-27'])('rejects unapproved candidate %s', code => {
     expect(() => validateSpinMatches(syntheticSpinSelection(code), syntheticSpinNeeds())).toThrow('SPIN_SOLUTION_OUTSIDE_SCOPE');
   });
   it('accepts the special route only after explicit spiritual consent', () => {
@@ -62,7 +62,7 @@ describe('SPIN evidence matching boundaries', () => {
     const request = buildSpinMatchingRequest(syntheticSpinNeeds());
     const payload = JSON.parse(request.messages[1].content);
     expect(Object.keys(payload.needs).sort()).toEqual(['audience', 'barriers', 'evidence', 'outcomeBasis', 'priorOutcome', 'problemCluster', 'programScope']);
-    expect(request.messages[1].content).not.toMatch(/dailyRateIdr|priceEvidence|sourceText|SS-32/);
+    expect(request.messages[1].content).not.toMatch(/dailyRateIdr|priceEvidence|sourceText|Rp25/);
   });
   it('does not promote structural validation into accuracy or public confidence', () => {
     const result = buildSpinRecommendationResult(syntheticSpinNeeds(), syntheticSpinSelection());

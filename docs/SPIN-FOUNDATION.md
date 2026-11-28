@@ -10,11 +10,11 @@ tidak mengirim apa pun; worker intake yang mengelola side effect. Runbook rilis:
 
 - Katalog aktual `BinaHub_Signature_Solutions_Catalog_V6_SS32.docx`, SHA256
   `10b439e277cc823cdb0b8dd10cc2892830e821607c75488df0e7a82eb1c1cc99`.
-  Versi sumber `6.0-SS32`, scope SPIN terpisah `spin-ss01-31-v1`.
-  Snapshot `src/data/spin-catalog-v6.json` berisi 31 solusi, objective refs,
+  Versi sumber `6.0-SS32`, scope SPIN `spin-ss01-32-v2`.
+  Snapshot `src/data/spin-catalog-v6.json` berisi 32 solusi, objective refs,
   kutipan harga dan nomor paragraf sumber (bukan nomor halaman).
-- Pengguna mengesahkan SS-01–SS-31 untuk SPIN tim/organisasi. SS-32 tidak
-  dimasukkan, tetapi tidak dihapus dari registry atau katalog jalur lain.
+- Sejak persetujuan 28 November 2026, SS-32 bisa direkomendasikan bersama
+  manfaat program dan ajakan diskusi. Program ini memakai harga manual.
 - Persetujuan CEO via WhatsApp yang diteruskan pengguna: boleh memakai AI;
   harga sesuai ketentuan katalog; mencakup trainer/fasilitator dan modul;
   kebutuhan di luar itu dibahas saat konsultasi. Tidak meminta matriks manual

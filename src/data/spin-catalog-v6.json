@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogVersion": "6.0-SS32",
-  "scopeVersion": "spin-ss01-31-v1",
+  "scopeVersion": "spin-ss01-32-v2",
   "sourceFile": "BinaHub_Signature_Solutions_Catalog_V6_SS32.docx",
   "sourceSha256": "10b439e277cc823cdb0b8dd10cc2892830e821607c75488df0e7a82eb1c1cc99",
   "scopeCodes": [
@@ -35,11 +35,10 @@
     "SS-28",
     "SS-29",
     "SS-30",
-    "SS-31"
-  ],
-  "excludedCodes": [
+    "SS-31",
     "SS-32"
   ],
+  "excludedCodes": [],
   "modules": [
     {
       "code": "SS-01",
@@ -1057,6 +1056,42 @@
       ],
       "priceEvidence": "Output: risk register sederhana, risk-priority map, dan rencana mitigasi dengan penanggung jawab. Format: Workshop / Applied Lab. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari; dapat dikustom untuk risiko operasional/strategis tertentu. Sub-brand: BinaWorks.",
       "sourceText": "Descriptor: Anticipate Risk. Make Informed Choices. Protect Outcomes.\nSASARAN PEMBELAJARAN\n•  mengidentifikasi risiko yang dapat menghambat tujuan; menilai kemungkinan dan dampak; memprioritaskan risiko; menetapkan mitigasi, pemilik risiko, dan rencana kontingensi; serta memutuskan kapan risiko dapat diterima, perlu dimitigasi, atau harus dieskalasikan\nOVERVIEW / KONTEN\n•  risk identification; likelihood-impact assessment; risk appetite dan toleransi; risk register; mitigasi dan kontingensi; indikator risiko; monitoring dan eskalasi; perbedaan risk management dengan risk taking\nKompetensi inti: Risk Management. Kompetensi pendukung: Risk Taking; Problem Solving & Decision Making; Strategic Thinking.\nOutput: risk register sederhana, risk-priority map, dan rencana mitigasi dengan penanggung jawab. Format: Workshop / Applied Lab. Durasi: 1 hari. Kapasitas: hingga 30 peserta. Investasi standar: Rp25.000.000,-/hari; dapat dikustom untuk risiko operasional/strategis tertentu. Sub-brand: BinaWorks."
+    },
+    {
+      "code": "SS-32",
+      "name": "Self-Development & Individual Development Planning",
+      "sourceParagraphStart": 1071,
+      "sourceParagraphEnd": 1094,
+      "objectives": [
+        {
+          "id": "SS-32.LO01",
+          "text": "Mengidentifikasi 1–2 kebutuhan belajar prioritas dari tuntutan peran, sasaran kinerja, refleksi pribadi, dan umpan balik yang relevan, tanpa menyamakan skor asesmen dengan kesenjangan objektif."
+        },
+        {
+          "id": "SS-32.LO02",
+          "text": "Memilih fokus materi belajar menggunakan kriteria dampak terhadap pekerjaan, urgensi, relevansi peran, dan kesiapan untuk diterapkan; merumuskan sasaran belajar yang spesifik dan dapat diuji."
+        },
+        {
+          "id": "SS-32.LO03",
+          "text": "Memilih kombinasi metode belajar yang sesuai, termasuk praktik kerja/proyek, mentoring atau feedback, diskusi sejawat, dan sumber belajar terstruktur; menilai kredibilitas serta kegunaan sumber."
+        },
+        {
+          "id": "SS-32.LO04",
+          "text": "Merancang penerapan hasil belajar dalam tugas nyata melalui eksperimen terukur, umpan balik, pencatatan bukti, dan refleksi berkala."
+        },
+        {
+          "id": "SS-32.LO05",
+          "text": "Menyusun Individual Development Plan (IDP) 90 hari dengan prioritas kompetensi, materi, metode, aktivitas aplikasi, indikator bukti, kebutuhan dukungan, dan checkpoint 30/60/90 hari."
+        }
+      ],
+      "audience": "Profesional, kontributor individu, supervisor, manajer, dan peserta talent development yang ingin mengelola pembelajaran mandiri secara terarah.",
+      "duration": "1 hari",
+      "capacity": "hingga 30 peserta",
+      "pricingModel": "Harga Kustom",
+      "dailyRateIdr": null,
+      "allowedDays": [],
+      "priceEvidence": "Format: Workshop + IDP Clinic. Durasi standar: 1 hari. Kapasitas: hingga 30 peserta. Investasi indikatif: Rp25.000.000,-/hari mengikuti tarif standar, menunggu persetujuan komersial. Sub-brand yang diusulkan: BinaLab / BinaAcademy.",
+      "sourceText": "Descriptor: Prioritize What Matters. Learn Deliberately. Apply at Work.\nSASARAN PEMBELAJARAN\n• Mengidentifikasi 1–2 kebutuhan belajar prioritas dari tuntutan peran, sasaran kinerja, refleksi pribadi, dan umpan balik yang relevan, tanpa menyamakan skor asesmen dengan kesenjangan objektif.\n• Memilih fokus materi belajar menggunakan kriteria dampak terhadap pekerjaan, urgensi, relevansi peran, dan kesiapan untuk diterapkan; merumuskan sasaran belajar yang spesifik dan dapat diuji.\n• Memilih kombinasi metode belajar yang sesuai, termasuk praktik kerja/proyek, mentoring atau feedback, diskusi sejawat, dan sumber belajar terstruktur; menilai kredibilitas serta kegunaan sumber.\n• Merancang penerapan hasil belajar dalam tugas nyata melalui eksperimen terukur, umpan balik, pencatatan bukti, dan refleksi berkala.\n• Menyusun Individual Development Plan (IDP) 90 hari dengan prioritas kompetensi, materi, metode, aktivitas aplikasi, indikator bukti, kebutuhan dukungan, dan checkpoint 30/60/90 hari.\nOVERVIEW / KONTEN\n• Learning diagnosis: refleksi kekuatan dan area pengembangan, bukti perilaku, umpan balik, dan tuntutan peran.\n• Learning Priority Matrix: impact × relevance × urgency × feasibility; pemilihan 1–2 fokus utama dan batas cakupan materi.\n• Learning design: rumusan hasil belajar, pemilihan sumber yang kredibel, kurasi topik, alokasi waktu, dan kecocokan metode.\n• Metode pembelajaran terapan: action learning, stretch assignment, shadowing, peer learning, mentoring/feedback, kelas, dan microlearning sesuai konteks.\n• Transfer of learning: tugas praktik, eksperimen perilaku, jurnal refleksi, bukti hasil, umpan balik, dan penyesuaian strategi.\n• IDP clinic: pengisian template IDP, peer review, komitmen dukungan atasan, serta checkpoint 30/60/90 hari.\nKOMPETENSI YANG DIKEMBANGKAN\nCore: Self-Development  |  Secondary: Planning & Organizing; Follow-Through.\nOUTPUT / DELIVERABLES\n• Learning Priority Canvas berisi 1–2 fokus belajar, alasan prioritas, dan sasaran kompetensi yang relevan dengan pekerjaan.\n• Individual Development Plan (IDP) 90 hari yang telah diisi peserta: fokus, tujuan, materi, metode, aktivitas penerapan, bukti keberhasilan, timeline, dukungan, dan review 30/60/90 hari.\n• Satu rencana praktik kerja/learning experiment yang dapat langsung dimulai serta jadwal feedback dengan atasan atau mentor.\nCocok Untuk: Profesional, kontributor individu, supervisor, manajer, dan peserta talent development yang ingin mengelola pembelajaran mandiri secara terarah.\nFormat: Workshop + IDP Clinic. Durasi standar: 1 hari. Kapasitas: hingga 30 peserta. Investasi indikatif: Rp25.000.000,-/hari mengikuti tarif standar, menunggu persetujuan komersial. Sub-brand yang diusulkan: BinaLab / BinaAcademy.\nCatatan: Pendampingan 30/60/90 hari bersifat layanan tambahan sesuai lingkup. IDP adalah rencana pengembangan, bukan bukti otomatis terjadinya peningkatan kompetensi. Template IDP editable tersedia sebagai file pendamping."
     }
   ]
 }

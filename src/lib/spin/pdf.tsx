@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document,Page,Text,View,StyleSheet,renderToBuffer } from '@react-pdf/renderer';
+import { Document,Link,Page,Text,View,StyleSheet,renderToBuffer } from '@react-pdf/renderer';
 import { type SpinReport,SpinReportSchema } from './report';
 import { spinSummaryPoints } from './summary-points';
 import { PDFHeader, PDFFooter, pdfStyles, pdfFont, pdfOverviewStyles as overview } from '../pdf-brand';
@@ -33,20 +33,31 @@ export function SpinPDF({report:r}:{report:SpinReport}){
    {programs.length?programs.map(program=><View key={program.code} style={s.rule} wrap={false}><Text style={s.sub}>{program.code} | {program.name}</Text>{!!program.competencies?.length&&<Text style={s.tags}>{program.competencies.slice(0,3).join(' / ')}{program.competencies.length>3?' / dan '+(program.competencies.length-3)+' lainnya':''}</Text>}</View>):<Text style={s.body}>Belum ada program yang ditetapkan. Hubungi admin@binahub.id untuk membahas kebutuhan dan sasaran pengembangan.</Text>}
    <Text style={s.note}>Kompetensi merupakan fokus program, bukan hasil pengukuran. Rincian lengkap tersedia pada halaman berikutnya.</Text>{footer}
   </Page>
-  {programs.map(program=>{const investment=r.investments.find(item=>item.name===program.name);return <Page key={program.code} size="A4" style={s.page}>
+  {programs.map(program=>{
+   const investment=r.investments.find(item=>item.name===program.name);
+   const amount=investment?.baseAmountIdr;
+   const discussion=r.bookingUrl||`mailto:admin@binahub.id?subject=${encodeURIComponent('Diskusi program '+program.name)}`;
+   return <Page key={program.code} size="A4" style={s.page}>
    <PDFHeader title={program.name} meta={`${program.code} | ${review?'Opsi program untuk konsultasi':'Rekomendasi awal untuk '+r.company}`}/>
    <View style={s.row}><View style={s.main}><Text style={s.h}>Kenapa program ini relevan?</Text>{program.evidence.map((e,index)=><View key={index} style={s.evidence} wrap={false}><Text style={s.label}>Kebutuhan Anda</Text><Text>{e.need}</Text><Text style={s.objective}>Fokus pembelajaran: {e.objective}</Text></View>)}
     {!!program.competencies?.length&&<View style={s.section}><Text style={s.sub}>Kompetensi yang dikembangkan</Text><Text style={s.tags}>{program.competencies.join(' / ')}</Text><Text style={s.note}>Fokus program, bukan hasil pengukuran kompetensi.</Text></View>}
-   </View><View style={s.aside}><Text style={s.sub}>{review?'Ruang lingkup untuk dibahas':'Investasi indikatif'}</Text><Text style={s.price}>{investment?.baseAmountIdr!=null?'Rp'+investment.baseAmountIdr.toLocaleString('id-ID'):'Disesuaikan setelah konsultasi'}</Text>
-    {investment&&<><Text style={s.line}>Durasi: {investment.duration}</Text><Text style={s.line}>Kapasitas: {investment.capacity}</Text><Text style={s.line}>Termasuk {investment.included.join(' dan ')}.</Text><Text style={s.note}>{investment.note}</Text></>}
-    {review&&<Text style={s.note}>Program adalah bagian dari pendekatan pengembangan. Proses, dukungan kerja, dan investasi perlu diselaraskan bersama.</Text>}
+   </View><View style={s.aside}>
+    {amount!=null && investment ? <>
+     <Text style={s.sub}>Estimasi investasi</Text><Text style={s.price}>Rp{amount.toLocaleString('id-ID')}</Text>
+     <Text style={s.line}>Durasi: {investment.duration}</Text><Text style={s.line}>Peserta: {investment.capacity}</Text>
+     <Text style={s.line}>Termasuk {investment.included.join(' dan ')}.</Text><Text style={s.note}>{investment.note}</Text>
+    </> : <>
+     <Text style={s.sub}>Rancang program bersama BinaHub</Text>
+     <Text style={s.line}>Mari bahas sasaran, peserta, dan cakupan yang sesuai dengan kebutuhan Anda.</Text>
+     <Link src={discussion}>Diskusikan program ini</Link>
+    </>}
    </View></View>
    {program.outputs.length>0&&<View style={s.section}><Text style={s.h}>Hasil yang dibawa pulang</Text>{program.outputs.map(text=><Text key={text} style={s.line}>- {text}</Text>)}</View>}
    {program.components.length>0&&<View style={s.section}><Text style={s.h}>Materi dan komponen program</Text>{program.components.map(text=><Text key={text} style={s.line}>- {text}</Text>)}</View>}{footer}
   </Page>;})}
   <Page size="A4" style={s.page}>
    <PDFHeader title="Rencana tindak lanjut" meta={`${r.company} | Persiapan pelaksanaan`}/>
-   <View style={s.row}><View style={s.main}><Text style={s.h}>Sebelum pelaksanaan</Text>{r.confirmations.map(text=><Text key={text} style={s.line}>- {text}</Text>)}<Text style={s.note}>{r.taxNote}</Text></View><View style={s.aside}><Text style={s.sub}>Langkah berikutnya</Text><Text style={s.line}>1. Selaraskan sasaran dan prioritas.</Text><Text style={s.line}>2. Tentukan peserta, ruang lingkup, dan jadwal.</Text><Text style={s.line}>3. Finalisasi proposal dan pelaksanaan.</Text><Text style={s.note}>Preferensi Anda: {r.nextStep}</Text><Text style={s.note}>Hubungi admin@binahub.id</Text>{r.bookingUrl&&<Text style={s.note}>{r.bookingUrl}</Text>}</View></View>
+   <View style={s.row}><View style={s.main}><Text style={s.h}>Sebelum pelaksanaan</Text>{r.confirmations.map(text=><Text key={text} style={s.line}>- {text}</Text>)}{r.taxNote&&<Text style={s.note}>{r.taxNote}</Text>}</View><View style={s.aside}><Text style={s.sub}>Langkah berikutnya</Text><Text style={s.line}>1. Selaraskan sasaran dan prioritas.</Text><Text style={s.line}>2. Tentukan peserta, ruang lingkup, dan jadwal.</Text><Text style={s.line}>3. Finalisasi proposal dan pelaksanaan.</Text><Text style={s.note}>Preferensi Anda: {r.nextStep}</Text><Text style={s.note}>Hubungi admin@binahub.id</Text>{r.bookingUrl&&<Text style={s.note}>{r.bookingUrl}</Text>}</View></View>
    <View style={s.section}><Text style={s.h} minPresenceAhead={80}>Ringkasan dan rincian pengisian</Text></View>
    {[['Konteks',r.summary.situation],['Kebutuhan utama',r.summary.problem],['Dampak pada pekerjaan',r.summary.impact],['Hasil yang diharapkan',r.summary.outcome]].map(([label,value])=><View key={label} style={s.evidence}><Text style={s.label}>{label}</Text>{spinSummaryPoints(value).map(point=><Text key={point} style={s.line}>- {point}</Text>)}</View>)}
    <View style={s.snapshots}>{r.snapshot.map(row=><View key={row.label} style={s.snapshot} wrap={false}><Text style={s.label}>{row.label}</Text>{spinSummaryPoints(row.value).map(point=><Text key={point} style={s.line}>- {point}</Text>)}</View>)}</View>

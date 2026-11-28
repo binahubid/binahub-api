@@ -1,3 +1,5 @@
+import { INCLUDED_SIGNATURE_PARTICIPANTS } from "./signature-pricing";
+
 export type PublicCatalogModuleRow = {
   id: string;
   product_id: string;
@@ -51,6 +53,7 @@ export function buildPublicCatalog(
       ? (copy[key] as unknown[]).filter((value): value is string => typeof value === "string")
       : [];
     const field = (key: string) => typeof copy[key] === "string" ? copy[key] as string : null;
+    const teamBuilding = module.module_code === "SS-11";
     return {
       // CEO solution titles remain English in both locales; localize body only.
       name: field("name") && metadata.publicCatalog ? field("name") : (localized.en && typeof localized.en === "object" && !Array.isArray(localized.en)
@@ -64,9 +67,17 @@ export function buildPublicCatalog(
       bestFor: field("bestFor"),
       engagementFormat: field("engagementFormat"),
       duration: field("duration") || module.duration_label,
-      capacity: field("capacity"),
+      capacity: teamBuilding
+        ? locale === "en"
+          ? `Base scope covers up to ${INCLUDED_SIGNATURE_PARTICIPANTS} participants. Larger groups can be accommodated.`
+          : `Cakupan dasar hingga ${INCLUDED_SIGNATURE_PARTICIPANTS} peserta. Jumlah peserta bisa ditambah.`
+        : field("capacity"),
       serviceBrand: field("serviceBrand"),
-      notes: field("notes"),
+      notes: teamBuilding
+        ? locale === "en"
+          ? "Activities are designed around the team’s goals and the way they work together."
+          : "Aktivitas dirancang sesuai tujuan tim dan cara mereka bekerja bersama."
+        : field("notes"),
     };
   };
   const modulesByProduct = new Map<string, PublicCatalogModuleRow[]>();

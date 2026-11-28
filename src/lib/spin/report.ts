@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SPIN_CATALOG,spinCatalogCompetencies } from './catalog';
-import { quoteSpinCatalogBase } from './commercial';
+import { quoteSpinCatalogBase, SPIN_PRICE_VERSION } from './commercial';
+import { signatureDailyPricing } from '@/lib/signature-pricing';
 import { SPIN_DEFINITION, SpinError, spinInternalRules, spinNeeds } from './intake';
 import { spinLabel, type SpinAnswers } from './form';
 import { buildSpinRecommendationResult } from './recommendation';
@@ -70,8 +71,10 @@ export function buildSpinReport(input:{id:string;submittedAt:string;company:stri
       format:a.format||'unknown',additionalNeeds:a.location&&!/^jakarta$/i.test(String(a.location).trim())?['travel']:a.facilities==='needed'||a.facilities==='partial'?['venue']:[]});
     // Estimated headcount is never promoted to a definite base quote.
     const amount=a.countStatus==='known'&&a.location&&['onsite','hybrid'].includes(String(a.deliveryMode))?quote.publicInvestment.baseAmountIdr:null;
-    if(amount===null)confirmations.push('Investasi '+p.name+' dibahas sesuai peserta, durasi, dan kebutuhan pelaksanaan.');
-    return {name:p.name,baseAmountIdr:amount,duration:label('duration'),capacity:p.capacity,included:quote.publicInvestment.included,note:amount===null?'Ruang lingkup dan investasi dibahas saat konsultasi.':'Investasi dasar satu program, satu batch, sesuai durasi dan kapasitas yang disebutkan. Kebutuhan tambahan dibahas saat konsultasi.'};
+    const pricing=signatureDailyPricing(p);
+    const capacity=pricing&&needs.participantCount!==null
+      ? `${needs.participantCount} peserta (tarif dasar hingga ${pricing.includedParticipants})` : p.capacity;
+    return {name:p.name,baseAmountIdr:amount,duration:label('duration'),capacity,included:quote.publicInvestment.included,note:quote.publicInvestment.scopeNote};
   });
   const bookingUrl=input.bookingUrl&&/^https:\/\/(app\.)?cal\.com\//.test(input.bookingUrl)?input.bookingUrl:null;
   const toSolution=(c:typeof allCandidates[number])=>{
@@ -81,10 +84,10 @@ export function buildSpinReport(input:{id:string;submittedAt:string;company:stri
   return {publicReport:SpinReportSchema.parse({version:'spin-report-v3-v1',reference:input.id,issuedAt:input.submittedAt,company:input.company,summary:input.summary,
     snapshot:[['Konteks','role'],['Bidang usaha','industry'],['Kelompok sasaran','audienceGroups'],['Peserta','participantCount'],['Upaya sebelumnya','priorEfforts'],['Hambatan','barriers'],['Konsekuensi yang dikhawatirkan','implications'],['Manfaat prioritas','benefits'],['Ukuran kemajuan','successMeasures']].map(([title,k])=>({label:title,value:label(k)})),
     solutions:candidates.map(toSolution),exploration:blocked?allCandidates.map(toSolution):[],advisory,investments,
-    confirmations:[...new Set(confirmations)],nextStep:label('nextStep'),bookingUrl,taxNote:'Ketentuan pajak perlu dikonfirmasi.',
+    confirmations:[...new Set(confirmations)],nextStep:label('nextStep'),bookingUrl,taxNote:investments.some(item=>item.baseAmountIdr!==null)?'Ketentuan pajak dibahas bersama.':'',
     disclaimer:'Dokumen ini adalah rekomendasi awal berdasarkan informasi responden, bukan diagnosis organisasi, asesmen psikometrik, jaminan hasil, atau penawaran final. Indikator, ruang lingkup, dan investasi perlu divalidasi bersama. Hasil program juga dipengaruhi penerapan di pekerjaan, dukungan atasan, dan sistem kerja.'}),
     internal:{...selection.internalConsultant,...rules,
       // Candidate matches remain visible to consultants when public rules require review.
       aiCandidates:selection.publicReportDraft.recommendations,
-      catalogVersion:SPIN_CATALOG.catalogVersion,pricingVersion:'spin-catalog-base-ceo-2026-10-22-v1'}};
+      catalogVersion:SPIN_CATALOG.catalogVersion,pricingVersion:SPIN_PRICE_VERSION}};
 }

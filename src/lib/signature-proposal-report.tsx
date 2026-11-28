@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Link, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { AssessmentData } from "@/lib/validations";
 import type { ProposalResult } from "@/lib/pdf-service";
 import { clientProposalCopy } from "@/lib/proposal-copy";
@@ -78,6 +78,10 @@ const translations = {
     alignment: "Penyesuaian kebutuhan",
     alignmentText: "Program mengikuti tujuan dan cakupan yang tercantum dalam proposal ini. Jika kebutuhan Anda berubah, kami akan menyelaraskan pendekatan, jadwal, dan investasi bersama sebelum pelaksanaan.",
     investment: "Investasi",
+    programEstimate: "Estimasi investasi",
+    estimateBasis: (days: number) => `${days} hari · hingga 30 peserta`,
+    discussProgram: "Diskusikan program ini",
+    discussWithBinaHub: "Diskusikan dengan BinaHub",
     quantity: "Jumlah",
     fee: "Nilai",
     total: "Total sebelum pajak",
@@ -120,6 +124,10 @@ const translations = {
     alignment: "Aligning with your needs",
     alignmentText: "The program follows the objectives and scope stated in this proposal. If your needs change, we will align the approach, schedule, and investment together before delivery.",
     investment: "Investment",
+    programEstimate: "Estimated investment",
+    estimateBasis: (days: number) => `${days} ${days === 1 ? "day" : "days"} · up to 30 participants`,
+    discussProgram: "Discuss this program",
+    discussWithBinaHub: "Discuss with BinaHub",
     quantity: "Quantity",
     fee: "Fee",
     total: "Total before tax",
@@ -154,7 +162,9 @@ export function SignatureProposalReport({ formData, proposal: storedProposal, lo
   const proposal = clientProposalCopy(storedProposal);
   const copy = translations[locale];
   const preliminary = proposal.documentKind === "preliminary";
-  const title = preliminary ? copy.preliminary : copy.commercial;
+  const discussion = proposal.consultationUrl;
+  const estimated = proposal.selectedSolutions?.some(solution => solution.estimateIdr != null);
+  const title = preliminary && !discussion ? copy.preliminary : copy.commercial;
   const company = formData.company || (locale === "en" ? "Your organization" : "Organisasi Anda");
   const date = new Date(issuedAt).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "long", year: "numeric" });
   const commercial = proposal.commercialSnapshot;
@@ -162,8 +172,12 @@ export function SignatureProposalReport({ formData, proposal: storedProposal, lo
   const objectives = proposal.learningObjectives || [];
   const scope = proposal.scope || [];
   const solutionRows = proposal.selectedSolutions?.length
-    ? proposal.selectedSolutions.map((item) => ({ code: item.code, name: locale === "en" ? item.nameEn || item.name : item.name, focus: locale === "en" ? item.focusEn || item.focus : item.focus }))
-    : items.map((item) => ({ code: "", name: item.name, focus: "" }));
+    ? proposal.selectedSolutions.map(item => ({
+      ...item,
+      name: locale === "en" ? item.nameEn || item.name : item.name,
+      focus: locale === "en" ? item.focusEn || item.focus : item.focus,
+    }))
+    : items.map(item => ({ code: "", name: item.name, focus: "", benefits: undefined, estimateIdr: undefined, estimateDays: undefined }));
 
   return <Document title={`${title} - ${company}`} author="PT Binahub Solusi Transformasi" subject="BinaHub Signature Solutions">
     <Page size="A4" style={styles.cover}>
@@ -176,7 +190,7 @@ export function SignatureProposalReport({ formData, proposal: storedProposal, lo
         <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.preparedFor}</Text><Text style={styles.metadataValue}>{company}</Text></View>
         <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.contact}</Text><Text style={styles.metadataValue}>{formData.name || "-"}</Text></View>
         <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.date}</Text><Text style={styles.metadataValue}>{date}</Text></View>
-        {(preliminary || proposal.isSimulation) && <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.status}</Text><Text style={styles.metadataValue}>{proposal.isSimulation ? copy.simulation : copy.indicative}</Text></View>}
+        {((preliminary && !discussion) || proposal.isSimulation) && <View style={styles.metadataRow}><Text style={styles.metadataLabel}>{copy.status}</Text><Text style={styles.metadataValue}>{proposal.isSimulation ? copy.simulation : copy.indicative}</Text></View>}
       </View>
       <PDFFooter label={`${copy.confidential} | www.binahub.id`} />
     </Page>
@@ -192,25 +206,41 @@ export function SignatureProposalReport({ formData, proposal: storedProposal, lo
         <Text style={styles.muted}>{copy.context}: {formData.challenge || (locale === "en" ? "To be confirmed with the client." : "Akan dikonfirmasi bersama klien.")}</Text>
       </Section>
       <Section number="02" title={copy.why}><Text style={styles.body}>{copy.solutionReason}</Text></Section>
-      <Section number="03" title={copy.objectives}>
+      {!discussion && <Section number="03" title={copy.objectives}>
         {objectives.length ? <BulletList items={objectives} /> : <Text style={styles.muted}>{copy.objectivesPending}</Text>}
-      </Section>
-      <Section number="04" title={copy.solutions}>
+      </Section>}
+      <Section number={discussion ? "03" : "04"} title={copy.solutions}>
         <View style={styles.tableHeader}><Text style={[styles.tableHeaderText, { width: "17%" }]}>CODE</Text><Text style={[styles.tableHeaderText, { width: "83%" }]}>{copy.solution.toUpperCase()}</Text></View>
-        {solutionRows.map((row, index) => <View key={`${row.code}-${index}`} style={styles.tableRow} wrap={false}><Text style={[styles.tableText, { width: "17%", color: GOLD, fontWeight: 700 }]}>{row.code || `${index + 1}`}</Text><View style={{ width: "83%" }}><Text style={[styles.tableText, { fontWeight: 700 }]}>{row.name}</Text>{row.focus && <Text style={styles.muted}>{row.focus}</Text>}</View></View>)}
+        {solutionRows.map((row, index) => <View key={`${row.code}-${index}`} style={styles.tableRow} wrap={false}>
+          <Text style={[styles.tableText, { width: "17%", color: GOLD, fontWeight: 700 }]}>{row.code || `${index + 1}`}</Text>
+          <View style={{ width: "83%" }}>
+            <Text style={[styles.tableText, { fontWeight: 700 }]}>{row.name}</Text>
+            {row.focus && <Text style={styles.muted}>{row.focus}</Text>}
+            {discussion && <View style={{ marginTop: 8 }}>
+              {row.benefits?.length ? <BulletList items={row.benefits} /> : null}
+              {row.estimateIdr != null
+                ? <View>
+                  <Text style={[styles.body, { fontWeight: 700 }]}>{copy.programEstimate} · {currency(row.estimateIdr, "IDR", locale)}</Text>
+                  {row.estimateDays && <Text style={styles.muted}>{copy.estimateBasis(row.estimateDays)}</Text>}
+                </View>
+                : <Link src={discussion} style={{ color: NAVY }}>{copy.discussProgram}</Link>}
+            </View>}
+          </View>
+        </View>)}
       </Section>
-      <Section number="05" title={copy.delivery}><Text style={styles.body}>{copy.deliveryText}</Text></Section>
-      <Section number="06" title={copy.scope}>
+      <Section number={discussion ? "04" : "05"} title={copy.delivery}><Text style={styles.body}>{copy.deliveryText}</Text></Section>
+      <Section number={discussion ? "05" : "06"} title={copy.scope}>
         <BulletList items={scope} />
         {proposal.deliverables?.length ? <View style={{ marginTop: 10 }}><Text style={styles.body}>{locale === "en" ? "Expected outputs" : "Output yang disediakan"}</Text><BulletList items={proposal.deliverables} /></View> : null}
         {proposal.timeline && <Text style={styles.muted}>{locale === "en" ? "Indicative timeline" : "Perkiraan waktu"}: {proposal.timeline}</Text>}
       </Section>
+      {!discussion && <>
       <Section number="07" title={copy.investment}>
         {items.length > 0 && <View>
           <View style={styles.tableHeader}><Text style={[styles.tableHeaderText, { width: preliminary ? "80%" : "54%" }]}>{copy.solution.toUpperCase()}</Text><Text style={[styles.tableHeaderText, { width: preliminary ? "20%" : "15%", textAlign: "center" }]}>{copy.quantity.toUpperCase()}</Text>{!preliminary && <Text style={[styles.tableHeaderText, { width: "31%", textAlign: "right" }]}>{copy.fee.toUpperCase()}</Text>}</View>
           {items.map((item, index) => <View key={`${item.name}-${index}`} style={styles.tableRow} wrap={false}><Text style={[styles.tableText, { width: preliminary ? "80%" : "54%" }]}>{item.name}</Text><Text style={[styles.tableText, { width: preliminary ? "20%" : "15%", textAlign: "center" }]}>{item.quantity}</Text>{!preliminary && <Text style={[styles.tableText, { width: "31%", textAlign: "right" }]}>{currency(item.lineTotal, commercial?.currency || "IDR", locale)}</Text>}</View>)}
           {!preliminary && (commercial?.discountAmount || 0) > 0 && <View style={styles.tableRow} wrap={false}><Text style={[styles.tableText, { width: "69%" }]}>{copy.discount} ({commercial?.discountPercent}%)</Text><Text style={[styles.tableText, { width: "31%", textAlign: "right" }]}>- {currency(commercial?.discountAmount || 0, commercial?.currency || "IDR", locale)}</Text></View>}
-          {!preliminary && <View style={styles.totalRow}><Text style={styles.totalLabel}>{copy.total}</Text><Text style={styles.totalValue}>{currency(commercial?.totalBeforeTax || 0, commercial?.currency || "IDR", locale)}</Text></View>}
+          {!preliminary && <View style={styles.totalRow}><Text style={styles.totalLabel}>{estimated ? copy.programEstimate : copy.total}</Text><Text style={styles.totalValue}>{currency(commercial?.totalBeforeTax || 0, commercial?.currency || "IDR", locale)}</Text></View>}
         </View>}
         {proposal.investmentNote && <Text style={[styles.body, { marginTop: 10 }]}>{proposal.investmentNote}</Text>}
       </Section>
@@ -219,10 +249,14 @@ export function SignatureProposalReport({ formData, proposal: storedProposal, lo
       <Section number="09" title={copy.alignment}><Text style={styles.body}>{copy.alignmentText}</Text></Section>
       <Section number="10" title={copy.terms}><Text style={styles.body}>{copy.termsText}</Text></Section>
       {commercial?.validityDays && <Text style={styles.muted}>{copy.validity}: {commercial.validityDays} {locale === "en" ? "days from issue" : "hari sejak diterbitkan"}.</Text>}
+      </>}
       <View style={{ paddingTop: 20 }}>
-        <Section number="11" title={copy.next}><Text style={styles.body}>{proposal.nextStep || (locale === "en" ? "Please contact BinaHub to confirm scope and scheduling." : "Silakan hubungi BinaHub untuk mengonfirmasi ruang lingkup dan jadwal.")}</Text></Section>
+        <Section number={discussion ? "06" : "11"} title={copy.next}>
+          <Text style={styles.body}>{proposal.nextStep || (locale === "en" ? "Please contact BinaHub to confirm scope and scheduling." : "Silakan hubungi BinaHub untuk mengonfirmasi ruang lingkup dan jadwal.")}</Text>
+          {discussion && <Link src={discussion} style={{ color: NAVY }}>{copy.discussWithBinaHub}</Link>}
+        </Section>
         <View style={styles.divider} />
-        <Section number="12" title={copy.about}><Text style={styles.body}>{copy.aboutText}</Text><Text style={[styles.muted, { marginTop: 5 }]}>People. Learning. Elevated.  |  www.binahub.id</Text></Section>
+        <Section number={discussion ? "07" : "12"} title={copy.about}><Text style={styles.body}>{copy.aboutText}</Text><Text style={[styles.muted, { marginTop: 5 }]}>People. Learning. Elevated.  |  www.binahub.id</Text></Section>
         <View style={styles.closingPanel} wrap={false}><Text style={styles.closingPanelTitle}>{copy.closingTitle}</Text><Text style={styles.closingPanelText}>{copy.closingText}</Text><Text style={[styles.closingPanelText, { marginTop: 20 }]}>www.binahub.id</Text></View>
       </View>
     </Page>

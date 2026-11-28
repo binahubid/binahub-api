@@ -33,7 +33,7 @@ describe('SPIN AI adapter (mocked; no provider or email calls)', () => {
     await prepareSpinRecommendation(syntheticSpinNeeds({ evidence: [{ id: 'Q05', text: 'Kebutuhan belum jelas.' }] }));
     expect(routed).not.toHaveBeenCalled();
   });
-  it.each(['not JSON', '{"matches":[] ,"price":1}', JSON.stringify(syntheticSpinSelection('SS-32')), 'x'.repeat(16_385)])('never turns invalid output into a default sale: case %#', async content => {
+  it.each(['not JSON', '{"matches":[] ,"price":1}', JSON.stringify(syntheticSpinSelection('SS-33')), 'x'.repeat(16_385)])('never turns invalid output into a default sale: case %#', async content => {
     routed.mockResolvedValue({ content });
     const result = await prepareSpinRecommendation(syntheticSpinNeeds());
     expect(result.publicReportDraft.recommendations).toEqual([]);

@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { SIGNATURE_PRICING_VERSION, signatureDailyPricing, signatureDayRate } from '@/lib/signature-pricing';
 import { SPIN_CATALOG } from './catalog';
 import { SpinNeedsSchema, spinConsultationReasons, spinHasRequiredEvidence } from './recommendation';
 
-export const SPIN_PRICE_VERSION = 'spin-catalog-base-ceo-2026-10-22-v1';
+export const SPIN_PRICE_VERSION = SIGNATURE_PRICING_VERSION;
 const scopeSchema = z.object({
   solutionCodes: z.array(z.string().regex(/^SS-\d{2}$/)).min(1).max(3),
   days: z.number().positive().max(365).nullable(),
@@ -27,13 +28,16 @@ export function quoteSpinCatalogBase(needsInput: unknown, scopeInput: unknown) {
   if (scope.format !== 'company_workshop') reasons.push('FORMAT_REQUIRES_CONSULTATION');
   if (scope.batches !== 1) reasons.push('BATCH_SCOPE_REQUIRES_CONSULTATION');
   if (scope.additionalNeeds.length) reasons.push('ADDITIONAL_NEEDS');
-  if (needs.participantCount !== null && needs.participantCount > 30) reasons.push('CAPACITY_REQUIRES_CONSULTATION');
   for (const product of modules) {
-    if (product.dailyRateIdr === null) reasons.push('NON_DAILY_PRICING');
-    if (scope.days === null || !product.allowedDays.includes(scope.days)) reasons.push('DURATION_REQUIRES_CONSULTATION');
+    const pricing = signatureDailyPricing(product);
+    if (!pricing) reasons.push('NON_DAILY_PRICING');
+    const days = product.code === 'SS-11' ? [1, 2] : product.allowedDays;
+    if (scope.days === null || !days.includes(scope.days)) reasons.push('DURATION_REQUIRES_CONSULTATION');
   }
   const reviewReasons = [...new Set(reasons)];
-  const baseAmountIdr = reviewReasons.length ? null : modules[0].dailyRateIdr! * scope.days!;
+  const pricing = signatureDailyPricing(modules[0]);
+  const baseAmountIdr = !reviewReasons.length && pricing && needs.participantCount !== null && scope.days !== null
+    ? signatureDayRate(pricing, needs.participantCount) * scope.days : null;
   if (baseAmountIdr !== null && !Number.isSafeInteger(baseAmountIdr)) throw new Error('SPIN_PRICE_INVALID');
   return {
     publicInvestment: {
@@ -41,7 +45,7 @@ export function quoteSpinCatalogBase(needsInput: unknown, scopeInput: unknown) {
       included: ['Trainer/fasilitator', 'Modul pelatihan'],
       taxNote: 'Ketentuan pajak perlu dikonfirmasi.', finalTotalIdr: null,
       scopeNote: reviewReasons.length ? 'Ruang lingkup dan investasi perlu dibahas saat konsultasi.'
-        : 'Investasi dasar untuk satu program dan satu batch sesuai durasi serta kapasitas katalog. Kebutuhan di luar cakupan dibahas saat konsultasi.',
+        : 'Estimasi mengikuti jumlah peserta dan hari pelaksanaan. Kebutuhan di luar cakupan dibahas saat konsultasi.',
     },
     internalCommercial: {
       pricingVersion: SPIN_PRICE_VERSION, catalogVersion: SPIN_CATALOG.catalogVersion,

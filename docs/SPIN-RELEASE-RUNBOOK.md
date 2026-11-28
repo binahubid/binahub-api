@@ -79,7 +79,7 @@ sintetis setelah SQL/deploy siap. Belum dikirim pada saat runbook ditulis.
    browser untuk menguji proses server. Catat ID pengisian secara privat.
 3. Admin → Akuisisi & Penjualan → Klien & proposal → Discovery: harus ada satu
    pengisian dan satu relasi lead/inquiry, bukan duplikat akibat klik ulang.
-4. Periksa laporan cocok dengan kebutuhan, SS-32 tidak dipilih, klaim/komponen
+4. Periksa laporan cocok dengan kebutuhan, SS-32 menyertakan ajakan diskusi bila dipilih, klaim/komponen
    berasal dari katalog, harga/durasi/peserta masuk akal, dan kasus kompleks
    tidak dipaksakan menjadi pelatihan. Periksa pajak tidak menjadi total buatan.
    Validasi ID katalog otomatis bukan bukti bahwa pilihan AI sudah relevan.

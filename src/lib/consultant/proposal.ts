@@ -33,6 +33,7 @@ export type ProposalSnapshot = {
     total: number | null;
     capacity: string;
     priceBasis?: string;
+    pricingSource?: "catalog" | "manual";
     components?: string[];
     outputs?: string[];
   }[];
@@ -54,24 +55,40 @@ export function buildConsultantProposal(
     { ...w.original_answers, ...w.answers },
     true,
   );
+  const manualPrices = new Map(input.manualPrices?.map(({ code, amountIdr }) => [code, amountIdr]));
+  if (input.manualPrices?.some(item => !input.programCodes.includes(item.code)))
+    throw new ConsultantError("CONSULTANT_MANUAL_PRICE_UNEXPECTED", 400);
+
   const programs = input.programCodes.map((code) => {
     const p = SPIN_CATALOG.modules.find((p) => p.code === code);
     if (!p || (p.code === "SS-27" && answers.spiritualOptIn !== "yes"))
       throw new ConsultantError("CONSULTANT_PROGRAM_UNAVAILABLE", 400);
+    const automatic = estimateConsultantProgram(p, input.participants, input.days);
+    const manual = manualPrices.get(code);
+    if (automatic && manual !== undefined)
+      throw new ConsultantError("CONSULTANT_MANUAL_PRICE_UNEXPECTED", 400);
+    if (automatic === null && manual === undefined)
+      throw new ConsultantError("CONSULTANT_PROPOSAL_PRICE_REQUIRED", 422);
     return {
       code: p.code,
       name: p.name,
       objectives: p.objectives.map((o) => o.text),
       capacity: consultantProgramCapacity(p),
       ...catalogContents(p.sourceText),
-      ...estimateConsultantProgram(p, input.participants, input.days),
+      ...(automatic ?? {
+        dailyRate: null,
+        total: manual!,
+        priceBasis: "Tarif program sesuai ruang lingkup pelaksanaan.",
+        pricingSource: "manual" as const,
+      }),
     };
   });
-  const components = input.additionalComponents ?? [];
-  const amounts = [...programs.map(program => program.total), ...components.map(item => item.amountIdr)];
-  const pricedAmounts = amounts.filter(amount => amount !== null);
-  const pricedSubtotal = pricedAmounts.length
-    ? pricedAmounts.reduce((subtotal, amount) => subtotal + amount, 0) : null;
+  const components = (input.additionalComponents ?? []).map(item => {
+    if (item.amountIdr === null) throw new ConsultantError("CONSULTANT_PROPOSAL_PRICE_REQUIRED", 422);
+    return { name: item.name, amountIdr: item.amountIdr };
+  });
+  const total = programs.reduce((sum, program) => sum + program.total, 0)
+    + components.reduce((sum, item) => sum + item.amountIdr, 0);
   const snapshot: ProposalSnapshot = {
     documentKind: "formal",
     company: detail.record.company,
@@ -88,11 +105,11 @@ export function buildConsultantProposal(
     intendedSchedule: typeof answers.dates === "string" ? answers.dates : "",
     nextStep: input.nextStep || "Mohon konfirmasi ruang lingkup dan pilihan jadwal agar kami dapat menyiapkan kesepakatan pelaksanaan.",
     programs,
-    pricedSubtotal,
+    pricedSubtotal: total,
     ...(components.length > 0 ? { additionalComponents: components } : {}),
-    total: pricedAmounts.length === amounts.length ? pricedSubtotal : null,
+    total,
     priceNote:
-      "Estimasi memakai tarif katalog yang berlaku untuk format indoor dan outdoor. Pajak dan biaya di luar rincian ini dikonfirmasi sesuai kebutuhan.",
+      "Total mencakup program dan komponen yang tercantum. Pajak dan perubahan cakupan dibahas bersama.",
   };
   const hash = createHash("sha256")
     .update(

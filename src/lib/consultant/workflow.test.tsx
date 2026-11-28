@@ -158,7 +158,7 @@ describe("Consultant proposal and email workflow", () => {
     expect(unknown.proposalDefaults.days).toBeUndefined();
   });
 
-  it("uses the daily catalog rate × days, keeps indoor/outdoor equal, and retains unknown prices", () => {
+  it("applies the per-participant surcharge and keeps indoor and outdoor prices equal", () => {
     const { detail, input } = sample();
     const outdoor = buildConsultantProposal(detail, input, member.display_name);
     expect(outdoor.snapshot.total).toBe(daily.dailyRateIdr! * 2);
@@ -172,17 +172,10 @@ describe("Consultant proposal and email workflow", () => {
     expect(
       buildConsultantProposal(
         detail,
-        { ...input, programCodes: [nondaily.code] },
-        member.display_name,
-      ).snapshot.total,
-    ).toBeNull();
-    expect(
-      buildConsultantProposal(
-        detail,
         { ...input, participants: 31 },
         member.display_name,
       ).snapshot.total,
-    ).toBe(daily.dailyRateIdr! * 2 * 2);
+    ).toBe((daily.dailyRateIdr! + 1_000_000) * 2);
     expect(
       buildConsultantProposal(detail, input, member.display_name).hash,
     ).toBe(outdoor.hash);
@@ -197,34 +190,44 @@ describe("Consultant proposal and email workflow", () => {
   });
 
   it.each([
-    [30, 1, 25000000, "Essential"],
-    [31, 1, 25450000, "Essential"],
-    [32, 1, 25900000, "Essential"],
-    [32, 2, 51800000, "Essential"],
-    [40, 1, 29500000, "Essential"],
-    [40, 2, 59000000, "Essential"],
-    [41, 1, 50000000, "Signature"],
-    [50, 1, 50000000, "Signature"],
-    [50, 2, 100000000, "Signature"],
-    [80, 1, 50000000, "Signature"],
-    [81, 1, 75000000, "Enterprise"],
-    [150, 1, 75000000, "Enterprise"],
-    [151, 1, 75450000, "Enterprise"],
-    [170, 2, 168000000, "Enterprise"],
-    [10, 0.5, 25000000, "Essential"],
-  ])("prices Team Building for %i people and %i days as Rp%i", (participants, days, total, tier) => {
+    [30, 1, 25_000_000],
+    [31, 1, 25_700_000],
+    [32, 1, 26_400_000],
+    [32, 2, 52_800_000],
+    [40, 1, 32_000_000],
+    [40, 2, 64_000_000],
+    [41, 1, 32_700_000],
+    [50, 1, 39_000_000],
+    [50, 2, 78_000_000],
+    [80, 1, 60_000_000],
+    [81, 1, 60_700_000],
+    [150, 1, 109_000_000],
+    [151, 1, 109_700_000],
+    [170, 2, 246_000_000],
+    [10, 0.5, 25_000_000],
+  ])("prices Team Building for %i people and %f days as Rp%i", (participants, days, total) => {
     const { detail, input } = sample();
     const { snapshot } = buildConsultantProposal(detail, { ...input, participants, days, programCodes: ["SS-11"] }, member.display_name);
     expect(snapshot.total).toBe(total);
-    expect(snapshot.programs[0].priceBasis).toContain(tier);
+    expect(snapshot.programs[0].priceBasis).not.toMatch(/Essential|Signature|Enterprise/);
   });
 
-  it("keeps a known subtotal when one program needs a custom quote", () => {
+  it("blocks incomplete drafts and includes a manual program price once after it is entered", () => {
     const { detail, input } = sample();
+    const mixed = { ...input, days: 2, participants: 50, programCodes: ["SS-11", "SS-32"] };
+    expect(() => buildConsultantProposal(detail, mixed, member.display_name)).toThrow("CONSULTANT_PROPOSAL_PRICE_REQUIRED");
     const { snapshot } = buildConsultantProposal(detail, {
-      ...input, days: 1, participants: 50, programCodes: ["SS-11", nondaily.code],
+      ...mixed, manualPrices: [{ code: "SS-32", amountIdr: 35_000_000 }],
     }, member.display_name);
-    expect(snapshot).toMatchObject({ total: null, pricedSubtotal: 50000000, documentKind: "formal" });
+    expect(snapshot).toMatchObject({ total: 113_000_000, documentKind: "formal" });
+    expect(snapshot.programs[1]).toMatchObject({ code: "SS-32", total: 35_000_000, pricingSource: "manual" });
+    expect(requiresProposalPriceRefresh(snapshot)).toBe(false);
+    expect(() => buildConsultantProposal(detail, {
+      ...mixed, manualPrices: [{ code: "SS-11", amountIdr: 35_000_000 }],
+    }, member.display_name)).toThrow("CONSULTANT_MANUAL_PRICE_UNEXPECTED");
+    expect(() => buildConsultantProposal(detail, {
+      ...mixed, manualPrices: [{ code: "SS-32", amountIdr: 0 }],
+    }, member.display_name)).toThrow();
   });
 
   it("flags a draft when its stored Team Building estimate differs from the approved rule", () => {
@@ -232,8 +235,8 @@ describe("Consultant proposal and email workflow", () => {
     const { snapshot } = buildConsultantProposal(detail, {
       ...input, participants: 32, days: 1, programCodes: ["SS-11"],
     }, member.display_name);
-    expect(snapshot.programs[0].priceBasis).toContain("2 peserta × Rp450.000");
-    expect(snapshot.programs[0].capacity).toContain("Signature: 41–80");
+    expect(snapshot.programs[0].priceBasis).toContain("2 peserta × Rp700.000");
+    expect(snapshot.programs[0].capacity).toContain("hingga 30 peserta");
     expect(requiresProposalPriceRefresh(snapshot)).toBe(false);
     expect(requiresProposalPriceRefresh({
       ...snapshot, programs: [{ code: "SS-11", total: 50000000 }], total: 50000000,
@@ -328,20 +331,25 @@ describe("Consultant proposal and email workflow", () => {
     expect(snapshot).toMatchObject({ total: 53_500_000, pricedSubtotal: 53_500_000 });
   });
 
-  it("renders a PDF for a proposal with several programs and unpriced items", async () => {
+  it("blocks unpriced add-ons and renders a PDF for a complete proposal with mixed prices", async () => {
     const { detail, input } = sample();
+    expect(() => buildConsultantProposal(detail, {
+      ...input, additionalComponents: [{ name: "Akomodasi fasilitator", amountIdr: null }],
+    }, member.display_name)).toThrow("CONSULTANT_PROPOSAL_PRICE_REQUIRED");
     const { snapshot } = buildConsultantProposal(
       detail,
-      { ...input, programCodes: [daily.code, nondaily.code], additionalComponents: [
+      { ...input, programCodes: [daily.code, nondaily.code], manualPrices: [
+        { code: nondaily.code, amountIdr: 42_000_000 },
+      ], additionalComponents: [
         { name: "Sewa ruang pelatihan", amountIdr: 3500000 },
-        { name: "Akomodasi fasilitator", amountIdr: null },
+        { name: "Akomodasi fasilitator", amountIdr: 1_500_000 },
       ] },
       member.display_name,
     );
-    expect(snapshot).toMatchObject({ total: null, pricedSubtotal: 53_500_000 });
+    expect(snapshot).toMatchObject({ total: 97_000_000, pricedSubtotal: 97_000_000 });
     expect(snapshot.additionalComponents).toEqual([
       { name: "Sewa ruang pelatihan", amountIdr: 3500000 },
-      { name: "Akomodasi fasilitator", amountIdr: null },
+      { name: "Akomodasi fasilitator", amountIdr: 1_500_000 },
     ]);
     const proposalId = "c2a49fb8-5f55-45a8-b8c7-826f99f9aed2";
     const code = consultantProposalCode(snapshot.issuedAt, proposalId);

@@ -54,4 +54,28 @@ describe("public proposal templates", () => {
       }
     }
   }, 60_000);
+
+  it.each(["id", "en"] as const)("shows per-program estimates and a discussion link for custom programs in %s", async locale => {
+    const recommendation: ProposalResult = {
+      documentKind: "preliminary",
+      consultationUrl: "https://cal.com/binahub/konsultasi",
+      selectedSolutions: [
+        { code: "SS-12", name: "Trust & Psychological Safety", focus: "Kolaborasi tim", estimateIdr: 25_000_000, estimateDays: 1 },
+        { code: "SS-32", name: "Individual Development Planning", focus: "Perencanaan belajar", benefits: ["Rencana pengembangan 90 hari"], estimateIdr: null },
+      ],
+    };
+    const title = locale === "en" ? "Solution Proposal" : "Proposal Solusi";
+    const cta = locale === "en" ? "Discuss this program" : "Diskusikan program ini";
+    const html = renderToStaticMarkup(<SignatureProposalReport formData={form} proposal={recommendation} locale={locale} issuedAt="2026-11-28T03:00:00Z" />);
+    await sendProposalEmail(form.email, form.name, form.company, recommendation, "test-id", locale);
+    const payload = sent.mock.calls.at(-1)?.[0] as { subject: string; html: string };
+    expect(payload.subject).toContain(title);
+    for (const output of [html, payload.html]) {
+      expect(output).toContain(cta);
+      expect(output).toContain("Rencana pengembangan 90 hari");
+      expect(output).toMatch(/25[,.]000[,.]000/);
+      expect(output).not.toMatch(/Total sebelum pajak|Total before tax|Rp\s*0\b/);
+    }
+    expect((await generateProposalPDFBuffer(form, recommendation, locale, "2026-11-28T03:00:00Z")).subarray(0, 4).toString()).toBe("%PDF");
+  }, 30_000);
 });

@@ -21,3 +21,11 @@ export function isAutoSendableStandardModule(module: StandardCatalogCandidate) {
     && Boolean(module.duration_label?.trim())
     && Number(module.base_price) > 0;
 }
+
+export function isPublishedSignatureModule(module: StandardCatalogCandidate) {
+  return ["signature-2026-ceo-v1", "signature-2026-ss32-public"].includes(module.catalog_version)
+    && /^SS-(0[1-9]|[12]\d|3[0-2])$/.test(module.module_code)
+    && Boolean(module.standard_scope?.trim())
+    && Boolean(module.deliverables?.trim())
+    && Boolean(module.duration_label?.trim());
+}

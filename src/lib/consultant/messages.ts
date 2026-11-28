@@ -156,7 +156,7 @@ export async function processConsultantMessage(
       m.proposal_id
         ? db
             .from("consultant_proposals")
-            .select("snapshot")
+            .select("snapshot,status")
             .eq("id", m.proposal_id)
             .eq("lead_id", m.lead_id)
             .single()
@@ -176,6 +176,10 @@ export async function processConsultantMessage(
       throw new Error("CONTEXT_CHANGED");
     }
     const snapshot = proposal.data?.snapshot as ProposalSnapshot | undefined;
+    if (snapshot && proposal.data?.status !== "sent" && requiresProposalPriceRefresh(snapshot)) {
+      status = "cancelled";
+      throw new Error("CONSULTANT_PROPOSAL_PRICE_REFRESH");
+    }
     const attachments = m.proposal_id && snapshot
       ? [{
         filename: consultantProposalFilename(snapshot.issuedAt, m.proposal_id),
@@ -223,7 +227,9 @@ export async function processConsultantMessage(
     reason = provider ? null : "NO_PROVIDER_ACKNOWLEDGEMENT";
   } catch (e) {
     reason =
-      e instanceof OutreachSuppressedError
+      e instanceof Error && e.message === "CONSULTANT_PROPOSAL_PRICE_REFRESH"
+        ? e.message
+        : e instanceof OutreachSuppressedError
         ? "RECIPIENT_SUPPRESSED"
         : sending
           ? "DELIVERY_NOT_CONFIRMED"

@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { AssessmentData } from './validations';
-import { AssessmentResult } from './pdf-service';
+import type { AssessmentResult, ProposalResult } from './pdf-service';
 import type { Locale } from '@/i18n/config';
 import { createProposalToken, createProposalViewToken } from '@/lib/secure-token';
 import { resolvePublicAppUrl } from '@/lib/public-app-url';
@@ -513,15 +513,7 @@ export async function sendProposalEmail(
   to: string,
   name: string,
   company: string,
-  proposal: {
-    subject?: string;
-    opening?: string;
-    proposedProgram?: string;
-    scope?: string[];
-    timeline?: string;
-    investmentNote?: string;
-    nextStep?: string;
-  },
+  proposal: ProposalResult,
   assessmentId: string,
   locale: Locale = 'id',
   idempotencyKey?: string,
@@ -534,8 +526,9 @@ export async function sendProposalEmail(
   const isEnglish = locale === 'en';
   const navy = '#0B2C6B';
   const gold = '#D9A441';
-  const isPreliminary = (proposal as { documentKind?: string }).documentKind === 'preliminary';
-  const isStandard = !isPreliminary && (proposal as { proposalType?: string }).proposalType === 'standard';
+  const discussion = proposal.consultationUrl;
+  const isPreliminary = !discussion && proposal.documentKind === 'preliminary';
+  const isStandard = proposal.documentKind === 'commercial' && proposal.proposalType === 'standard';
   const subject = safeHeader(isEnglish
     ? `${isPreliminary ? 'Preliminary Recommendation' : 'Solution Proposal'} for ${company}`
     : `${isPreliminary ? 'Preliminary Recommendation' : 'Proposal Solusi BinaHub'} untuk ${company}`);
@@ -548,13 +541,27 @@ export async function sendProposalEmail(
   const safeInvestment = escapeHtml(proposal.investmentNote || (isEnglish
     ? 'Please review the proposal page for the initial investment estimate.'
     : 'Lihat halaman proposal untuk estimasi investasi awal.'));
-  const areas = (proposal.scope || []).slice(0, 3).map((item) => escapeHtml(item));
-  const consultationUrl = escapeHtml(getConsultationUrl());
+  const areas = (proposal.scope || []).slice(0, 3).map(item => escapeHtml(item));
+  const consultationUrl = escapeHtml(discussion && /^(?:https:\/\/(?:app\.)?cal\.com\/|mailto:admin@binahub\.id(?:\?|$))/.test(discussion)
+    ? discussion : getConsultationUrl());
+  const estimateFormat = new Intl.NumberFormat(isEnglish ? 'en-US' : 'id-ID', {
+    style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
+  });
+  const recommendedPrograms = discussion ? (proposal.selectedSolutions || []).map(program => {
+    const title = escapeHtml(isEnglish ? program.nameEn || program.name : program.name);
+    const benefit = escapeHtml(program.benefits?.[0] || (isEnglish ? program.focusEn || program.focus : program.focus));
+    const estimate = program.estimateIdr != null
+      ? `${isEnglish ? 'Estimated investment' : 'Estimasi investasi'} · ${escapeHtml(estimateFormat.format(program.estimateIdr))}`
+      : `<a href="${consultationUrl}" style="color:${navy};font-weight:600;">${isEnglish ? 'Discuss this program' : 'Diskusikan program ini'}</a>`;
+    return `<li style="margin-bottom:12px;"><strong>${title}</strong>${benefit ? `<br>${benefit}` : ''}<br>${estimate}</li>`;
+  }) : [];
   const copy = isEnglish
     ? {
         eyebrow: isPreliminary ? 'BinaHub Preliminary Recommendation' : 'BinaHub Solution Proposal',
         greeting: `Dear <strong>${safeName}</strong>,`,
-        intro: isPreliminary
+        intro: discussion
+          ? `Based on your diagnostic results for <strong>${safeCompany}</strong>, we recommend the programs below. Explore the benefits and discuss your preferred scope with us.`
+          : isPreliminary
           ? `Thank you for requesting a <strong>Preliminary Recommendation</strong> based on your Team/Organization Effectiveness Diagnostic result. Your personalized proposal is ready to read online.`
           : isStandard
             ? `Your proposal for <strong>${safeCompany}</strong> is ready. It brings together a recommended program, its scope, and the investment based on your diagnostic results.`
@@ -567,13 +574,15 @@ export async function sendProposalEmail(
         proposalCta: 'Read your proposal',
         question: 'Have a quick question? Simply reply to this email and we will be happy to help.',
         schedule: 'Prefer a deeper discussion?',
-        cta: 'Choose a convenient discussion time',
+        cta: consultationUrl.startsWith('mailto:') ? 'Discuss with BinaHub' : 'Choose a convenient discussion time',
         closing: 'Warm regards,',
       }
     : {
         eyebrow: isPreliminary ? 'Preliminary Recommendation BinaHub' : 'Proposal Solusi BinaHub',
         greeting: `Yth. Bapak/Ibu <strong>${safeName}</strong>,`,
-        intro: isPreliminary
+        intro: discussion
+          ? `Dari hasil diagnosis <strong>${safeCompany}</strong>, kami merekomendasikan program berikut. Lihat manfaatnya dan diskusikan cakupan yang sesuai untuk tim Bapak/Ibu.`
+          : isPreliminary
           ? `Terima kasih telah meminta <strong>Preliminary Recommendation</strong> berdasarkan hasil Diagnosa Efektivitas Tim/Organisasi Anda. Proposal khusus untuk organisasi Bapak/Ibu kini dapat dibaca secara daring.`
           : isStandard
             ? `Proposal untuk <strong>${safeCompany}</strong> sudah siap. Di dalamnya terdapat rekomendasi program, ruang lingkup, dan investasi yang disusun berdasarkan hasil diagnosa Anda.`
@@ -586,7 +595,7 @@ export async function sendProposalEmail(
         proposalCta: 'Buka proposal Anda',
         question: 'Ada pertanyaan singkat? Cukup balas email ini dan kami akan dengan senang hati membantu.',
         schedule: 'Ingin berdiskusi lebih mendalam?',
-        cta: 'Pilih waktu diskusi yang nyaman',
+        cta: consultationUrl.startsWith('mailto:') ? 'Diskusikan dengan BinaHub' : 'Pilih waktu diskusi yang nyaman',
         closing: 'Salam hangat,',
       };
 
@@ -606,19 +615,19 @@ export async function sendProposalEmail(
       <p style="margin:0 0 26px;"><a href="${escapeHtml(proposalUrl)}" style="display:inline-block;background:${navy};color:#FFFFFF;text-decoration:none;padding:14px 24px;border-radius:6px;font-weight:700;font-size:14px;">${copy.proposalCta} →</a></p>
 
       <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:22px;margin-bottom:22px;">
-        <p style="margin:0 0 8px;color:${navy};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">${copy.areaTitle}</p>
+        <p style="margin:0 0 8px;color:${navy};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">${discussion ? (isEnglish ? 'Recommended programs' : 'Program yang direkomendasikan') : copy.areaTitle}</p>
         <ul style="margin:0;padding-left:20px;line-height:1.7;font-size:14px;">
-          ${(areas.length ? areas : [safeProgram]).map((area) => `<li>${area}</li>`).join('')}
+          ${discussion ? recommendedPrograms.join('') : (areas.length ? areas : [safeProgram]).map(area => `<li>${area}</li>`).join('')}
         </ul>
       </div>
 
-      <p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.approachTitle}</p>
+      ${discussion ? '' : `<p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.approachTitle}</p>
       <p style="margin:0 0 20px;line-height:1.7;font-size:15px;">${safeApproach}</p>
       <p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.formatTitle}</p>
       <p style="margin:0 0 20px;line-height:1.7;font-size:15px;">${safeProgram}</p>
       <p style="margin:0 0 6px;color:${navy};font-size:13px;font-weight:700;">${copy.investmentTitle}</p>
       <p style="margin:0 0 22px;line-height:1.7;font-size:15px;font-weight:600;">${safeInvestment}</p>
-      <p style="margin:0 0 28px;line-height:1.7;font-size:14px;color:#64748B;">${copy.attachment}</p>
+      <p style="margin:0 0 28px;line-height:1.7;font-size:14px;color:#64748B;">${copy.attachment}</p>`}
 
       <div style="border-top:1px solid #E2E8F0;padding-top:24px;text-align:center;">
         <p style="margin:0 0 10px;color:#475569;font-size:14px;line-height:1.6;">${copy.question}</p>

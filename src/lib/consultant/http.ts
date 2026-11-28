@@ -124,7 +124,9 @@ export function consultantFailure(error: unknown) {
       "Lengkapi dan selesaikan kebutuhan sebelum menyusun proposal.",
     CONSULTANT_STALE_PROPOSAL:
       "Kebutuhan telah berubah. Buat revisi proposal sebelum mengirim.",
-    CONSULTANT_PROPOSAL_PRICE_REFRESH: "Buat draf baru agar estimasi mengikuti tarif katalog.",
+    CONSULTANT_PROPOSAL_PRICE_REFRESH: "Buat draf baru dengan nominal lengkap dan tarif terbaru.",
+    CONSULTANT_PROPOSAL_PRICE_REQUIRED: "Isi harga semua program dan komponen yang dipilih sebelum membuat draf.",
+    CONSULTANT_MANUAL_PRICE_UNEXPECTED: "Perbarui pilihan program. Harga manual hanya berlaku untuk program yang perlu dihitung manual.",
     CONSULTANT_PROPOSAL_REQUIRED:
       "Siapkan proposal yang sesuai sebelum melanjutkan.",
     CONSULTANT_PROGRAM_UNAVAILABLE:

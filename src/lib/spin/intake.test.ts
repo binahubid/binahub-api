@@ -65,7 +65,7 @@ describe('SPIN public question and report contract',()=>{
  const result=buildSpinReport({id:'11111111-1111-4111-8111-111111111111',submittedAt:'2026-10-22T03:00:00Z',company:'Synthetic Company',answers:a,summary:spinSummary(SPIN_DEFINITION,a),status:'confirmed',selection});
  expect(result.publicReport.solutions).toEqual([]);
  expect(JSON.stringify(result.publicReport)).not.toMatch(/fitType|leadTemperature|pricingVersion|prepared_not_active|validity|expire|INTERNAL|{{/);
- expect(result.publicReport.taxNote).toContain('dikonfirmasi');
+ expect(result.publicReport.taxNote).toBe('');
  });
  it('generates a PDF from the same strict public snapshot (not internal records)',async()=>{
  const a=completeAnswers(),selection=buildSpinRecommendationResult(spinNeeds(a,'confirmed'),{matches:[{solutionCode:'SS-29',evidenceLinks:[{evidenceId:'Q05',objectiveId:'SS-29.LO01'},{evidenceId:'Q13',objectiveId:'SS-29.LO01'}]}]});
@@ -76,6 +76,23 @@ describe('SPIN public question and report contract',()=>{
  if(process.env.SPIN_RENDER_SAMPLE==='true'){mkdirSync('.codex_tmp',{recursive:true});writeFileSync('.codex_tmp/spin-sample.pdf',buffer);}
  },15000);
  it('separates processing and marketing consent, with indefinite retention notice',()=>{expect(SPIN_NOTICE_VERSION).toContain('indefinite');});
+ it('keeps the benefits of custom programs alongside estimates for standard programs', async () => {
+  const answers = { ...completeAnswers(), participantCount: 35 };
+  const matches = ['SS-29', 'SS-32'].map(solutionCode => ({
+   solutionCode,
+   evidenceLinks: ['Q05', 'Q13'].map(evidenceId => ({ evidenceId, objectiveId: solutionCode + '.LO01' })),
+  }));
+  const selection = buildSpinRecommendationResult(spinNeeds(answers, 'confirmed'), { matches });
+  const { publicReport: report } = buildSpinReport({
+   id: '11111111-1111-4111-8111-111111111111', submittedAt: '2026-11-28T03:00:00Z',
+   company: 'Synthetic', answers, summary: spinSummary(SPIN_DEFINITION, answers), status: 'confirmed',
+   selection, bookingUrl: 'https://cal.com/binahub/konsultasi',
+  });
+  expect(report.investments.map(item => item.baseAmountIdr)).toEqual([30_000_000, null]);
+  expect(report.solutions[1]).toMatchObject({ code: 'SS-32', outputs: expect.arrayContaining([expect.stringContaining('IDP')]) });
+  expect(report.confirmations.join(' ')).not.toContain('Investasi Self-Development');
+  expect((await renderSpinPDF(report)).subarray(0, 4).toString()).toBe('%PDF');
+ }, 15_000);
  it('shows verified program options for system-barrier cases without promoting them to a priced offer',async()=>{
  const a={...completeAnswers(),barriers:['B1','B2','B3'],approaches:['A7']},needs=spinNeeds(a,'confirmed');
  const matches=['SS-06','SS-13','SS-15'].map(solutionCode=>({solutionCode,evidenceLinks:[{evidenceId:'Q05',objectiveId:solutionCode+'.LO01'},{evidenceId:'Q13',objectiveId:solutionCode+'.LO01'}]}));

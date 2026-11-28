@@ -37,7 +37,17 @@ export interface ProposalResult {
   proposalType?: 'standard' | 'custom';
   learningObjectives?: string[];
   deliverables?: string[];
-  selectedSolutions?: Array<{ code: string; name: string; nameEn?: string; focus: string; focusEn?: string }>;
+  selectedSolutions?: Array<{
+    code: string;
+    name: string;
+    nameEn?: string;
+    focus: string;
+    focusEn?: string;
+    benefits?: string[];
+    estimateIdr?: number | null;
+    estimateDays?: number;
+  }>;
+  consultationUrl?: string;
   subject?: string;
   opening?: string;
   proposedProgram?: string;
