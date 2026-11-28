@@ -55,6 +55,7 @@ export const AssessmentSchema = z.object({
   nextStepIntent: z.enum(['explore', 'result_review', 'consultation', 'proposal']).optional(),
   businessConsequence: z.string().trim().max(4000).optional(),
   answers: AssessmentAnswersSchema,
+  referralConsentCode: z.string().regex(/^BH-[A-F0-9]{10}$/).optional(),
   source: z.literal('insight_assessment').optional().default('insight_assessment'),
   journeyId: z.string().uuid().optional(),
   attribution: AttributionSchema.optional().default({}),

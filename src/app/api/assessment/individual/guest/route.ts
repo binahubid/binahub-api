@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getCorsHeaders } from '@/lib/cors';
+import { referralAttribution, referralRpc } from '@/lib/referrals';
 import { peFailure, peJson, readPEBody } from '@/lib/individual-assessment/http';
 import { getPEDeliveryDefinition, PEDeliveryError } from '@/lib/individual-assessment/delivery';
 import { pePilotRPC } from '@/lib/individual-assessment/pilot';
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
     const limited = await enforceRateLimit(req, 'pe-guest-start', 10, 3600); if (limited) return limited;
     if (!peGuestDeliveryConfigured()) throw new PEDeliveryError('PE_GUEST_SETUP_REQUIRED');
     const input = PEGuestStartSchema.parse(await readPEBody(req)), db = createServerSupabase();
+    const referral = await referralAttribution(req, input.referralConsentCode);
     await getPEDeliveryDefinition(db);
     const start = input.whatsapp ? 'pe_start_guest_with_whatsapp' : 'pe_start_guest';
     const envelope = PEGuestEnvelopeSchema.parse(await pePilotRPC(db, start, {
@@ -47,6 +49,11 @@ export async function POST(req: NextRequest) {
     }));
     await pePilotRPC(db,'pe_record_acquisition_context',{p_id:input.id,p_hash:hashPEKey(input.draftKey),
       p_context:{...input.attribution,...(input.journeyId?{journeyId:input.journeyId}:{})}});
+    if (referral.visitId) {
+      await referralRpc('referral_prepare_individual', {
+        p_id: input.id, p_hash: hashPEKey(input.draftKey), p_visit: referral.visitId, p_share: referral.share,
+      });
+    }
     // No email before the participant submits.
     return peJson({ success: true, ...peGuestDTO(envelope) }, 201);
   } catch (error) { return peFailure(error); }

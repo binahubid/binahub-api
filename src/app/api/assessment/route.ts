@@ -4,6 +4,7 @@ import { createServerSupabase } from '@/lib/supabase';
 import { processAssessmentJob } from '@/lib/assessment-worker';
 import { AssessmentSchema } from '@/lib/validations';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { referralAttribution } from '@/lib/referrals';
 import { requireTransformationActor } from '@/lib/transformation/auth';
 import { isProgramModuleEnabled } from '@/lib/program-access';
 import { classifyInboundAttribution, compactInboundAttribution } from '@/lib/inbound-journey';
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const body = validationResult.data;
+    const { referralConsentCode, ...body } = validationResult.data;
     const supabase = createServerSupabase();
     const programContext = await getOptionalProgramContext(req, supabase);
     const submissionKeyHash = idempotencyKey
@@ -114,6 +115,8 @@ export async function POST(req: NextRequest) {
         }, { status: existing.result_email_sent_at ? 200 : 202 });
       }
     }
+
+    const referral = programContext ? null : await referralAttribution(req, referralConsentCode);
 
     // 2. Upsert lead
     const leadPayload = {
@@ -152,6 +155,7 @@ export async function POST(req: NextRequest) {
       lead_id: lead.id, form_data: body, submission_key_hash: submissionKeyHash,
       program_id: programContext?.programId || null, participant_id: programContext?.participantId || null,
       attribution: body.attribution,
+      ...(referral?.visitId ? { referral_visit_id: referral.visitId, referral_contact_consent: referral.share } : {}),
     });
 
     const { data: assessment, error: assessmentError } = await assessmentQuery.select().single();

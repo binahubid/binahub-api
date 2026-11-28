@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase";
 import { corsHeadersFromRequest } from "@/lib/cors";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { referralAttribution, referralCode } from "@/lib/referrals";
 import { AttributionSchema } from "@/lib/validations";
 import { classifyInboundAttribution, compactInboundAttribution } from "@/lib/inbound-journey";
 
@@ -24,6 +25,7 @@ const ContactInquirySchema = z.object({
   message: z.string().trim().min(20, "Pesan minimal terdiri dari 20 karakter").max(5000),
   moduleCodes: z.array(z.string().trim().regex(/^[A-Z0-9][A-Z0-9_-]{1,63}$/)).max(20).optional().default([]),
   journeyId: z.string().uuid().optional(),
+  referralConsentCode: referralCode.optional(),
   attribution: AttributionSchema.optional().default({}),
   locale: z.enum(["id", "en"]).optional().default("id"),
 }).strict();
@@ -75,6 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, company, role, email, whatsapp, message, attribution, moduleCodes, journeyId } = validationResult.data;
+    const referral = await referralAttribution(req, validationResult.data.referralConsentCode);
     const supabase = createServerSupabase();
 
     let moduleRequestData: Record<string, unknown> = {};
@@ -173,6 +176,7 @@ export async function POST(req: NextRequest) {
       source: moduleCodes.length > 0 ? "module_catalog" : "contact_form",
       module_request_data: moduleRequestData,
       status: "Baru",
+      ...(referral.visitId ? { referral_visit_id: referral.visitId, referral_contact_consent: referral.share } : {}),
     });
 
     if (inquiryError) {

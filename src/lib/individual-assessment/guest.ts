@@ -23,6 +23,7 @@ export const PEGuestStartSchema = PEStartSchema.extend({
   attribution: z.object(Object.fromEntries(['utmSource','utmMedium','utmCampaign','utmContent','utmTerm','gclid','fbclid','msclkid'].map(key=>[key,z.string().trim().max(500).optional()]))).strict()
     .transform(values=>Object.fromEntries(Object.entries(values).filter(([,value])=>value&&!/@|[\r\n]|https?:\/\/|bearer\s|(?:access_token|api_key|secret)=/i.test(value)))).default({}),
   journeyId:z.uuid().optional(),
+  referralConsentCode: z.string().regex(/^BH-[A-F0-9]{10}$/).optional(),
 }).strict();
 export const hashPEKey = (token: string) => createHash('sha256').update(token).digest('hex');
 export const newPEKey = () => randomBytes(32).toString('hex');
