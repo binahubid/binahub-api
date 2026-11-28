@@ -10,7 +10,11 @@ const filters = {
 };
 const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list"), associateId: z.uuid(), ...filters }).strict(),
-  z.object({ action: z.literal("settings"), associateId: z.uuid(), email: z.email(), operation: z.enum(["load", "enable", "disable", "rotate"]), expectedCode: referralCode.optional() }).strict(),
+  z.object({ action: z.literal("settings"), associateId: z.uuid(), email: z.email(), operation: z.literal("load") }).strict(),
+  z.object({
+    action: z.literal("admin_settings"), adminId: z.uuid(), associateId: z.uuid(), email: z.email(),
+    operation: z.enum(["enable", "disable", "rotate"]), expectedCode: referralCode, confirmationCode: referralCode,
+  }).strict().refine((value) => value.confirmationCode === value.expectedCode),
   z.object({ action: z.literal("follow_up"), associateId: z.uuid(), caseId: z.uuid(), requestId: z.uuid(), note: z.string().trim().max(1000), revisitOn: z.iso.date().nullable(), help: z.boolean() }).strict(),
   z.object({ action: z.literal("admin_list"), adminId: z.uuid(), ownerId: z.uuid().optional(), ...filters }).strict(),
   z.object({ action: z.literal("admin_review"), adminId: z.uuid(), caseId: z.uuid(), status: z.enum(["verified", "rejected"]), code: referralCode.optional(), reason: z.string().trim().min(3).max(500), expectedAt: z.iso.datetime({ offset: true }) }).strict(),
@@ -49,10 +53,11 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ success: true, data }, { headers });
       }
-      case "settings": {
+      case "settings":
+      case "admin_settings": {
         const data = await referralRpc("referral_code_settings", {
           p_associate: input.associateId, p_email: input.email,
-          p_action: input.operation, p_expected_code: input.expectedCode || null,
+          p_action: input.operation, p_expected_code: input.action === "admin_settings" ? input.expectedCode : null,
         });
         return NextResponse.json({ success: true, data }, { headers });
       }

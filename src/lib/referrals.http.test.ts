@@ -55,6 +55,7 @@ beforeEach(() => {
       case 'referral_register_visit': return { data: args.p_code === first.code ? first : second };
       case 'referral_issue_booking_token': return { data: bookingToken };
       case 'referral_dashboard': return { data: { total: 0 } };
+      case 'referral_code_settings': return { data: { code: first.code, enabled: true } };
       case 'referral_review': return { data: null };
       default: throw Error('Unexpected referral RPC: ' + name);
     }
@@ -119,5 +120,22 @@ describe('Referral API boundaries', () => {
     const response = await command(signed(payload));
     expect(response.status).toBe(200);
     expect(rpc).toHaveBeenCalledWith('referral_dashboard', expect.objectContaining({ p_associate: a, p_admin: false, p_offset: 20, p_source: 'inquiry' }));
+  });
+
+  it('allows an Associate to load a code and reserves changes for confirmed admin commands', async () => {
+    const associate = { action: 'settings', associateId: a, email: 'associate@example.invalid' };
+    const admin = {
+      ...associate, action: 'admin_settings', adminId: b, operation: 'disable',
+      expectedCode: first.code, confirmationCode: first.code,
+    };
+    expect((await command(signed({ ...associate, operation: 'disable', expectedCode: first.code }))).status).toBe(400);
+    expect((await command(signed({ ...admin, confirmationCode: second.code }))).status).toBe(400);
+    expect((await command(signed(admin, 'invalid'))).status).toBe(401);
+    expect(rpc).not.toHaveBeenCalled();
+    expect((await command(signed({ ...associate, operation: 'load' }))).status).toBe(200);
+    expect((await command(signed(admin))).status).toBe(200);
+    expect(rpc).toHaveBeenNthCalledWith(2, 'referral_code_settings', {
+      p_associate: a, p_email: associate.email, p_action: 'disable', p_expected_code: first.code,
+    });
   });
 });
