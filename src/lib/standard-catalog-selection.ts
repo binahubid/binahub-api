@@ -6,8 +6,7 @@ export type CatalogSelectionInput = {
   candidates: Array<{ code: string; name: string; summary: string; scope: string }>;
 };
 
-// Conservative, bilingual topic matching. Candidates must already have passed
-// the official catalog/price gate. No generic default module or made-up price.
+// Match published programs against explicit topics in the diagnostic.
 const topics = [
   { need: /konflik|conflict|kompak|cohesion|kepercayaan|\btrust\b|psychological safety|keamanan psikologis/, solution: /konflik|conflict|kepercayaan|\btrust\b|psychological safety|keamanan psikologis|sinergi tim|team synergy/ },
   { need: /komunikasi|communication|presentasi|presentation|public speaking/, solution: /komunikasi|communication|presentasi|presentation/ },
@@ -20,6 +19,8 @@ const topics = [
   { need: /pemecahan masalah|problem.solving|pengambilan keputusan|decision.making|inovasi|innovation/, solution: /pemecahan masalah|problem.solving|pengambilan keputusan|decision.making|inovasi|innovation/ },
   { need: /kecerdasan buatan|artificial intelligence|\bai\b/, solution: /berdaya ai|ai.empowered|artificial intelligence/ },
   { need: /fasilitator|facilitat|pelatih internal|internal trainer|train.the.trainer/, solution: /fasilitator|facilitat|pelatih internal|internal trainer/ },
+  { need: /aktivasi budaya|culture activation|internalisasi nilai|living the values/, solution: /aktivasi budaya|culture activation/ },
+  { need: /individual development plan|rencana pengembangan individu|\bidp\b/, solution: /individual development plan|rencana pengembangan individu|\bidp\b/ },
 ];
 
 export function selectCatalogFallback(input: CatalogSelectionInput) {

@@ -146,6 +146,22 @@ describe("automatic standard proposal workflow", () => {
     });
   });
 
+  it("can match a published manual program from an explicit need when AI is unavailable", async () => {
+    state.modules = [{
+      ...standard, module_code: "SS-32", id: "module-32", name: "Self-Development & Individual Development Planning",
+      catalog_version: "signature-2026-ss32-public", pricing_unit: "custom", base_price: 0,
+      metadata: { commercialModel: "custom_scope" },
+    }];
+    state.row.form_data = {
+      ...assessment().form_data, target: "Setiap peserta menyusun rencana pengembangan individu 90 hari.",
+    };
+    mocks.select.mockRejectedValue(new Error("AI offline"));
+    expect(await createAndSendAutomaticPreliminary("assessment-1")).toMatchObject({ outcome: "sent" });
+    expect(mocks.send.mock.calls[0][3]).toMatchObject({
+      selectedSolutions: [expect.objectContaining({ code: "SS-32", estimateIdr: null })],
+    });
+  });
+
   it("records DB failure instead of leaving an invisible processing state", async () => {
     state.catalogError = true;
     await expect(createAndSendAutomaticPreliminary("assessment-1")).rejects.toThrow("catalog offline");
